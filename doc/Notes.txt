@@ -1,0 +1,20 @@
+
+Execution:
+
+1 - Create a wasp instance:
+
+    struct waspc {
+        pointer to input area
+        pointer to output area
+        pointer to mark area
+        pointer to network input
+        pointer to network output
+    }
+
+2 - Load POU
+
+    InstanciateModule(binary_module)
+
+3 - Run main POU (program) function
+
+    RunMain(waspc *self, binary_module)
