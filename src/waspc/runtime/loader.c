@@ -9,28 +9,34 @@
  * 
  */
 
-
-//#include "vm/vm.h"
-#include "vm/loader.h"
+//waspc includes
+#include "runtime/loader.h"
 
 //standard includes
-//#include <stdio.h>
 #include <stdint.h>
-#include <assert.h>
 
+
+WASM_Module wasm_runtime_load(uint8_t *buf, uint32_t size, uint8_t *error_buf, uint32_t error_buf_size) {
+    //LoadArgs args = { 0 };
+    //args.name = "";
+    //args.wasm_binary_freeable = false;
+    WASM_Module wasm_module;
+
+    return wasm_module;
+}
 ///Function to validate wasm binary magic number
-LoaderResult ValidateMagic (uint8_t *, size_t);
+//LoaderResult ValidateMagic (uint8_t *, size_t);
 /// Function to validate wasm binary version number
-LoaderResult ValidateMagic (uint8_t *, size_t);
+//LoaderResult ValidateMagic (uint8_t *, size_t);
 /// function to  get a binary module struct from raw byte pointer
-BinaryModule LoadBinaryModule(uint8_t *, size_t );
+//BinaryModule LoadBinaryModule(uint8_t *, size_t );
 
 
 
 // [TODO]
-LoaderResult ValidateBinaryModule( BinaryModule mod){
+/*LoaderResult ValidateBinaryModule( BinaryModule mod){
 
-}
+}*/
 
 /**
  * @brief function that initialise a Binary Module from an file loaded in LOAD_MEMORY
@@ -38,7 +44,7 @@ LoaderResult ValidateBinaryModule( BinaryModule mod){
  * @param wasm Pointer to where binary content start
  * @param len Size in bytes for binary content
  * @return BinaryModule 
- */
+ *
 BinaryModule LoadBinaryModule(uint8_t *wasm, size_t len){    
 
     uint32_t var_u32;               // local variable to store a 32 bits unsigner
@@ -194,7 +200,7 @@ BinaryModule LoadBinaryModule(uint8_t *wasm, size_t len){
     #undef NOT_END
 
     return bin_mod;
-}
+}/*
 
 /**
  * @brief Function to validate wasm binary magic number
@@ -202,7 +208,7 @@ BinaryModule LoadBinaryModule(uint8_t *wasm, size_t len){
  * @param wasm wasm binary format
  * @param len len of wasm magic byte array, must be equal to 4.
  * @return LoaderResult 
- */
+ *
 LoaderResult ValidateMagic(uint8_t *wasm, size_t len){
     //Fail if is called with invalid len parameter
     assert(len == 4);
@@ -216,7 +222,7 @@ LoaderResult ValidateMagic(uint8_t *wasm, size_t len){
         return ERR_MAGIC;
     }
     else return LOAD_OK;
-}
+}*/
 
 /**
  * @brief Function to validate wasm binary version number
@@ -224,7 +230,7 @@ LoaderResult ValidateMagic(uint8_t *wasm, size_t len){
  * @param wasm wasm binary format
  * @param len len of wasm version byte array, must be equal to 4.
  * @return LoaderResult 
- */
+ *
 LoaderResult ValidateVersion(uint8_t *wasm, size_t len){
     //Fail if is called with invalid len parameter
     assert(len == 4);
@@ -237,7 +243,7 @@ LoaderResult ValidateVersion(uint8_t *wasm, size_t len){
         return ERR_VERSION;
     }
     else return LOAD_OK;
-}
+}*/
 
 
 

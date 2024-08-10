@@ -1,0 +1,39 @@
+Se hace ingenieria inversa a 
+
+wasm_module_t wasm_module = NULL;
+wasm_module = wasm_runtime_load(wasm_file_buf, wasm_file_size, error_buf, sizeof(error_buf)) (line 514)
+
+wasm_export.h (line 65)
+    typedef struct WASMModuleCommon *wasm_module_t;
+
+wasm_runtime_common.h (line 368)
+    typedef struct WASMModuleCommon {
+        /* Module type, for module loaded from WASM bytecode binary,
+        this field is Wasm_Module_Bytecode, and this structure should
+        be treated as WASMModule structure;
+        for module loaded from AOT binary, this field is
+        Wasm_Module_AoT, and this structure should be treated as
+        AOTModule structure. */
+        uint32 module_type;
+
+        /* The following uint8[1] member is a dummy just to indicate
+        some module_type dependent members follow.
+        Typically, it should be accessed by casting to the corresponding
+        actual module_type dependent structure, not via this member. */
+        uint8 module_data[1];
+    } WASMModuleCommon;
+
+wasm.h -> struct WASMModule (line 831)
+
+wasm_runtime_common.c -> wasm_runtime_load  (line 1467)
+    se llama a wasm_runtime_load_ex
+
+wasm_runtime_common.c -> wasm_runtime_load_ex (line 1416)
+        se llama a wasm_load
+
+wasm_runtime.c -> wasm_load (line 59)
+    se llama a wasm_loader_load
+
+wasm_loader.c -> wasm_loader_load (line 6708)
+    WASMModule *module = create_module(args->name, error_buf, error_buf_size);
+    llamada load(buf, size, module, args->wasm_binary_freeable, error_buf, error_buf_size)

@@ -4,7 +4,7 @@ include_directories(BEFORE
     )      
 
 #Main directory with webassembly runtime library
-#add_subdirectory(waspc)
+add_subdirectory(waspc)
 
 # Directory with basic driver to test waspc runtime.
 add_subdirectory(driver)
