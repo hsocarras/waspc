@@ -9,8 +9,10 @@
  */
 
 //wasp includes
+#include "vm.h"
+#include "diagnostic/error.h"
 #include "loader/wasm_loader.h"
-#include "runtime/loader.h"
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,8 +31,12 @@ int main(int argc, const char* argv[]) {
     int32_t len;
     uint8_t *binary_file; //Declaring a variable to store the wasm file
     uint32_t bytes_read;
-    WASM_Module wasm_module;        /// result from load module
-    uint8_t error_buf [16];
+   
+    //uint8_t error_buf [16];
+
+    //instanciating the interpreter;
+    Vm interpreter;
+    WpError result = {OK};            //No error
 
     // Opening file in reading mode
     error_code = fopen_s(&wasm, argv[1], "rb");
@@ -63,8 +69,14 @@ int main(int argc, const char* argv[]) {
         printf("Module Loaded. Total bytes %d \n", bytes_read);   
 
         //Loading process  
-        wasm_module = wasm_runtime_load(binary_file, len, error_buf, sizeof(error_buf));
-        printf("Module loaded into runtime. wasm version %i \n", wasm_module.package_version);
+        //call to runtime/loader.c wasm_runtime_load
+        result = LoadWasm(&interpreter, binary_file, len);
+        if(result.id == 0){
+            printf("Module loaded into interpreter. wasm version %i \n",interpreter.main_module.package_version);
+        }
+        else{
+            printf("Module loaded fail %i \n",result.id);
+        }
         free(binary_file);
         return 0;
     }

@@ -35,5 +35,9 @@ wasm_runtime.c -> wasm_load (line 59)
     se llama a wasm_loader_load
 
 wasm_loader.c -> wasm_loader_load (line 6708)
+    // llamada en el mismo archivo a create_modules que solo se limita a allocar espacio para la struct WasmModule
     WASMModule *module = create_module(args->name, error_buf, error_buf_size);
+
     llamada load(buf, size, module, args->wasm_binary_freeable, error_buf, error_buf_size)
+
+wasm_loader.c -> load (line 6517)

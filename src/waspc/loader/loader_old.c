@@ -9,21 +9,13 @@
  * 
  */
 
-//waspc includes
-#include "runtime/loader.h"
+
 
 //standard includes
 #include <stdint.h>
 
 
-WASM_Module wasm_runtime_load(uint8_t *buf, uint32_t size, uint8_t *error_buf, uint32_t error_buf_size) {
-    //LoadArgs args = { 0 };
-    //args.name = "";
-    //args.wasm_binary_freeable = false;
-    WASM_Module wasm_module;
 
-    return wasm_module;
-}
 ///Function to validate wasm binary magic number
 //LoaderResult ValidateMagic (uint8_t *, size_t);
 /// Function to validate wasm binary version number
