@@ -41,3 +41,10 @@ wasm_loader.c -> wasm_loader_load (line 6708)
     llamada load(buf, size, module, args->wasm_binary_freeable, error_buf, error_buf_size)
 
 wasm_loader.c -> load (line 6517)
+    call create_sections
+    call load_from_section
+
+wasm_loader.c -> create_sections (line 6436)
+    traverse the binary file and create section_linked_list
+
+wasm_loader.c -> load_from_section (line 5788)

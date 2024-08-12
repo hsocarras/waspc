@@ -24,6 +24,7 @@ typedef enum {
     INVALID_MODULE_SIZE,
     INVALID_MAGIC,
     INVALID_VERSION,
+    INVALID_SECTION_ID,
 } WpErrorId;
 
 typedef struct {

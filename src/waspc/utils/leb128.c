@@ -10,10 +10,7 @@
  */
 
 //Project includes
-#include "vm/leb128.h"
-
-//Standar lib includes
-#include <assert.h>
+#include "utils/leb128.h"
 
 /**
  * @brief Function to decode an array of byte into a 32 bits integer.
@@ -53,8 +50,8 @@ DEC_INT32_LEB128 DecodeLeb128Int32(const uint8_t *buff){
         cicle_counter++;
     }
     ///the program should not reach this line
-    assert(0);
-    return result; // avoid compiler warning
+    result.len = 0;    
+    return result; 
 }
 
 /**
@@ -89,6 +86,6 @@ DEC_UINT32_LEB128 DecodeLeb128UInt32(const uint8_t *buff){
         cicle_counter++;
     }
     ///the program should not reach this line
-    assert(0);
-    return result; //avoid compiler warning
+    result.len = 0;
+    return result; 
 }

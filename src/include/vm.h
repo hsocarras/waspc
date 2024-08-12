@@ -16,38 +16,12 @@
     extern "C" {
 #endif
 
-
+//WASPC includes
+#include "webassembly/binary/module.h"
 
 #include <stdint.h>
 
-/**
- * @brief 
- * 
- */
-typedef struct {
-    
-    /* the package version read from the WASM file */
-    uint32_t package_version;
 
-    uint32_t type_count;
-    uint32_t import_count;
-    uint32_t function_count;
-    uint32_t table_count;
-    uint32_t memory_count;    
-
-    uint32_t global_count;
-    uint32_t export_count;
-    uint32_t table_seg_count;
-    /* data seg count read from data segment section */
-    uint32_t data_seg_count;
-
-    uint32_t import_function_count;
-    uint32_t import_table_count;
-    uint32_t import_memory_count;
-
-    uint32_t import_global_count;    
-
-} WasmModule;
 
 typedef struct {
 
