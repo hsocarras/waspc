@@ -28,17 +28,9 @@ typedef struct {
     ///dummy for now
     char dummy;
 
-}VmState;
+}InterpreterState;
 
-typedef struct {
-    
-    /// Interpreter State
-    VmState state;
 
-    //Temporary store for webassembly module
-    WasmModule main_module;
-
-} Vm;
 
 #ifdef __cplusplus
     }

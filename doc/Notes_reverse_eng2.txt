@@ -48,3 +48,7 @@ wasm_loader.c -> create_sections (line 6436)
     traverse the binary file and create section_linked_list
 
 wasm_loader.c -> load_from_section (line 5788)
+
+    call load_type_section
+
+wasm_loader.c -> load_type_section (line 1886)

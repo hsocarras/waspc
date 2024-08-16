@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef WASPC_LEB128_H
-#define WASPC_LEB128_H
+#ifndef WASPC_UTILS_LEB128_H
+#define WASPC_UTILS_LEB128_H
 
 #ifdef __cplusplus
     extern "C" {

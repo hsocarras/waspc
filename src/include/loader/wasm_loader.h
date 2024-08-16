@@ -17,7 +17,7 @@
 #endif
 
 //wasp includes
-#include "vm.h"
+#include "webassembly/binary/module.h"
 #include "diagnostic/error.h"
 
 #include <stdint.h>
@@ -28,7 +28,7 @@
  * @brief 
  * 
  */
-WpError LoadWasm(Vm *, const uint8_t *buf, uint32_t size);
+WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, const char *buf_name);
 
 #ifdef __cplusplus
     }

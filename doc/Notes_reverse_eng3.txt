@@ -1,0 +1,8 @@
+Se hace ingenieria inversa a 
+
+wasm_module_inst_t wasm_module_inst = NULL;
+wasm_module_inst = wasm_runtime_instantiate(wasm_module, stack_size, heap_size, error_buf, sizeof(error_buf)) (line 525)
+
+struct WASMModuleInstance: defined in wasm_runtime.h (line 365)
+
+wasm_runtime.c -> wasm_instanciate (line 2156)

@@ -16,6 +16,8 @@
     extern "C" {
 #endif
 
+#include "object/object.h"
+
 #include <stdint.h>
 
 typedef enum {
@@ -28,11 +30,14 @@ typedef enum {
 } WpErrorId;
 
 typedef struct {
+
+    WpObject head;          /// header
     
-    /// diagnostic id for text and severity
-    WpErrorId id;       
+    WpErrorId id;           /// diagnostic id for text and severity
 
 } WpError;
+
+WpError CreateError(WpErrorId);
 
 #ifdef __cplusplus
     }

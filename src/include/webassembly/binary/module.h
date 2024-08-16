@@ -54,27 +54,24 @@ typedef struct {
 typedef struct {
     
     /// the package version read from the WASM file 
-    uint32_t package_version;
+    uint32_t version;
 
-    uint32_t type_count;
-    uint32_t import_count;
-    uint32_t function_count;
-    uint32_t table_count;
-    uint32_t memory_count;    
+    WasmModuleSection s_custom;
+    WasmModuleSection s_type;
+    WasmModuleSection s_import;
+    WasmModuleSection s_function;
+    WasmModuleSection s_table;
+    WasmModuleSection s_memory;
+    WasmModuleSection s_global;
+    WasmModuleSection s_export;
+    WasmModuleSection s_start;
+    WasmModuleSection s_element;
+    WasmModuleSection s_code;
+    WasmModuleSection s_data;
+    WasmModuleSection s_data_count;
+       
 
-    uint32_t global_count;
-    uint32_t export_count;
-    uint32_t table_seg_count;
-    /* data seg count read from data segment section */
-    uint32_t data_seg_count;
-
-    uint32_t import_function_count;
-    uint32_t import_table_count;
-    uint32_t import_memory_count;
-
-    uint32_t import_global_count;    
-
-} WasmModule;
+} WasmBinModule;
 
 
 

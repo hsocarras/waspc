@@ -9,12 +9,11 @@
  * 
  */
 
+//WASPC includes
+#include "diagnostic/error.h"
+#include "utils/leb128.h"
 
-#include "vm/vm.h"
-#include "vm/leb128.h"
 
-#include <stdio.h>
-#include <assert.h>
 
 /**
  * @brief Main interpreter loop
@@ -22,7 +21,7 @@
  * @param self Pointer to a vm object.
  * @return InterpreterResult 
  */
-static InterpreterResult eval(VM * self) {
+static InterpreterResult wasm_eval_bytecode(WpInterpState *istate, WpInterpFrame *f) {
 
     DEC_INT32_LEB128 dec_i32;
     DEC_UINT32_LEB128 dec_u32;
@@ -71,11 +70,11 @@ static InterpreterResult eval(VM * self) {
  * @param self 
  * @param pou 
  * @return InterpreterResult 
- */
+ *
 InterpreterResult run(VM *self, Frame *pou){
 
     vm->block = pou;
     vm->ip = pou->code;
     return run(vm);
 
-}
+}*/

@@ -1,0 +1,46 @@
+Se hace ingenieria inversa a 
+
+const char *exception = NULL;
+exception = app_instance_main(wasm_module_inst); (line 562) //llamada a la funcion main del modulo
+
+main.c:
+static const void *
+app_instance_main(wasm_module_inst_t module_inst)
+{
+    const char *exception;
+
+    wasm_application_execute_main(module_inst, app_argc, app_argv);
+    exception = wasm_runtime_get_exception(module_inst);
+    return exception;
+}
+
+    wasm_aplication.c ->  wasm_application_execute_main (line 277)
+        call execute_main 
+
+        wasm_aplication.c -> execute_main (line 92)
+            call wasm_runtime_get_exec_env_singleton (111)
+            call wasm_runtime_lookup_function (155)
+            call func_type = wasm_runtime_get_function_type(func, module_type) (188)
+            call ret = wasm_runtime_call_wasm(exec_env, func, argc1, argv1) (265)
+
+
+            wasm_runtime_common.c -> wasm_runtime_get_exec_env_singleton (line 2891)
+                //execution enviroment is related to thread.
+
+            wasm_runtime_common.c -> wasm_runtime_lookup_function (line 2210)
+                call wasm_lookup_function
+
+                wasm_runtime.c -> wasm_lookup_function (line 3231)
+
+            wasm_runtime_common.c -> wasm_runtime_call_wasm (line 2467)
+                call ret = wasm_call_function(exec_env, (WASMFunctionInstance *)function, param_argc, new_argv); (2498)
+
+                wasm_runtime.c -> wasm_call_function (line 3390)
+                    call interp_call_wasm(module_inst, exec_env, function, argc, argv); (3408)
+                    is a macro for wasm_interp_call_wasm
+
+                    wasm_interp_classic.c -> wasm_interp_call_wasm (line 7130)
+                        call wasm_interp_call_func_bytecode(module_inst, exec_env, function, frame); (7238)
+
+                        wasm_interp_classic.c ->wasm_interp_call_func_bytecode (line 1460)
+                            Magic happend
