@@ -7,5 +7,7 @@ WpError CreateError(WpErrorId id){
     WpError err;
 
     err.head.type = ERROR;
-    err.id = OK;
+    err.id = id;
+
+    return err;
 }

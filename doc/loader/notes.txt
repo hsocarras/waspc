@@ -1,0 +1,9 @@
+
+Entry point to loader module:
+    WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, uint32_t id)
+
+        
+        call LoadWasmBin to get a WasmBinModule struct
+        put WasmBinModule in code memory
+
+        init varibles values from persisten value in warm restart or for init values from cold restart

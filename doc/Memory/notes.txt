@@ -1,0 +1,8 @@
+Runtimes memory:
+    Load memory: Flash where are stored source code and original compiled binary webassembly module.
+    Work memory: Where executable code are loaded (binary modules whithout custom section and magic to ensure small footprint)
+        *code section: Where binary module instance are stored.
+        
+    Input
+    Output
+    Mark

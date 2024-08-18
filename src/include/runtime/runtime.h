@@ -19,7 +19,7 @@
 //wasp includes
 #include "webassembly/binary/module.h"
 #include "diagnostic/error.h"
-#include "memory/load_memory.h"
+#include "memory/work_memory.h"
 
 #include <stdint.h>
 
@@ -39,13 +39,16 @@
 typedef struct {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
-    uint8_t in[INPUT_SIZE];                 ///Static allocation for input area
-    uint8_t out[OUTPUT_SIZE];               ///Static allocation for outut area
-    uint8_t mark[MARK_SIZE];                ///Static allocation for mark area
+    uint8_t *in;                            ///pointer to static allocation for input area
+    uint32_t input_size;
+    uint8_t *out;                           ///pointer to static allocation for output area
+    uint32_t output_size;
+    uint8_t *mark;                          ///pointer to static allocation for mark area
+    uint32_t mark_size;
+    
 
-    uint8_t load_memory[LOAD_MEMORY_SIZE];  ///Static allocation for load memory
-
-    LoadMemoryManager load_mem_manager;     ///memory manager objet for load memory
+    WorkMemory work_mem;                    ///memory manager objet for load memory
+    WasmBinModule mod;
 
     /**
      * @brief TODO This is for mannage the running user programs pou.
@@ -53,7 +56,7 @@ typedef struct {
      * for pou's source code loaded in Load Memory
      * 
      */
-    LoadBlock block_loaded[2];              
+    //WasmLoadInfo wasm_loaded[2];              
 
 }RuntimeEnv;
 
@@ -64,6 +67,8 @@ typedef struct {
  *  
  */
 void InitRuntime(RuntimeEnv *self);
+
+void SetWorkMem(RuntimeEnv *self, uint8_t *load_mem, uint32_t load_mem_size);
 
 #ifdef __cplusplus
     }

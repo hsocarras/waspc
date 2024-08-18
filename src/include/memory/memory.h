@@ -24,14 +24,8 @@
 
 
 
-/**
- * @brief TODO base memory
- * 
- */
-typedef struct BaseMemory {
-    uint32_t size;              //buffer size in bytes
-    uint8_t *buf;               //pointer to an allocated byte array
-}BaseMemory;
+
+
 
 #ifdef __cplusplus
     }

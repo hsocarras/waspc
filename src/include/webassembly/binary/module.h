@@ -38,38 +38,71 @@ typedef enum {
     DATA_COUNT,     
 } SectionId;
 
-typedef struct {    
-    
-    /// Section body ( not include id and size)
-    const uint8_t *section_content;
-    /// Section size
-    uint32_t section_size;
+typedef struct WasmBinSection {   
 
-} WasmModuleSection;
+    /// Section size
+    uint32_t size;
+    /// Section body ( not include id and size)
+    const uint8_t *content;
+    
+
+} WasmBinSection;
 
 /**
- * @brief 
- * 
+ * @brief The encoding of a module starts with a preamble containing a 4-byte magic number (the string ‘∖0asm’) and a
+ *         version field. The current version of the WebAssembly binary format is 1.
+ *              The preamble is followed by a sequence of sections. Custom sections may be inserted at any place in this sequence,
+ *          while other sections must occur at most once and in the prescribed order. All sections can be empty
+ *
+ *          
+ *              magic ::= 0x00 0x61 0x73 0x6D
+                version ::= 0x01 0x00 0x00 0x00
+                module ::= magic
+                version
+                customsec*
+                functype*: typesec
+                customsec*
+                import*: importsec
+                customsec*
+                typeidx𝑛: funcsec
+                customsec*
+                table*: tablesec
+                customsec*
+                mem*: memsec
+                customsec*
+                global*: globalsec
+                customsec*
+                export*: exportsec
+                customsec*
+                start?: startsec
+                customsec*
+                elem*: elemsec
+                customsec*
+                𝑚?: datacountsec
+                customsec*
+                code𝑛: codesec
+                customsec*
+                data𝑚: datasec
+                customsec* ⇒ { ...)
  */
 typedef struct {
-    
-    /// the package version read from the WASM file 
-    uint32_t version;
-
-    WasmModuleSection s_custom;
-    WasmModuleSection s_type;
-    WasmModuleSection s_import;
-    WasmModuleSection s_function;
-    WasmModuleSection s_table;
-    WasmModuleSection s_memory;
-    WasmModuleSection s_global;
-    WasmModuleSection s_export;
-    WasmModuleSection s_start;
-    WasmModuleSection s_element;
-    WasmModuleSection s_code;
-    WasmModuleSection s_data;
-    WasmModuleSection s_data_count;
-       
+    /// This struct will be loaded as base executable in work memory
+    /// only wasm's essential parts will be loaded.
+    /// custom section are not, and also magic number.
+     
+    uint32_t version;                   /// the version read from the WASM file    
+    WasmBinSection typesec;          /// encoded type section
+    WasmBinSection importsec;        /// encoded import section
+    WasmBinSection functionsec;      /// encoded func section
+    WasmBinSection tablesec;         /// encoded table section
+    WasmBinSection memsec;           /// encoded memory section
+    WasmBinSection globalsec;        /// encoded global section
+    WasmBinSection exportsec;        /// encoded export section
+    WasmBinSection startsec;         /// encoded start section
+    WasmBinSection elemsec;          /// encoded element section
+    WasmBinSection datacountsec;     /// encoded data count section section
+    WasmBinSection codesec;          /// encoded code section
+    WasmBinSection datasec;          /// encoded data section  
 
 } WasmBinModule;
 

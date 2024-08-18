@@ -26,25 +26,25 @@
  * @brief Object for keep track for pou's source loaded in load memory
  * 
  */
-typedef struct LoadBlock{
+typedef struct WasmLoadInfo{
 
-    char name[32];          /// pou's name TODO char pointer
+    uint32_t id;          /// pou's hash name
     uint32_t size;          /// pou's bin len
     uint8_t *start;         /// where the pou start in load memory
-    //LoadBlock *next;
-    
-} LoadBlock;
+        
+} WasmLoadInfo;
 
 /**
  * @brief Object for managed load memory
  * 
  */
-typedef struct LoadMemoryManager {
-    BaseMemory bank;
+typedef struct WorkMemory {
+    uint32_t code_size;     
+    uint8_t *code;                  /// buffer to stored WasmBinModule
     uint8_t *index;                 // pointer to where start next free space
     uint32_t block_count;           // counter to keep track LoadBlock in load memory
 
-}LoadMemoryManager;
+}WorkMemory;
 
 /**
  * @brief Constructor
@@ -53,13 +53,15 @@ typedef struct LoadMemoryManager {
  * @param buf pointer to runtime's load memory
  * @param size Load memory size 
  */
-void InitLoadMemoryManager(LoadMemoryManager *self, uint8_t *buf, const uint32_t size);
+void InitWorkMemory(WorkMemory *self);
 
-uint32_t GetFreeLoadMemory (const LoadMemoryManager *self);
+void InitCodeMem(WorkMemory *self, uint8_t * buf, uint32_t size);
 
-float GetLoadMemoryUsage(const LoadMemoryManager *self);
+uint32_t GetFreeCodeMem (const WorkMemory *self);
 
-WpError AppendBufferToLoadMem(LoadMemoryManager *self, const uint8_t *buf, const uint32_t size);
+//float GetLoadMemoryUsage(const WorkMemory *self);
+
+WpError AppendWasmCode(WorkMemory *self, const uint8_t *buf, const uint32_t size);
 
 #ifdef __cplusplus
     }

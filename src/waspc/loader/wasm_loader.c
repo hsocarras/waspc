@@ -22,10 +22,10 @@
  * 
  * @param buf wasm binary format 
  * @return WpError 
- *
+ */
 static WpError ValidateMagic(const uint8_t *buf){
 
-    WpError result = {OK};       //No error
+    WpError result = CreateError(OK);       //No error
     uint8_t magic_number_bytes[4] = {0x00, 0x61, 0x73, 0x6D};           /// Magic number that all wasm file start
     uint32_t wasm_magic_number = *((uint32_t *)magic_number_bytes);     /// magic number in uint32 format to avoid endianess problem
     uint32_t file_magic_number;
@@ -37,17 +37,17 @@ static WpError ValidateMagic(const uint8_t *buf){
         return result;
     }
     else return result;
-}*/
+}
 
 /**
  * @brief Function to validate wasm binary version number
  * 
  * @param buf wasm binary format 
  * @return WpError 
- *
+ */
 static WpError ValidateVersion(const uint8_t *buf, uint32_t *version_number){
     
-    WpError result = {OK};       //No error
+    WpError result = CreateError(OK);       //No error
 
     uint8_t version_number_bytes[4] = {0x01, 0x00, 0x00, 0x00};         /// version number    
     uint32_t version_number_1 = *((uint32_t *)version_number_bytes);    /// version number in uint32 format to avoid endianess problem
@@ -64,7 +64,7 @@ static WpError ValidateVersion(const uint8_t *buf, uint32_t *version_number){
         *version_number = 1;
         return result;
     } 
-}*/
+}
 
 /**
  * @brief Create a Module object
@@ -130,6 +130,47 @@ static WpError LoadSections (WasmModule *mod, WasmModuleSection * sections){
 
 }*/
 
+static void InitWasmBin(WasmBinModule * module){
+
+    module->version = 0;
+
+    module->typesec.size = 0;
+    module->typesec.content = NULL;
+
+    module->importsec.size = 0;
+    module->importsec.content = NULL;
+
+    module->functionsec.size = 0;
+    module->functionsec.content = NULL;
+
+    module->tablesec.size = 0;
+    module->tablesec.content = NULL;
+
+    module->memsec.size = 0;
+    module->memsec.content = NULL;
+
+    module->globalsec.size = 0;
+    module->globalsec.content = NULL;
+
+    module->exportsec.size = 0;
+    module->exportsec.content = NULL;
+
+    module->startsec.size = 0;
+    module->startsec.content = NULL;
+
+    module->elemsec.size = 0;
+    module->elemsec.content = NULL;
+
+    module->datacountsec.size = 0;
+    module->datacountsec.content = NULL;
+
+    module->codesec.size = 0;
+    module->codesec.content = NULL;
+
+    module->datasec.size = 0;
+    module->datasec.content = NULL;
+}
+
 /**
  * @brief 
  * 
@@ -137,10 +178,10 @@ static WpError LoadSections (WasmModule *mod, WasmModuleSection * sections){
  * @param buf 
  * @param size 
  * @return WpError 
- *
-static WpError load(WasmModule *module, const uint8_t *buf, uint32_t size) {
+ */
+static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t size, WasmBinModule * module) {
 
-    WpError result = {OK};            //No error
+    WpError result = CreateError(OK);       //No error
 
     const uint8_t *index = buf;                         // pointer to byte to traverse the binary file
     const uint8_t *buf_end = buf + size;                // pointer to end of binary module
@@ -149,10 +190,8 @@ static WpError load(WasmModule *module, const uint8_t *buf, uint32_t size) {
     uint32_t binary_version;
     uint8_t section_id;
     uint32_t section_size;  
-
-    //// Inicialise module//////////////////////////////////////////////////////////////////////// 
-    *module = {0, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
-                {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}};     
+    
+    WasmBinSection section = {0, NULL};
 
     
     #define READ_BYTE() (*index++)
@@ -189,16 +228,9 @@ static WpError load(WasmModule *module, const uint8_t *buf, uint32_t size) {
         
         switch(section_id){
             case CUSTOM:{
-                //custom section start
-                if(module->custom.section_size != 0){
-                    //Check that custom section is in init state.
-                    //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->custom.section_content = index - 1;
+                //custom section startwill be ignored 
                 wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->custom.section_size = wasm_u32.value;
+                if (wasm_u32.len != 0){                    
                     index = index + wasm_u32.len + wasm_u32.value;
                     break;
                 }
@@ -209,231 +241,364 @@ static WpError load(WasmModule *module, const uint8_t *buf, uint32_t size) {
             }
             case TYPE:{
                 // Type Section
-                if(module->type.section_size != 0){
-                    //Check that custom section is in init state.
+
+                if(module->typesec.content != NULL){
+                    //Check that type section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->type.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->type.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->typesec.size = section.size;
+                module->typesec.content = section.content;
+                break;
             }
             case IMPORT:{
                 // import Section                
-                if(module->import.section_size != 0){
+                if(module->importsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->import.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->import.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->importsec.size = section.size;
+                module->importsec.content = section.content;
+                break;
             }
             case FUNCTION:{
                 // Function Section
-                if(module->function.section_size != 0){
+                if(module->functionsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->function.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->function.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->functionsec.size = section.size;
+                module->functionsec.content = section.content;
+                break;
             }
             case TABLE:{
                 // Table Section
-                if(module->table.section_size != 0){
+                if(module->tablesec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->table.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->table.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->tablesec.size = section.size;
+                module->tablesec.content = section.content;
+                break;
             }
             case MEMORY:{
                 // Memory Section
-                if(module->memory.section_size != 0){
+                if(module->memsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->memory.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->memory.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->memsec.size = section.size;
+                module->memsec.content = section.content;
+                break;
             }
             case GLOBAL:{
                 // GLOBAL Section
-                if(module->global.section_size != 0){
+                if(module->globalsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->global.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->global.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->globalsec.size = section.size;
+                module->globalsec.content = section.content;
+                break;
             }
             case EXPORT:{
                 //Export Section
-                if(module->export.section_size != 0){
+                if(module->exportsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->export.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->export.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->exportsec.size = section.size;
+                module->exportsec.content = section.content;
+                break;
             }
             case START:{
                 // Start Section
-                if(module->start.section_size != 0){
+                if(module->startsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->start.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->start.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->startsec.size = section.size;
+                module->startsec.content = section.content;
+                break;
             }
             case ELEMENT:{
                 // Element Section
-                if(module->element.section_size != 0){
+                if(module->elemsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->element.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->element.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->elemsec.size = section.size;
+                module->elemsec.content = section.content;
+                break;
             }
             case CODE:{
                 //Code Section   
-                if(module->code.section_size != 0){
+                if(module->codesec.content != 0){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->code.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->code.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->codesec.size = section.size;
+                module->codesec.content = section.content;
+                break;
             }
             case DATA:{
                 //Data Section   
-                if(module->data.section_size != 0){
+                if(module->datasec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->data.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->data.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->datasec.size = section.size;
+                module->datasec.content = section.content;
+                break;
             }
             case DATA_COUNT:{
                 //Data Count Section   
-                if(module->data_count.section_size != 0){
+                if(module->datacountsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
                     result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
-                }
-                module->data_count.section_content = index - 1;
-                wasm_u32 = DecodeLeb128UInt32(index);
-                if (wasm_u32.len != 0){
-                    module->data_count.section_size = wasm_u32.value;
-                    index = index + wasm_u32.len + wasm_u32.value;
-                    break;
-                }
-                else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }
+                
+                wasm_u32 = DecodeLeb128UInt32(index);
+                if (wasm_u32.len == 0){
+                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    return result;                                        
+                }
+
+                section.size = wasm_u32.value;
+                index = index + wasm_u32.len + wasm_u32.value;               
+
+                //copy section bytes into code mem //////////////////////////////////////////////////
+                section.content = work_mem->index;
+                result = AppendWasmCode(work_mem, index, section.size);
+
+                if(result.id != OK){
+                    return result;
+                }
+
+                module->datacountsec.size = section.size;
+                module->datacountsec.content = section.content;
+                break;
             }
             default:{
                 //Not a valid Section ID
@@ -450,7 +615,7 @@ static WpError load(WasmModule *module, const uint8_t *buf, uint32_t size) {
 
     #undef READ_BYTE
     #undef NOT_END
-}*/
+}
 
 /**
  * @brief function that get a binary wasm buffer from persistent storage and stored in ram's
@@ -459,35 +624,23 @@ static WpError load(WasmModule *module, const uint8_t *buf, uint32_t size) {
  * @param self. Runtime enviroment.
  * @param buf A buffer with module content.
  * @param size  buffer size.
- * @param buf_name Original pou's name.
+ * @param id Hash for pou's name.
  * @return WpError 
  */
-WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, const char *buf_name) {
+WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, uint32_t id) {
 
     WpError result = CreateError(OK);       //No error
+    
+    InitWasmBin(&self->mod);
 
-    //Check if are load memory available
-    uint32_t free_memory = GetFreeLoadMemory(&self->load_mem_manager);
-    uint32_t len;
-    if(free_memory < size){
-        result.id = 3;              //TODO
-    }
-
-    //TODO check name's lenght
-    uint8_t *current_load_pos = self->load_mem_manager.index;
-    result = AppendBufferToLoadMem(&self->load_mem_manager, buf, size);
-
+    result = LoadWasmBin(&self->work_mem, buf, size, &self->mod);
+    
     if(result.id != OK){
         //Clean process TODO
+        return result;
     }
-   
-    //self->block_loaded[self->load_mem_manager.block_index].name = buf_name;
-    len = strlen(buf_name);
-    strcpy_s(self->block_loaded[self->load_mem_manager.block_count].name, len+1, buf_name);
-    self->block_loaded[self->load_mem_manager.block_count].size = size;
-    self->block_loaded[self->load_mem_manager.block_count].start = current_load_pos;
 
-    self->load_mem_manager.block_count++;
+    //self->load_mem_manager.block_count++;
 
     return result;
 

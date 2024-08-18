@@ -28,7 +28,7 @@
  * @brief 
  * 
  */
-WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, const char *buf_name);
+WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, const uint32_t id);
 
 #ifdef __cplusplus
     }
