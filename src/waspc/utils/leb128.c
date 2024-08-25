@@ -14,7 +14,7 @@
 
 /**
  * @brief Function to decode an array of byte into a 32 bits integer.
- *
+ *  TODO add a parameter with pointer to buff end.
  * @param buff Pointer to first buffer's bytes with encoded 32 bit integer.
  * @return DEC_INT32_LEB128 struct.
  */

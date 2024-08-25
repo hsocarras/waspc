@@ -85,24 +85,27 @@ typedef struct WasmBinSection {
                 data𝑚: datasec
                 customsec* ⇒ { ...)
  */
-typedef struct {
+typedef struct WasmBinModule {
     /// This struct will be loaded as base executable in work memory
     /// only wasm's essential parts will be loaded.
     /// custom section are not, and also magic number.
+
+    uint32_t bin_len;                   /// len of module
+    uint8_t *start;                     /// pointer to where the module start in the Load Memory
      
     uint32_t version;                   /// the version read from the WASM file    
-    WasmBinSection typesec;          /// encoded type section
-    WasmBinSection importsec;        /// encoded import section
-    WasmBinSection functionsec;      /// encoded func section
-    WasmBinSection tablesec;         /// encoded table section
-    WasmBinSection memsec;           /// encoded memory section
-    WasmBinSection globalsec;        /// encoded global section
-    WasmBinSection exportsec;        /// encoded export section
-    WasmBinSection startsec;         /// encoded start section
-    WasmBinSection elemsec;          /// encoded element section
-    WasmBinSection datacountsec;     /// encoded data count section section
-    WasmBinSection codesec;          /// encoded code section
-    WasmBinSection datasec;          /// encoded data section  
+    WasmBinSection typesec;             /// encoded type section
+    WasmBinSection importsec;           /// encoded import section
+    WasmBinSection functionsec;         /// encoded func section
+    WasmBinSection tablesec;            /// encoded table section
+    WasmBinSection memsec;              /// encoded memory section
+    WasmBinSection globalsec;           /// encoded global section
+    WasmBinSection exportsec;           /// encoded export section
+    WasmBinSection startsec;            /// encoded start section
+    WasmBinSection elemsec;             /// encoded element section
+    WasmBinSection datacountsec;        /// encoded data count section section
+    WasmBinSection codesec;             /// encoded code section
+    WasmBinSection datasec;             /// encoded data section  
 
 } WasmBinModule;
 

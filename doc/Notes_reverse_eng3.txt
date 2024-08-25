@@ -6,3 +6,8 @@ wasm_module_inst = wasm_runtime_instantiate(wasm_module, stack_size, heap_size, 
 struct WASMModuleInstance: defined in wasm_runtime.h (line 365)
 
 wasm_runtime.c -> wasm_instanciate (line 2156)
+
+    call globals_instantiate (2323)
+
+    wasm_runtime.c -> globals_instantiate (line 1044)
+

@@ -18,22 +18,37 @@
 
 #include <stdint.h>
 
-typedef struct Entry{
-    char *key;
-    uint32_t len;
-    uint32_t value;
-}Entry;
+#define HASH_TABLE_MAX_LOAD 85
 
-typedef struct HashTable{
+#define HASH_TABLE_MAX_CAPACITY 100 //TODO come from config
 
+typedef enum HashTableType{
+    
+    WASM_BIN_MODULE,
+
+} HashTableType;
+
+typedef struct HashTableSlot {     
+    uint32_t key;                               /// complete hash
+    void *value;
+} Slot ;
+
+typedef struct HashTable{    
     uint32_t capacity;
     uint32_t usage;
-    Entry * items;
+    //HashTabletype data_type;                    /// indicate the type of data sotred in
+    Slot *slots;
 } HashTable;
 
 
-void InitHashTable(HashTable *self);
-void FreeHashTable(HashTable *self);
+void InitHashTable(HashTable *self, uint32_t init_capacity);
+//void FreeHashTable(HashTable *self);
+WpError HashTableSet(HashTable *self, uint32_t key, void *value);
+void * HashTableGet(HashTable *self, uint32_t key);
+WpError HasTableDelete(HashTable *self, uint32_t key);
+
+
+uint32_t fnv(const char *key, uint32_t len);
 
 #ifdef __cplusplus
     }

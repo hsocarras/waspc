@@ -18,18 +18,12 @@
 
 //wasp includes
 #include "webassembly/binary/module.h"
+#include "webassembly/runtime/module_instance.h"
 #include "diagnostic/error.h"
-#include "memory/work_memory.h"
+//#include "memory/work_memory.h"
+#include "utils/hash_table.h"
 
 #include <stdint.h>
-
-//TODO config loading from port header 
-#define INPUT_SIZE 256      //in bytes
-#define OUTPUT_SIZE 256     //in bytes
-#define MARK_SIZE 256
-#define LOAD_MEMORY_SIZE 131072  //128 KB
-//////////////////////////////////////
-
 
 
 /**
@@ -44,11 +38,14 @@ typedef struct {
     uint8_t *out;                           ///pointer to static allocation for output area
     uint32_t output_size;
     uint8_t *mark;                          ///pointer to static allocation for mark area
-    uint32_t mark_size;
-    
+    uint32_t mark_size;    
+    uint32_t code_mem_size;
+    uint8_t *code_mem;
 
-    WorkMemory work_mem;                    ///memory manager objet for load memory
-    WasmBinModule mod;
+    HashTable table_wasm_bin;               /// Hash table for store loaded bin modules in ram. //Online project
+
+    //WasmBinModule mod;
+    //ModuleInstance module_instance;         /// instance     
 
     /**
      * @brief TODO This is for mannage the running user programs pou.

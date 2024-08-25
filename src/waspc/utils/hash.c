@@ -19,7 +19,7 @@
  * @param len 
  * @return uint32_t 
  */
-static uint32_t fnv(const char *key, uint32_t len){
+uint32_t fnv(const char *key, uint32_t len){
 
     //Constant definition for FNV algoritm
     #define FNV_PRIME_32 16777619
@@ -37,13 +37,13 @@ static uint32_t fnv(const char *key, uint32_t len){
     return hash;
 }
 
-uint32_t CalcHashForString (const char *str, uint32_t len, uint32_t max_val){
+/*
+uint32_t CalcHashForString (const char *str, uint32_t len){
 
     void *src = (void)str;
-    uint32_t hash, result;
+    uint32_t hash;
 
     hash = fnv(src, len);
-
-    result = hash%max_val;
-    return result;
-}
+    
+    return hash;
+}*/

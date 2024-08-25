@@ -27,6 +27,7 @@ typedef enum {
     INVALID_MAGIC,
     INVALID_VERSION,
     INVALID_SECTION_ID,
+    TODO,
 } WpErrorId;
 
 typedef struct {

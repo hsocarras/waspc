@@ -1,0 +1,43 @@
+Reverse eng to handle op code WASM_OP_GET_GLOBAL
+
+ HANDLE_OP(WASM_OP_GET_GLOBAL) (line 4136)
+            {   
+                // Read the instruction parameters and store in uint_32_t global_idx variable////////////////
+                read_leb_uint32(frame_ip, frame_ip_end, global_idx); 
+                ///////////////////////////////////////////////////////////////////////////////////
+
+                /// Check tha index is correct //////////////////////////////////////////////////////////////
+                bh_assert(global_idx < module->e->global_count);
+                /////////////////////////////////////////////////////////////////////////////////////////////
+
+                //// Incremento el puntero a globals
+                // WASMGlobalInstance *globals = module->e->globals
+                global = globals + global_idx;
+                /// obtengo el puntero a la variable global
+
+                //llamada a funcion que devuelve
+                uint8 *global_data = module->global_data;
+                uint8  *global_addr;
+                global_addr = get_global_addr(global_data, global);
+
+                /* clang-format off */
+#if WASM_ENABLE_GC == 0 (Follow this brand, no Garbage collector)
+                PUSH_I32(*(uint32 *)global_addr);  
+
+#endif
+                /* clang-format on */
+                HANDLE_OP_END();
+            }
+
+
+static inline uint8 * get_global_addr(uint8 *global_data, WASMGlobalInstance *global)
+{
+#if WASM_ENABLE_MULTI_MODULE == 0
+    return global_data + global->data_offset;
+#else
+    return global->import_global_inst
+               ? global->import_module_inst->global_data
+                     + global->import_global_inst->data_offset
+               : global_data + global->data_offset;
+#endif
+}

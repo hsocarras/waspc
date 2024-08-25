@@ -16,6 +16,7 @@
     extern "C" {
 #endif
 
+#include "webassembly/structure/types.h"
 #include "webassembly/runtime/module_instance.h"
 
 #include <stdint.h>
@@ -33,11 +34,11 @@ typedef struct FunctionInstance{
 
     //bool is_host_function;
 
-    //functype type
+    FuncType type;
     
     ModuleInstance *module;
 
-    //locals
+    uint8_t *locals;
 
     uint8_t *body;
 

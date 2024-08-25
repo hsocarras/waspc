@@ -19,11 +19,11 @@
 //wasp includes
 //Will be remplaced for something similar to python's arena, pool, block memory manager scheme.
 
-
+#include <stdlib.h>
 #include <stdint.h>
 
 
-
+#define ALLOCATE(type, count) (type*)malloc(sizeof(type) * (count));
 
 
 

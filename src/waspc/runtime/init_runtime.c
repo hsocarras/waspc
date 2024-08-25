@@ -13,7 +13,7 @@
 #include "runtime/runtime.h"
 
 #include <string.h>
-
+#include <stdio.h>
 
 /**
  * @brief Runtime constructor.
@@ -28,9 +28,14 @@ void InitRuntime(RuntimeEnv *self){
     self->output_size = 0;
     self->mark = NULL;
     self->mark_size = 0;
-
+    self->code_mem_size = 0;
+    self->code_mem = NULL;
+    
+    //Init hash table
+    InitHashTable(&self->table_wasm_bin, 10);
+    
     //calling load_mem_manager object's constructor
-    InitWorkMemory(&self->work_mem);
+    //InitWorkMemory(&self->work_mem);
     /*
     //Initialice wasm_loaded properties///////////////////////////////////////////////
     self->wasm_loaded[0].id = 0;    
@@ -43,9 +48,4 @@ void InitRuntime(RuntimeEnv *self){
     ////////////////////////////////////////////////////////////////////////////////////
     */
 
-}
-
-void SetWorkMem(RuntimeEnv *self, uint8_t *code_mem, uint32_t code_size){
-
-    InitCodeMem(&self->work_mem, code_mem, code_size);
 }

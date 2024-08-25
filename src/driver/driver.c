@@ -13,8 +13,12 @@
 #include "diagnostic/error.h"
 #include "loader/wasm_loader.h"
 #include "memory/work_memory.h"
+#include "utils/hash_table.h"
 
-
+////For TODO testing//////////////////////////////////////////////////////////////////////
+#include "webassembly/binary/module.h"
+#include "utils/hash_table.h"
+//////////////////////////////////////////////////////////////////////////////////////////
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -31,8 +35,7 @@
 static uint8_t in[INPUT_SIZE];
 static uint8_t out[OUTPUT_SIZE];
 static uint8_t mark[MARK_SIZE];
-
-static uint8_t code_mem[CODE_MEMORY_SIZE];
+static uint8_t work_code_mem[CODE_MEMORY_SIZE];         //See tia portal code memory
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 //instanciating the runtime;
@@ -84,19 +87,23 @@ uint32_t GetFileName(const char * path, char *name){
 int main(int argc, const char* argv[]) {
 
     assert(argc > 1);
-
+    printf("Booting \n");
     InitRuntime(&env);
-    SetWorkMem(&env, code_mem, CODE_MEMORY_SIZE);
+    env.code_mem = work_code_mem;
+    //SetWorkMem(&env, code_mem, CODE_MEMORY_SIZE);
     
     errno_t error_code; //Declaring a variable of type errno_t to store the return value of fopen_s
     FILE *wasm;
     int32_t len;
-    uint8_t *binary_file; //Declaring a variable to store the wasm file
+    uint8_t *load_ptr = work_code_mem; //Declaring a variable to store the wasm file
+    uint8_t *load_base = work_code_mem; //Declaring a variable to store the wasm file
     uint32_t bytes_read;
+    uint8_t *binary_file;
     //char pou_names[1024];
     //uint16_t pou_name_index[1024];
     //uint32_t pou_index_count = 0;
     char pou_name[32];
+    uint32_t id;
     uint32_t pou_name_len;
    
     //uint8_t error_buf [16];
@@ -106,16 +113,19 @@ int main(int argc, const char* argv[]) {
     WpError result = CreateError(OK);            //No error
 
     // Opening file in reading mode
+    printf("Openning wasm file \n");
     error_code = fopen_s(&wasm, argv[1], "rb");
 
     if (error_code != 0) {
         printf("file can't be opened \n");
         return 1;
     }
-    
+    printf("Done \n");
     //Get pou's name logic ///////////////////////////////////////////////////////////////////////////////////
     GetFileName(argv[1], pou_name); //get name
-    printf("File name %s \n", pou_name);
+    len = strlen(pou_name);
+    id = fnv(pou_name, len);
+    printf("File name %s has a id %u\n", pou_name, id);
     //pou_name_len = strlen(pou_name);  // get name leng
     //pou_name_index[0] = 0; //index wher the string will be saved  
     //strcpy()
@@ -137,21 +147,23 @@ int main(int argc, const char* argv[]) {
     } 
 
     //fread(binary_file, len, 1, wasm);
-    bytes_read = fread(binary_file, 1, len, wasm);
+    bytes_read = fread(load_ptr, 1, len, wasm);
     fclose(wasm);
 
     if(bytes_read == len){
+
         printf("Module Loaded. Total bytes %d \n", bytes_read);   
 
         //Loading process  
         //call to runtime/loader.c wasm_runtime_load
         
-        result = LoadWasmBuffer(&env, binary_file, len, 1);
+        result = LoadWasmBuffer(&env, load_ptr, len, id);
         
         if(result.id == 0){
             
-            printf("Module loaded into runtime. %i Bytes loaded \n", (env.work_mem.index - env.work_mem.code));
-            printf("Module code section size %d", env.mod.codesec.size);           
+            WasmBinModule *mod = (WasmBinModule *)HashTableGet(&env.table_wasm_bin, id);
+            printf("Module loaded into runtime. %i Bytes loaded \n", (mod->bin_len));
+            printf("Module code section size %d", mod->codesec.size);           
         }
         else{
             printf("Module loaded fail %i \n",result.id);

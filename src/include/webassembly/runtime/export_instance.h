@@ -18,40 +18,7 @@
 
 #include <stdint.h>
 
-/**
- * @brief Function instances, table instances, memory instances, and global instances, element instances, and data instances
- * in the store are referenced with abstract addresses.
- * addr ::= 0 | 1 | 2 | . . .
- */
-typedef uint16_t addr;
 
-//An external value is the runtime representation of an entity that can be imported or exported. It is an address
-//denoting either a function instance, table instance, memory instance, or global instances in the shared store.
-
-//externval ::= func funcaddr
-//              | table tableaddr
-//              | mem memaddr
-//              | global globaladdr
-
-/**
- * @brief Enum with the diferent external values's type definition acording webassembly spec.
- * 
- */
-typedef enum {
-    FUNC,
-    TABLE,
-    MEM,
-    GLOBAL,
-} ExternValType;
-
-/**
- * @brief 
- * 
- */
-typedef struct {
-    ExternValType type;
-    addr address;
-}ExternVal;
 
 
 /**
@@ -61,7 +28,7 @@ typedef struct {
  */
 typedef struct {
     char *name;
-    ExternVal value;
+    //ExternVal value;
 }ExportInstance;
 
 

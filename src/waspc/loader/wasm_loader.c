@@ -14,8 +14,10 @@
 #include "diagnostic/error.h"
 #include "webassembly/binary/module.h"
 #include "utils/leb128.h"
+#include "memory/memory.h"
 
 #include <string.h>
+#include <stdio.h> //TODO remove
 
 /**
  * @brief Function to validate wasm binary magic number
@@ -179,7 +181,7 @@ static void InitWasmBin(WasmBinModule * module){
  * @param size 
  * @return WpError 
  */
-static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t size, WasmBinModule * module) {
+static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *module) {
 
     WpError result = CreateError(OK);       //No error
 
@@ -256,15 +258,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->typesec.size = section.size;
                 module->typesec.content = section.content;
@@ -286,15 +281,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->importsec.size = section.size;
                 module->importsec.content = section.content;
@@ -316,15 +304,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->functionsec.size = section.size;
                 module->functionsec.content = section.content;
@@ -346,15 +327,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->tablesec.size = section.size;
                 module->tablesec.content = section.content;
@@ -376,15 +350,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->memsec.size = section.size;
                 module->memsec.content = section.content;
@@ -406,15 +373,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->globalsec.size = section.size;
                 module->globalsec.content = section.content;
@@ -436,15 +396,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->exportsec.size = section.size;
                 module->exportsec.content = section.content;
@@ -466,15 +419,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->startsec.size = section.size;
                 module->startsec.content = section.content;
@@ -496,15 +442,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->elemsec.size = section.size;
                 module->elemsec.content = section.content;
@@ -526,15 +465,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->codesec.size = section.size;
                 module->codesec.content = section.content;
@@ -556,15 +488,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->datasec.size = section.size;
                 module->datasec.content = section.content;
@@ -586,15 +511,8 @@ static WpError LoadWasmBin(WorkMemory *work_mem, const uint8_t *buf, uint32_t si
                 }
 
                 section.size = wasm_u32.value;
-                index = index + wasm_u32.len + wasm_u32.value;               
-
-                //copy section bytes into code mem //////////////////////////////////////////////////
-                section.content = work_mem->index;
-                result = AppendWasmCode(work_mem, index, section.size);
-
-                if(result.id != OK){
-                    return result;
-                }
+                section.content = index + wasm_u32.len;
+                index = section.content + wasm_u32.value;
 
                 module->datacountsec.size = section.size;
                 module->datacountsec.content = section.content;
@@ -631,19 +549,23 @@ WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, uint
 
     WpError result = CreateError(OK);       //No error
     
-    InitWasmBin(&self->mod);
+    WasmBinModule *mod = ALLOCATE(WasmBinModule, 1);
+    InitWasmBin(mod);
 
-    result = LoadWasmBin(&self->work_mem, buf, size, &self->mod);
+    //TODO load buffer into code memory. righ now comes from driver
+    mod->bin_len = size;
+    mod->start = self->code_mem;
+    result = LoadWasmBin(self->code_mem, size, mod);
     
     if(result.id != OK){
         //Clean process TODO
         return result;
     }
 
+    result = HashTableSet(&self->table_wasm_bin, id, (void *)mod);
     //self->load_mem_manager.block_count++;
 
     return result;
-
 
     
 }

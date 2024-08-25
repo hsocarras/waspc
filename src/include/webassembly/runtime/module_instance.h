@@ -36,9 +36,7 @@
  */
 typedef struct {
 
-    uint32_t export_instance_count;
-    ExportInstance exports;
-
+    
 } ModuleInstance;
 
 
