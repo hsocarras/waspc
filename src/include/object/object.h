@@ -26,7 +26,7 @@
  * 
  */
 typedef enum {
-    ERROR,
+    WP_OBJECT_ERROR,
 }WpObjectType;
 
 typedef struct WpObject{

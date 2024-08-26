@@ -27,7 +27,7 @@
  */
 static WpError ValidateMagic(const uint8_t *buf){
 
-    WpError result = CreateError(OK, LOADER, 28, 0);       //No error
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_LOADER, 28, 0);       //No error
     uint8_t magic_number_bytes[4] = {0x00, 0x61, 0x73, 0x6D};           /// Magic number that all wasm file start
     uint32_t wasm_magic_number = *((uint32_t *)magic_number_bytes);     /// magic number in uint32 format to avoid endianess problem
     uint32_t file_magic_number;
@@ -35,7 +35,7 @@ static WpError ValidateMagic(const uint8_t *buf){
     // Magic number check
     file_magic_number = *((uint32_t *)buf);    
     if(file_magic_number != wasm_magic_number){
-        result.id = INVALID_MAGIC;
+        result.id = WP_DIAG_ID_INVALID_MAGIC;
         result.detail.place = 36;
         return result;
     }
@@ -50,7 +50,7 @@ static WpError ValidateMagic(const uint8_t *buf){
  */
 static WpError ValidateVersion(const uint8_t *buf, uint32_t *version_number){
     
-    WpError result = CreateError(OK, LOADER, 51, 0);       //No error
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_LOADER, 51, 0);       //No error
 
     uint8_t version_number_bytes[4] = {0x01, 0x00, 0x00, 0x00};         /// version number    
     uint32_t version_number_1 = *((uint32_t *)version_number_bytes);    /// version number in uint32 format to avoid endianess problem
@@ -59,7 +59,7 @@ static WpError ValidateVersion(const uint8_t *buf, uint32_t *version_number){
     file_version_number = *((uint32_t *)buf); 
 
     if(file_version_number != version_number_1){
-        result.id = INVALID_VERSION;
+        result.id = WP_DIAG_ID_INVALID_VERSION;
         return result;
     }
     else {
@@ -184,7 +184,7 @@ static void InitWasmBin(WasmBinModule * module){
  */
 static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *module) {
 
-    WpError result = CreateError(OK, LOADER, 185, 0);       //No error
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_LOADER, 185, 0);       //No error
 
     const uint8_t *index = buf;                         // pointer to byte to traverse the binary file
     const uint8_t *buf_end = buf + size;                // pointer to end of binary module
@@ -203,13 +203,13 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
     // Check minimun buffer length for magic and version number ///////////////////////////////////
     if(size < 8){
         //if buffer's size is less than 4 is a wrong binary module
-        result.id = INVALID_MODULE_SIZE;
+        result.id = WP_DIAG_ID_INVALID_MODULE_SIZE;
         return result;
     }
 
     // Check magic number /////////////////////////////////////////////////////////////////////////
     result = ValidateMagic(index);
-    if (result.id != OK){
+    if (result.id != WP_DIAG_ID_OK){
         return result;
     }   
     index = index + 4; 
@@ -217,7 +217,7 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
 
     // Check version number /////////////////////////////////////////////////////////////////////////
     result = ValidateVersion(index, &binary_version);
-    if (result.id != OK){
+    if (result.id != WP_DIAG_ID_OK){
         return result;
     }
     index = index + 4;
@@ -225,12 +225,12 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     //LOOP to traverse the binary file
-    while(NOT_END() && section_counter <= DATA_COUNT){
+    while(NOT_END() && section_counter <= WP_WSA_BIN_MOD_SEC_ID_DATA_COUNT){
         //Seccion
         section_id = READ_BYTE();
         
         switch(section_id){
-            case CUSTOM:{
+            case WP_WSA_BIN_MOD_SEC_ID_CUSTOM:{
                 //custom section startwill be ignored 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len != 0){                    
@@ -238,23 +238,23 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                     break;
                 }
                 else {
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;
                 }                
             }
-            case TYPE:{
+            case WP_WSA_BIN_MOD_SEC_ID_TYPE:{
                 // Type Section
 
                 if(module->typesec.content != NULL){
                     //Check that type section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -266,18 +266,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->typesec.content = section.content;
                 break;
             }
-            case IMPORT:{
+            case WP_WSA_BIN_MOD_SEC_ID_IMPORT:{
                 // import Section                
                 if(module->importsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -289,18 +289,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->importsec.content = section.content;
                 break;
             }
-            case FUNCTION:{
+            case WP_WSA_BIN_MOD_SEC_ID_FUNCTION:{
                 // Function Section
                 if(module->functionsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -312,18 +312,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->functionsec.content = section.content;
                 break;
             }
-            case TABLE:{
+            case WP_WSA_BIN_MOD_SEC_ID_TABLE:{
                 // Table Section
                 if(module->tablesec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -335,18 +335,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->tablesec.content = section.content;
                 break;
             }
-            case MEMORY:{
+            case WP_WSA_BIN_MOD_SEC_ID_MEMORY:{
                 // Memory Section
                 if(module->memsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -358,18 +358,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->memsec.content = section.content;
                 break;
             }
-            case GLOBAL:{
+            case WP_WSA_BIN_MOD_SEC_ID_GLOBAL:{
                 // GLOBAL Section
                 if(module->globalsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -381,18 +381,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->globalsec.content = section.content;
                 break;
             }
-            case EXPORT:{
+            case WP_WSA_BIN_MOD_SEC_ID_EXPORT:{
                 //Export Section
                 if(module->exportsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -404,18 +404,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->exportsec.content = section.content;
                 break;
             }
-            case START:{
+            case WP_WSA_BIN_MOD_SEC_ID_START:{
                 // Start Section
                 if(module->startsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -427,18 +427,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->startsec.content = section.content;
                 break;
             }
-            case ELEMENT:{
+            case WP_WSA_BIN_MOD_SEC_ID_ELEMENT:{
                 // Element Section
                 if(module->elemsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -450,18 +450,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->elemsec.content = section.content;
                 break;
             }
-            case CODE:{
+            case WP_WSA_BIN_MOD_SEC_ID_CODE:{
                 //Code Section   
                 if(module->codesec.content != 0){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -473,18 +473,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->codesec.content = section.content;
                 break;
             }
-            case DATA:{
+            case WP_WSA_BIN_MOD_SEC_ID_DATA:{
                 //Data Section   
                 if(module->datasec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -496,18 +496,18 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
                 module->datasec.content = section.content;
                 break;
             }
-            case DATA_COUNT:{
+            case WP_WSA_BIN_MOD_SEC_ID_DATA_COUNT:{
                 //Data Count Section   
                 if(module->datacountsec.content != NULL){
                     //Check that custom section is in init state.
                     //Otherwise significa que esta repetida en el archivo
-                    result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                     return result;
                 }
                 
                 wasm_u32 = DecodeLeb128UInt32(index);
                 if (wasm_u32.len == 0){
-                    result.id = INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
+                    result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for wrong leb128 encoded value
                     return result;                                        
                 }
 
@@ -521,7 +521,7 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
             }
             default:{
                 //Not a valid Section ID
-                result.id = INVALID_SECTION_ID;     //TODO better error for duplicate section
+                result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for duplicate section
                 return result;           
             }
 
@@ -548,7 +548,7 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
  */
 WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, uint32_t id) {
 
-    WpError result = CreateError(OK, LOADER, 549, 0);       //No error
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_LOADER, 549, 0);       //No error
     
     WasmBinModule *mod = ALLOCATE(WasmBinModule, 1);
     InitWasmBin(mod);
@@ -558,7 +558,7 @@ WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, uint
     mod->start = self->code_mem;
     result = LoadWasmBin(self->code_mem, size, mod);
     
-    if(result.id != OK){
+    if(result.id != WP_DIAG_ID_OK){
         //Clean process TODO
         return result;
     }

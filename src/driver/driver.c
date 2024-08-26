@@ -18,6 +18,7 @@
 
 ////For TODO testing//////////////////////////////////////////////////////////////////////
 #include "webassembly/binary/module.h"
+#include "webassembly/structure/module.h"
 #include "utils/hash_table.h"
 //////////////////////////////////////////////////////////////////////////////////////////
 #include <stdio.h>
@@ -111,7 +112,7 @@ int main(int argc, const char* argv[]) {
 
     
 
-    WpError result = CreateError(OK, HOST, 88, 0);            //No error
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_HOST, 88, 0);            //No error
 
     // Opening file in reading mode
     printf("Openning wasm file \n");
@@ -160,16 +161,23 @@ int main(int argc, const char* argv[]) {
         
         result = LoadWasmBuffer(&env, load_ptr, len, id);
         
-        if(result.id == OK){
+        if(result.id == WP_DIAG_ID_OK){
             
-            WasmBinModule *mod = (WasmBinModule *)HashTableGet(&env.table_wasm_bin, id);
-            printf("Module loaded into runtime. %i Bytes loaded \n", (mod->bin_len));
-            printf("Module code section size %d", mod->codesec.size);           
+            WasmBinModule *bin_mod = (WasmBinModule *)HashTableGet(&env.table_wasm_bin, id);
+            printf("Module loaded into runtime. %i Bytes loaded \n", (bin_mod->bin_len));
+           
+            WasmModule wmod;
+            result = DecodeWasmBinModule(&env, bin_mod, &wmod);
+            printf("Decoded type section: \n");     
+            printf("total types: %u\n", wmod.type_len); 
+            printf("First type parameters %u, \n", wmod.types[0].param_len);           
         }
         else{
             ReportError(&result);
             printf("Module loaded fail  \n");
         }
+
+        
         free(binary_file);
         return 0;
     }
@@ -191,13 +199,13 @@ int main(int argc, const char* argv[]) {
 void ReportError(WpError *err){
 
     switch(err->detail.origin){
-        case HOST:
+        case W_DIAG_MOD_LIST_HOST:
             printf("Error from host module: \n");
             break;
-        case LOADER:
+        case W_DIAG_MOD_LIST_LOADER:
             printf("Error from loader module: \n");
             break;
-        case DECODER:
+        case W_DIAG_MOD_LIST_DECODER:
             printf("Error from decoder module: \n");
             break;
         default: 

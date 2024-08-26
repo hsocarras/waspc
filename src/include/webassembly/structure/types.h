@@ -16,7 +16,7 @@
     extern "C" {
 #endif
 
-#include "webassembly/runtime/addresses.h"
+#include "webassembly/execution/runtime/addresses.h"
 
 #include <stdint.h>
 
@@ -110,7 +110,7 @@ typedef union ValType {
     NumType num;
     VecType v128;
     RefType ref;
-} Valtype;
+} ValType;
 
 /**
  * @brief Result types classify the result of executing instructions or functions, which is a sequence of values, written with
@@ -151,23 +151,17 @@ typedef struct Limits {
 // Tables //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Global //////////////////////////////////////////////////////////////////////////////////////////////////////////
-typedef enum Mut{
-    CONST,
-    VAR,
-} Mut;
-
 typedef struct GlobalType {
-    Mut mut;
+    uint8_t mut;                //0-constant, 1-variable
     ValType value;
 } GlobalType;
 // Global //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // External //////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 typedef union ExternType {
     FuncType func;
-    TableType table;
-    MemType mem;
+    //TableType table;
+    //MemType mem;
     GlobalType global;
 } ExternType;
 // External //////////////////////////////////////////////////////////////////////////////////////////////////////////

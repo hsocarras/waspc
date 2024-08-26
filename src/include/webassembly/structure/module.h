@@ -32,10 +32,10 @@ typedef struct WasmModuleType{
 
 // Import //////////////////////////////////////////////////////////////////////////////////////////////
 typedef enum ImportDescType {
-    FUNC,
-    TABLE,
-    MEM,
-    GLOBAL,
+    WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_FUNC,
+    WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_TABLE,
+    WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_MEM,
+    WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_GLOBAL,
 } ImportDescType;
 
 typedef struct ImportDesc {
@@ -46,22 +46,24 @@ typedef struct ImportDesc {
 typedef struct WasmModuleImport{
     
     uint32_t module_len;
-    char *module;                   ///module name
+    const unsigned char *module;                   ///module name
     uint32_t name_len;
-    char *name;
-    ImportDescBase *desc;
+    const unsigned char *name;
+    ImportDesc *desc;
 
 } WasmModuleImport;
 //#####################################################################################################
 
 typedef struct WasmModule{
 
-    // type section. 
+    // type  
     uint32_t type_len;    
     FuncType *types;
 
-    uint32_t *imports_len;
+    // import
+    uint32_t imports_len;
     WasmModuleImport *imports;
+
 } WasmModule;
 
 

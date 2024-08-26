@@ -33,6 +33,8 @@ WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, cons
 
 WpError InstanciateModule(RuntimeEnv *self, WasmBinModule *mod, uint8_t *imports, uint32_t import_counts, const uint32_t id);
 
+WpError DecodeWasmBinModule(RuntimeEnv *self, WasmBinModule *bin_mod, WasmModule *mod);
+
 #ifdef __cplusplus
     }
 #endif

@@ -22,11 +22,7 @@
 
 #define HASH_TABLE_MAX_CAPACITY 100 //TODO come from config
 
-typedef enum HashTableType{
-    
-    WASM_BIN_MODULE,
 
-} HashTableType;
 
 typedef struct HashTableSlot {     
     uint32_t key;                               /// complete hash
@@ -35,8 +31,7 @@ typedef struct HashTableSlot {
 
 typedef struct HashTable{    
     uint32_t capacity;
-    uint32_t usage;
-    //HashTabletype data_type;                    /// indicate the type of data sotred in
+    uint32_t usage;    
     Slot *slots;
 } HashTable;
 

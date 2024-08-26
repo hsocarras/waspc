@@ -113,7 +113,7 @@ void FreeHashTable(HashTable *self){
 
 WpError HashTableSet(HashTable *self, uint32_t key, void *value){
 
-    WpError result = CreateError(OK, UTILS, 114, 0);       //No error
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_UTILS, 114, 0);       //No error
     
     if (self->usage + 1 > (self->capacity * HASH_TABLE_MAX_LOAD)/100) {
         uint32_t new_capacity = ((self->usage+1)*100)/75;
@@ -123,7 +123,7 @@ WpError HashTableSet(HashTable *self, uint32_t key, void *value){
     Slot* match_slot = FindSlot(self->slots, self->capacity, key);
 
     if(match_slot == NULL){
-        result.id = TODO;
+        result.id = WP_DIAG_ID_TODO;
         return result;
     };
 
@@ -152,7 +152,7 @@ void * HashTableGet(HashTable *self, uint32_t key){
 
 WpError HasTableDelete(HashTable *self, uint32_t key) {
 
-    WpError result = CreateError(OK, UTILS, 153, 0);       //No error
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_UTILS, 153, 0);       //No error
 
     if (self->usage == 0) return result;
 

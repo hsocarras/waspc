@@ -20,21 +20,23 @@
 
 #include <stdint.h>
 
+
+
 typedef enum {
 
-    OK,
-    INVALID_MODULE_SIZE,
-    INVALID_MAGIC,
-    INVALID_VERSION,
-    INVALID_SECTION_ID,
-    TODO,
+    WP_DIAG_ID_OK,
+    WP_DIAG_ID_INVALID_MODULE_SIZE,
+    WP_DIAG_ID_INVALID_MAGIC,
+    WP_DIAG_ID_INVALID_VERSION,
+    WP_DIAG_ID_INVALID_SECTION_ID,
+    WP_DIAG_ID_TODO,
 } WpErrorId;
 
 typedef enum WpErrorModuleList {
-    HOST,
-    LOADER,
-    DECODER,
-    UTILS,
+    W_DIAG_MOD_LIST_HOST,
+    W_DIAG_MOD_LIST_LOADER,
+    W_DIAG_MOD_LIST_DECODER,
+    W_DIAG_MOD_LIST_UTILS,
 } WpErrorModuleList;
 
 typedef struct WpErrorModuleInfo {
@@ -56,6 +58,8 @@ typedef struct {
 } WpError;
 
 WpError CreateError(WpErrorId, WpErrorModuleList mod, uint32_t func, uint32_t place);
+
+extern void ReportError(WpError *err);
 
 #ifdef __cplusplus
     }

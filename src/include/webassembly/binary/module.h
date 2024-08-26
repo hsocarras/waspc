@@ -22,14 +22,14 @@
 
 typedef enum EncodedValTypes {
 
-    FUNCTYPE = 0x60,
-    EXTERN_REF_TYPE = 0x6F,
-    FUNC_REF_TYPE = 0x70,
-    V128 = 0x7B,
-    F64 = 0x7C,
-    F32 = 0x7D,
-    I64 = 0x7E,
-    I32 = 0x7F,
+    WP_WAS_BIN_ENC_FUNCTYPE = 0x60,
+    WP_WAS_BIN_ENC_EXTERN_REF_TYPE = 0x6F,
+    WP_WAS_BIN_ENC_FUNC_REF_TYPE = 0x70,
+    WP_WAS_BIN_ENC_V128 = 0x7B,
+    WP_WAS_BIN_ENC_F64 = 0x7C,
+    WP_WAS_BIN_ENC_F32 = 0x7D,
+    WP_WAS_BIN_ENC_I64 = 0x7E,
+    WP_WAS_BIN_ENC_I32 = 0x7F,
 
 } EncodedValTypes;
 
@@ -39,20 +39,20 @@ typedef enum EncodedValTypes {
  * @brief Enum with section id number inside binary format.
  * 
  */
-typedef enum {
-    CUSTOM,         /// They are intended to be used for debugging information or third-party extensions. 5.5.3
-    TYPE,           /// It decodes into a vector of function types. Spec 5.5.4.
-    IMPORT,
-    FUNCTION,
-    TABLE,
-    MEMORY,
-    GLOBAL,
-    EXPORT,
-    START,
-    ELEMENT,
-    CODE,
-    DATA,
-    DATA_COUNT,     
+typedef enum SectionId{
+    WP_WSA_BIN_MOD_SEC_ID_CUSTOM,         /// They are intended to be used for debugging information or third-party extensions. 5.5.3
+    WP_WSA_BIN_MOD_SEC_ID_TYPE,           /// It decodes into a vector of function types. Spec 5.5.4.
+    WP_WSA_BIN_MOD_SEC_ID_IMPORT,
+    WP_WSA_BIN_MOD_SEC_ID_FUNCTION,
+    WP_WSA_BIN_MOD_SEC_ID_TABLE,
+    WP_WSA_BIN_MOD_SEC_ID_MEMORY,
+    WP_WSA_BIN_MOD_SEC_ID_GLOBAL,
+    WP_WSA_BIN_MOD_SEC_ID_EXPORT,
+    WP_WSA_BIN_MOD_SEC_ID_START,
+    WP_WSA_BIN_MOD_SEC_ID_ELEMENT,
+    WP_WSA_BIN_MOD_SEC_ID_CODE,
+    WP_WSA_BIN_MOD_SEC_ID_DATA,
+    WP_WSA_BIN_MOD_SEC_ID_DATA_COUNT,     
 } SectionId;
 
 typedef struct WasmBinSection {   

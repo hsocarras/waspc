@@ -27,7 +27,7 @@
 
 #define ENABLE_DEBUG_INTERPRETER 0
 
-void ReportError(WpError *err);
+
 
 
 #ifdef __cplusplus

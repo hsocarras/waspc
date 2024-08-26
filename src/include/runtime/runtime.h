@@ -18,7 +18,8 @@
 
 //wasp includes
 #include "webassembly/binary/module.h"
-#include "webassembly/runtime/module_instance.h"
+#include "webassembly/structure/module.h"
+//#include "webassembly/execution/runtime/module_instance.h"
 #include "diagnostic/error.h"
 //#include "memory/work_memory.h"
 #include "utils/hash_table.h"
@@ -65,7 +66,7 @@ typedef struct {
  */
 void InitRuntime(RuntimeEnv *self);
 
-void SetWorkMem(RuntimeEnv *self, uint8_t *load_mem, uint32_t load_mem_size);
+
 
 #ifdef __cplusplus
     }
