@@ -18,6 +18,23 @@
 
 #include <stdint.h>
 
+// Encoded Types///////////////////////////////////////////////////////////////////////////////////////
+
+typedef enum EncodedValTypes {
+
+    FUNCTYPE = 0x60,
+    EXTERN_REF_TYPE = 0x6F,
+    FUNC_REF_TYPE = 0x70,
+    V128 = 0x7B,
+    F64 = 0x7C,
+    F32 = 0x7D,
+    I64 = 0x7E,
+    I32 = 0x7F,
+
+} EncodedValTypes;
+
+//#####################################################################################################
+
 /**
  * @brief Enum with section id number inside binary format.
  * 

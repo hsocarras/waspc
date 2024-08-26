@@ -9,6 +9,7 @@
  */
 
 //wasp includes
+#include "config.h"
 #include "runtime/runtime.h"
 #include "diagnostic/error.h"
 #include "loader/wasm_loader.h"
@@ -110,7 +111,7 @@ int main(int argc, const char* argv[]) {
 
     
 
-    WpError result = CreateError(OK);            //No error
+    WpError result = CreateError(OK, HOST, 88, 0);            //No error
 
     // Opening file in reading mode
     printf("Openning wasm file \n");
@@ -159,14 +160,15 @@ int main(int argc, const char* argv[]) {
         
         result = LoadWasmBuffer(&env, load_ptr, len, id);
         
-        if(result.id == 0){
+        if(result.id == OK){
             
             WasmBinModule *mod = (WasmBinModule *)HashTableGet(&env.table_wasm_bin, id);
             printf("Module loaded into runtime. %i Bytes loaded \n", (mod->bin_len));
             printf("Module code section size %d", mod->codesec.size);           
         }
         else{
-            printf("Module loaded fail %i \n",result.id);
+            ReportError(&result);
+            printf("Module loaded fail  \n");
         }
         free(binary_file);
         return 0;
@@ -178,5 +180,34 @@ int main(int argc, const char* argv[]) {
         return 3;
 
     }  
+    
+}
+
+/**
+ * @brief Hook function for diagnostic
+ * 
+ * @param err 
+ */
+void ReportError(WpError *err){
+
+    switch(err->detail.origin){
+        case HOST:
+            printf("Error from host module: \n");
+            break;
+        case LOADER:
+            printf("Error from loader module: \n");
+            break;
+        case DECODER:
+            printf("Error from decoder module: \n");
+            break;
+        default: 
+            printf("Error unknow \n");
+    }
+
+    //get function name, for now line of code
+    printf("At function; %u \n", err->detail.func);
+
+    //get function place, for now line of code
+    printf("in line; %u \n", err->detail.place);
     
 }

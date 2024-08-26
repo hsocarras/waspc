@@ -113,7 +113,7 @@ void FreeHashTable(HashTable *self){
 
 WpError HashTableSet(HashTable *self, uint32_t key, void *value){
 
-    WpError result = CreateError(OK);       //No error
+    WpError result = CreateError(OK, UTILS, 114, 0);       //No error
     
     if (self->usage + 1 > (self->capacity * HASH_TABLE_MAX_LOAD)/100) {
         uint32_t new_capacity = ((self->usage+1)*100)/75;
@@ -152,7 +152,7 @@ void * HashTableGet(HashTable *self, uint32_t key){
 
 WpError HasTableDelete(HashTable *self, uint32_t key) {
 
-     WpError result = CreateError(OK);       //No error
+    WpError result = CreateError(OK, UTILS, 153, 0);       //No error
 
     if (self->usage == 0) return result;
 

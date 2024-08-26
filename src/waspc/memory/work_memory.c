@@ -50,7 +50,7 @@ float GetLoadMemoryUsage(const WorkMemory *self){
     
     return (mem_used/total_mem)*100.0;              
 }*/
-
+/*
 WpError AppendWasmCode(WorkMemory *self, const uint8_t *buf, const uint32_t size){
 
     WpError result = CreateError(OK);                                              //No error
@@ -68,5 +68,5 @@ WpError AppendWasmCode(WorkMemory *self, const uint8_t *buf, const uint32_t size
     
     return result;
 
-}
+}*/
 

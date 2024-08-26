@@ -30,15 +30,32 @@ typedef enum {
     TODO,
 } WpErrorId;
 
+typedef enum WpErrorModuleList {
+    HOST,
+    LOADER,
+    DECODER,
+    UTILS,
+} WpErrorModuleList;
+
+typedef struct WpErrorModuleInfo {
+
+    WpErrorModuleList origin;               // module
+    uint32_t func;                          // function inside module
+    uint32_t place;                         // check wher the error was produced
+    
+} WpErrorModuleInfo;
+
 typedef struct {
 
     WpObject head;          /// header
     
     WpErrorId id;           /// diagnostic id for text and severity
 
+    WpErrorModuleInfo detail;       //TODO make a condifcional for debug flag
+    
 } WpError;
 
-WpError CreateError(WpErrorId);
+WpError CreateError(WpErrorId, WpErrorModuleList mod, uint32_t func, uint32_t place);
 
 #ifdef __cplusplus
     }

@@ -123,10 +123,18 @@ typedef struct ResultType {
     ValType *vec;
 }ResultType;
 
-
+/**
+ * @brief Function types classify the signature of functions, mapping a vector of parameters to a vector of results.
+ * 
+ * functype ::= resulttype → resulttype
+ */
 typedef struct FuncType{
-    ResultType param;
-    ResultType ret;
+
+    uint32_t param_len;
+    uint8_t *param;             //encoded type see enum on binary/module.h
+
+    uint32_t result_len;
+    uint8_t *result;               //encoded type see enum on binary/module.h
 } FuncType;
 
 typedef struct Limits {

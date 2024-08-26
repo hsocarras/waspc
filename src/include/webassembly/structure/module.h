@@ -20,48 +20,46 @@
 
 #include <stdint.h>
 
+
+// Types //////////////////////////////////////////////////////////////////////////////////////////////
+/*
+typedef struct WasmModuleType{    
+    uint32_t type_len;    
+    FuncType *type;
+} WasmModuleType;*/
+//#####################################################################################################
+
+
+// Import //////////////////////////////////////////////////////////////////////////////////////////////
 typedef enum ImportDescType {
-    func,
-    table,
-    mem,
-    global,
+    FUNC,
+    TABLE,
+    MEM,
+    GLOBAL,
 } ImportDescType;
 
-typedef struct ImportDescBase {
+typedef struct ImportDesc {
     ImportDescType type;
-} ImportDescBase;
-
-typedef struct ImportDescFunction {
-    ImportDescType type;
-    TypeIdx func;
-} ImportDescBase;
-
-typedef struct ImportDescTable {
-    ImportDescType type;
-    TableType table;
-} ImportDescTable;
-
-typedef struct ImportDescMem {
-    ImportDescType type;
-    MemType mem;
-} ImportDescMem;
-
-typedef struct ImportDescGlobal {
-    ImportDescType type;
-    GlobalType global;
-} ImportDescGlobal;
+    uint32_t idx;               //index defined at 2.5.1 Indices   
+} ImportDesc;
 
 typedef struct WasmModuleImport{
     
-    uint32_t name_len;
+    uint32_t module_len;
     char *module;                   ///module name
+    uint32_t name_len;
+    char *name;
     ImportDescBase *desc;
 
 } WasmModuleImport;
-
+//#####################################################################################################
 
 typedef struct WasmModule{
-    
+
+    // type section. 
+    uint32_t type_len;    
+    FuncType *types;
+
     uint32_t *imports_len;
     WasmModuleImport *imports;
 } WasmModule;

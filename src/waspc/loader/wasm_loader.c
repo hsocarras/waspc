@@ -27,7 +27,7 @@
  */
 static WpError ValidateMagic(const uint8_t *buf){
 
-    WpError result = CreateError(OK);       //No error
+    WpError result = CreateError(OK, LOADER, 28, 0);       //No error
     uint8_t magic_number_bytes[4] = {0x00, 0x61, 0x73, 0x6D};           /// Magic number that all wasm file start
     uint32_t wasm_magic_number = *((uint32_t *)magic_number_bytes);     /// magic number in uint32 format to avoid endianess problem
     uint32_t file_magic_number;
@@ -36,6 +36,7 @@ static WpError ValidateMagic(const uint8_t *buf){
     file_magic_number = *((uint32_t *)buf);    
     if(file_magic_number != wasm_magic_number){
         result.id = INVALID_MAGIC;
+        result.detail.place = 36;
         return result;
     }
     else return result;
@@ -49,7 +50,7 @@ static WpError ValidateMagic(const uint8_t *buf){
  */
 static WpError ValidateVersion(const uint8_t *buf, uint32_t *version_number){
     
-    WpError result = CreateError(OK);       //No error
+    WpError result = CreateError(OK, LOADER, 51, 0);       //No error
 
     uint8_t version_number_bytes[4] = {0x01, 0x00, 0x00, 0x00};         /// version number    
     uint32_t version_number_1 = *((uint32_t *)version_number_bytes);    /// version number in uint32 format to avoid endianess problem
@@ -183,7 +184,7 @@ static void InitWasmBin(WasmBinModule * module){
  */
 static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *module) {
 
-    WpError result = CreateError(OK);       //No error
+    WpError result = CreateError(OK, LOADER, 185, 0);       //No error
 
     const uint8_t *index = buf;                         // pointer to byte to traverse the binary file
     const uint8_t *buf_end = buf + size;                // pointer to end of binary module
@@ -547,7 +548,7 @@ static WpError LoadWasmBin(const uint8_t *buf, uint32_t size, WasmBinModule *mod
  */
 WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, uint32_t id) {
 
-    WpError result = CreateError(OK);       //No error
+    WpError result = CreateError(OK, LOADER, 549, 0);       //No error
     
     WasmBinModule *mod = ALLOCATE(WasmBinModule, 1);
     InitWasmBin(mod);
