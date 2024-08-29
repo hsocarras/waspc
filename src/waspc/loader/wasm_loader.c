@@ -1,7 +1,8 @@
 /**
  * @file wasm_loader.c
  * @author Hector E. Socarras (hsocarras1987@gmail.com)
- * @brief Header file for wasm load module
+ * @brief Header file for wasm load module. The purpose for this module is create the struct WasmBinModule
+ * in runtime hash_table for bin. Make some basic validation like magic number and verdion and invoke the decoder module.
  * @version 0.1
  * @date 2024-06-26
  * 

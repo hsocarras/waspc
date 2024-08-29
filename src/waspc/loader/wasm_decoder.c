@@ -14,18 +14,66 @@
 #include "memory/memory.h"
 #include "diagnostic/error.h"
 #include "webassembly/binary/module.h"
+#include "webassembly/binary/opcode.h"
+#include "webassembly/structure/types.h"
 #include "webassembly/structure/module.h"
 #include "utils/leb128.h"
 
 #include <stdint.h>
 
+static const uint8_t * DecodedLimitsType(const uint8_t *buf, Limits *lim){
 
-static WpError DecodeTypeSection(WasmBinSection *typesec, WasmModule *module){
+    const uint8_t *index = buf;    
+    DEC_UINT32_LEB128 wasm_u32;                                                     // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
+
+    #define READ_BYTE() (*index++)
+
+    //get index flag for maximun precense
+    byte_val = READ_BYTE();
+    if(byte_val == 0){
+        //maximun not present
+        wasm_u32 = DecodeLeb128UInt32(index);           //get minimun value
+        if (wasm_u32.len == 0){
+            return NULL;                                        
+        }
+        index = index + wasm_u32.len;
+        lim->min = wasm_u32.value;
+        lim->max = 0;
+        return index;
+    }
+    else if (byte_val == 1){
+        //maximun present
+        wasm_u32 = DecodeLeb128UInt32(index);           //get minimun value
+        if (wasm_u32.len == 0){
+            return NULL;                                        
+        }
+        index = index + wasm_u32.len;
+        lim->min = wasm_u32.value;
+        
+        wasm_u32 = DecodeLeb128UInt32(index);           //get maximun value
+        if (wasm_u32.len == 0){
+            return NULL;                                        
+        }
+        index = index + wasm_u32.len;
+        lim->max = wasm_u32.value;
+        return index;
+    }
+    else{
+        //error encoded limit
+        return NULL;                   //means error otherwise the limits len to shift the index in caller.
+    }
+
+    #undef READ_BYTE
+
+}
+
+static WpError DecodeTypeSection(WasmBinSection *sec, WasmModule *module){
 
     WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 22, 0);       //No error
     
-    const uint8_t *index = typesec->content;                       // pointer to byte to traverse the binary file
-    const uint8_t *buf_end = typesec->content + typesec->size;                   // pointer to end of binary module
+    const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = sec->content + sec->size;                   // pointer to end of binary module
     uint32_t type_count;                                            // auxiliary variable
     uint32_t param_count;
     DEC_UINT32_LEB128 wasm_u32;                                     // auxiliary variable to decode leb128 values
@@ -137,12 +185,12 @@ static WpError DecodeTypeSection(WasmBinSection *typesec, WasmModule *module){
  * @param module 
  * @return WpError 
  */
-static WpError DecodeImportSection(WasmBinSection *importsec, WasmModule *module){
+static WpError DecodeImportSection(WasmBinSection *sec, WasmModule *module){
 
     WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 133, 0);       //No error
     
-    const uint8_t *index = importsec->content;                      // pointer to byte to traverse the binary file
-    const uint8_t *buf_end = importsec->content + importsec->size;                 // pointer to end of binary module
+    const uint8_t *index = sec->content;                      // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = sec->content + sec->size;                 // pointer to end of binary module
     uint32_t import_count;
     DEC_UINT32_LEB128 wasm_u32;                                     // auxiliary variable to decode leb128 values
     uint8_t byte_val;
@@ -246,6 +294,292 @@ static WpError DecodeImportSection(WasmBinSection *importsec, WasmModule *module
     #undef NOT_END
 }
 
+static WpError DecodeFunctionSection(WasmBinSection *sec, WasmModule *module){
+
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 22, 0);       //No error
+    
+    const uint8_t *index = sec->content;                                        // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = sec->content + sec->size;                      // pointer to end of binary module
+    uint32_t func_count;                                                            // auxiliary variable
+    
+    DEC_UINT32_LEB128 wasm_u32;                                                     // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
+    EncodedValTypes encoded_type;
+
+    Func *funcs;    
+
+    //get functions count
+    wasm_u32 = DecodeLeb128UInt32(index);
+    if (wasm_u32.len == 0){
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        return result;                                        
+    }
+
+    index = index + wasm_u32.len;
+
+    module->func_len = wasm_u32.value;      // type's counter
+    func_count = wasm_u32.value;            // type's counter
+   
+    //alocating types on heap
+    funcs = ALLOCATE(Func, func_count);
+    module->funcs = funcs;
+    //TODO Check allocation works    
+        
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < func_count; i++){
+
+        
+        
+        //get parameters count        
+        wasm_u32 = DecodeLeb128UInt32(index);
+        if (wasm_u32.len == 0){
+            result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+            return result;                                        
+        }
+        index = index + wasm_u32.len;        
+        funcs[i].idx = wasm_u32.value;
+
+    }
+    
+    if(index != buf_end){
+        //Decode fails
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        result.detail.place = 300;
+        return result; 
+    }
+
+    return result; 
+    
+    #undef READ_BYTE
+    #undef NOT_END
+}
+
+static WpError DecodeTableSection(WasmBinSection *sec, WasmModule *module){
+
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 22, 0);       //No error
+    
+    const uint8_t *index = sec->content;                                        // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = sec->content + sec->size;                      // pointer to end of binary module
+    uint32_t table_count;                                                            // auxiliary variable
+    
+    DEC_UINT32_LEB128 wasm_u32;                                                     // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
+    
+    Table *tables;    
+    Limits lim;
+
+    //get table count
+    wasm_u32 = DecodeLeb128UInt32(index);
+    if (wasm_u32.len == 0){
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        return result;                                        
+    }
+
+    index = index + wasm_u32.len;
+
+    module->table_len = wasm_u32.value;      // type's counter
+    table_count = wasm_u32.value;            // type's counter
+   
+    //alocating types on heap
+    tables = ALLOCATE(Table, table_count);
+    module->tables = tables;
+    //TODO Check allocation works    
+        
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < table_count; i++){        
+        
+        //get reference type       0x6F->external, 0x70->function ref
+        byte_val = READ_BYTE();
+
+        if(byte_val == 0x6F){
+            //external reference
+            //TODO
+        }
+        else if(byte_val == 0x70){
+            //function reference
+            //TODO
+        }
+        else{
+            //Error
+            //Decode fails
+            result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+            result.detail.place = 359;
+            return result; 
+        }
+        //init table usage
+        tables[i].usage = 0;
+        index = DecodedLimitsType(index, &tables[i].lim);
+
+        if(index == NULL){
+             //Error
+            //Decode fails
+            result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+            result.detail.place = 421;
+            return result; 
+        }
+        
+
+    }
+    
+    if(index != buf_end){
+        //Decode fails
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        result.detail.place = 300;
+        return result; 
+    }
+
+    return result; 
+    
+    #undef READ_BYTE
+    #undef NOT_END
+}
+
+static WpError DecodeMemSection(WasmBinSection *sec, WasmModule *module){
+
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 22, 0);       //No error
+    
+    const uint8_t *index = sec->content;                                        // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = sec->content + sec->size;                      // pointer to end of binary module
+    uint32_t mem_count;                                                            // auxiliary variable
+    
+    DEC_UINT32_LEB128 wasm_u32;                                                     // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
+    
+    Mem *mems;    
+    Limits lim;
+
+    //get mem count
+    wasm_u32 = DecodeLeb128UInt32(index);
+    if (wasm_u32.len == 0){
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        return result;                                        
+    }
+
+    index = index + wasm_u32.len;
+
+    module->mem_len = wasm_u32.value;      // type's counter
+    mem_count = wasm_u32.value;            // type's counter
+   
+    //alocating types on heap
+    mems = ALLOCATE(Mem, mem_count);
+    module->mems = mems;
+    //TODO Check allocation works    
+        
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < mem_count; i++){        
+        
+        
+        mems[i].usage = 0;
+        index = DecodedLimitsType(index, &mems[i].lim);
+
+        if(index == NULL){
+             //Error
+            //Decode fails
+            result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+            result.detail.place = 421;
+            return result; 
+        }
+        
+
+    }
+    
+    if(index != buf_end){
+        //Decode fails
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        result.detail.place = 300;
+        return result; 
+    }
+
+    return result; 
+    
+    #undef READ_BYTE
+    #undef NOT_END
+}
+
+static WpError DecodeGlobalSection(WasmBinSection *sec, WasmModule *module){
+
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 22, 0);       //No error
+    
+    const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = sec->content + sec->size;                   // pointer to end of binary module
+    uint32_t global_count;                                            // auxiliary variable
+    
+    DEC_UINT32_LEB128 wasm_u32;                                     // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
+    EncodedValTypes encoded_type;
+
+    Global *globals;    
+
+    //get type count
+    wasm_u32 = DecodeLeb128UInt32(index);
+    if (wasm_u32.len == 0){
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        return result;                                        
+    }
+
+    index = index + wasm_u32.len;
+
+    module->global_len = wasm_u32.value;      // type's counter
+    global_count = wasm_u32.value;            // type's counter
+   
+    //alocating types on heap
+    globals = ALLOCATE(Global, global_count);
+    module->globals = globals;
+    //TODO Check allocation works
+    
+    
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < global_count; i++){
+
+        //get type
+        encoded_type = READ_BYTE();
+        //TODO check valid type
+        globals[i].type = encoded_type;
+        
+        //get mutable property
+        byte_val = READ_BYTE();
+        if(byte_val == 0){
+            globals[i].mut = byte_val;
+        }
+        else if (byte_val == 1){
+            globals[i].mut = byte_val;
+        }
+        else{
+            result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+            return result; 
+        }
+        
+
+        globals[i].init_code = index;
+        //look for opcode 0x0B;
+        byte_val = READ_BYTE();
+        while(NOT_END() && byte_val != OPCODE_END){
+            byte_val = READ_BYTE();
+        }
+        globals[i].init_len = index - globals[1].init_code;          
+        
+    }
+    
+    if(index != buf_end){
+        //Decode fails
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        result.detail.place = 114;
+        return result; 
+    }
+
+    return result; 
+    
+    #undef READ_BYTE
+    #undef NOT_END
+}
 
 
 WpError DecodeWasmBinModule(RuntimeEnv *self, WasmBinModule *bin_mod, WasmModule *mod){
@@ -260,6 +594,16 @@ WpError DecodeWasmBinModule(RuntimeEnv *self, WasmBinModule *bin_mod, WasmModule
     // If import sec is present:
     if(bin_mod->importsec.size > 0){
         result = DecodeImportSection(&bin_mod->importsec, mod);
+    }
+
+    // If function sec is present:
+    if(bin_mod->functionsec.size > 0){
+        result = DecodeFunctionSection(&bin_mod->functionsec, mod);
+    }
+
+    // If table sec is present:
+    if(bin_mod->tablesec.size > 0){
+        result = DecodeTableSection(&bin_mod->tablesec, mod);
     }
 
     return result;

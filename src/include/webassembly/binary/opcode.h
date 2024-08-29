@@ -21,6 +21,7 @@
         OPCODE_UNREACHABLE = 0x00,
         OPCODE_NOP = 0x01,                  /// No operation
         
+        OPCODE_END = 0X0B,
         OPCODE_RETURN = 0x0F,               /// return instruction
         OPCODE_LOCAL_GET = 0x20,            /// get local variable x
         OPCODE_LOCAL_SET = 0x21,            /// set local variable x

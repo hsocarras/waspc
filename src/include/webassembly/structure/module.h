@@ -54,6 +54,46 @@ typedef struct WasmModuleImport{
 } WasmModuleImport;
 //#####################################################################################################
 
+
+// FUNCTION ///////////////////////////////////////////////////////////////////////////////////////////
+typedef struct Func{
+    uint32_t idx;               //type index
+    uint32_t local_len;         //local's vector len
+    ValType *locals;
+    uint32_t body_len;
+    uint8_t *body;
+} Func;
+//#####################################################################################################
+
+// TABLE //////////////////////////////////////////////////////////////////////////////////////////////
+// Similar to dinamic array Lim is the capacity of table and usage is how many reference are.
+//However dinamic reference array can't grow beyond of lim.max.
+typedef struct Table{
+    Limits lim;
+    uint32_t usage;
+    RefType *references;
+} Table;
+//#####################################################################################################
+
+// MEM //////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef struct Mem{
+    Limits lim;
+    uint32_t usage;
+    uint8_t *mem;
+} Mem;
+//#####################################################################################################
+
+// Global ///////////////////////////////////////////////////////////////////////////////////////////
+typedef struct Global{
+    uint8_t type;
+    uint8_t mut;
+    ValType *value;
+    uint32_t init_len;
+    const uint8_t *init_code;    
+} Global;
+//#####################################################################################################
+
 typedef struct WasmModule{
 
     // type  
@@ -63,6 +103,22 @@ typedef struct WasmModule{
     // import
     uint32_t imports_len;
     WasmModuleImport *imports;
+
+    // Functions
+    uint32_t func_len;
+    Func *funcs;
+
+    //Tables
+    uint32_t table_len;
+    Table *tables;
+
+    //Mems
+    uint32_t mem_len;
+    Mem *mems;
+
+    //Global
+    uint32_t global_len;
+    Global *globals;
 
 } WasmModule;
 
