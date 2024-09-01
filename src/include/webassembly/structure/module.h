@@ -58,10 +58,12 @@ typedef struct WasmModuleImport{
 // FUNCTION ///////////////////////////////////////////////////////////////////////////////////////////
 typedef struct Func{
     uint32_t idx;               //type index
-    uint32_t local_len;         //local's vector len
-    ValType *locals;
+    uint32_t local_len;         //How many locals are
+    //uint32_t local_size;        //local's vector size in bytes because are diferen datatype
+    uint8_t * local_types;      //array with the type of each local vaiable    
+    ValType *locals;               //pointer to first local
     uint32_t body_len;
-    uint8_t *body;
+    const uint8_t *body;
 } Func;
 //#####################################################################################################
 
@@ -94,6 +96,50 @@ typedef struct Global{
 } Global;
 //#####################################################################################################
 
+// Export //////////////////////////////////////////////////////////////////////////////////////////////
+typedef enum ExportDescType {
+    WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_FUNC,
+    WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_TABLE,
+    WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_MEM,
+    WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_GLOBAL,
+} ExportDescType;
+
+typedef struct ExportDesc {
+    ExportDescType type;
+    uint32_t idx;               //index defined at 2.5.1 Indices   
+} ExportDesc;
+
+typedef struct WasmModuleExport{    
+    
+    uint32_t name_len;
+    const unsigned char *name;
+    ExportDesc *desc;
+
+} WasmModuleExport;
+//#####################################################################################################
+
+// Element //////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef enum ElementMode {
+    WP_WAS_STRUC_MOD_ELEMENT_MODE_PASSIVE,
+    WP_WAS_STRUC_MOD_ELEMENT_MODE_ACTIVE,
+    WP_WAS_STRUC_MOD_ELEMENT_MODE_DECLARATIVE,     
+} ElementMode;
+
+typedef struct WasmModuleElement{    
+    
+    RefType type;
+    uint32_t init_len;
+    const uint8_t *init;
+    ElementMode mode;
+    uint32_t table;     //table index
+    uint32_t offset_len;
+    uint8_t *offset;
+
+} WasmModuleElement;
+//#####################################################################################################
+
+
 typedef struct WasmModule{
 
     // type  
@@ -119,6 +165,17 @@ typedef struct WasmModule{
     //Global
     uint32_t global_len;
     Global *globals;
+
+    //Export
+    uint32_t exports_len;
+    WasmModuleExport *exports;
+
+    //start
+    uint32_t start_function_index;
+
+    //Element
+    uint32_t element_len;
+    WasmModuleElement *elements;
 
 } WasmModule;
 

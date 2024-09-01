@@ -43,6 +43,9 @@
      */
     DEC_UINT32_LEB128 DecodeLeb128UInt32(const uint8_t *);
 
+    const uint8_t * DecodeLeb128Int32_Fast(const uint8_t *, int32_t *);
+    const uint8_t * DecodeLeb128UInt32_Fast(const uint8_t *, uint32_t *);
+
 #ifdef __cplusplus
     }
 #endif

@@ -581,6 +581,346 @@ static WpError DecodeGlobalSection(WasmBinSection *sec, WasmModule *module){
     #undef NOT_END
 }
 
+static WpError DecodeExportSection(WasmBinSection *sec, WasmModule *module){
+
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 133, 0);       //No error
+    
+    const uint8_t *index = sec->content;                      // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = sec->content + sec->size;                 // pointer to end of binary module
+    uint32_t export_count;
+    DEC_UINT32_LEB128 wasm_u32;                                     // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
+
+    WasmModuleExport *exports;    
+
+
+    //get inports count
+    wasm_u32 = DecodeLeb128UInt32(index);
+    if (wasm_u32.len == 0){
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        return result;                                        
+    }
+
+    index = index + wasm_u32.len;
+    module->exports_len = wasm_u32.value;   // import's counter
+    export_count = wasm_u32.value;          // import's counter
+   
+    //alocating imports on heap
+    exports = ALLOCATE(WasmModuleExport, export_count);
+    module->exports = exports;
+    //TODO Check allocation works
+
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < export_count; i++){
+        
+        //get name's vector
+        wasm_u32 = DecodeLeb128UInt32(index);
+        if (wasm_u32.len == 0){
+            result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+            return result;                                        
+        }
+        index = index + wasm_u32.len;
+        exports[i].name_len = wasm_u32.value;
+        exports[i].name = index;
+
+        //moving index to import desc
+        index = index + wasm_u32.value;
+
+        //Get export type
+        exports[i].desc = ALLOCATE(ExportDesc, 1);
+        //TODO Check allocation works
+
+        byte_val = READ_BYTE();
+        switch (byte_val){
+            case 0:                
+                exports[i].desc->type = WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_FUNC;
+                break;
+            case 1:
+                exports[i].desc->type = WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_TABLE;
+                break;
+            case 2:
+                exports[i].desc->type = WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_MEM;
+                break;
+            case 3:
+                exports[i].desc->type = WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_GLOBAL;
+                break;
+            default:
+                result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding export section
+                return result; 
+        }
+
+        //get desc index
+        wasm_u32 = DecodeLeb128UInt32(index);
+         if (wasm_u32.len == 0){
+            result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+            return result;                                        
+        }
+        exports[i].desc->idx = wasm_u32.value;        
+
+        //moving index to next import
+        index = index + wasm_u32.len;
+
+    }
+    
+    if(index != buf_end){
+        //Decode fails
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        result.detail.place = 230;
+        return result; 
+    }
+
+    return result; 
+    
+    #undef READ_BYTE
+    #undef NOT_END
+}
+
+static WpError DecodeStartSection(WasmBinSection *sec, WasmModule *module){
+
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 133, 0);       //No error
+    
+    const uint8_t *index = sec->content;                      // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = sec->content + sec->size;                 // pointer to end of binary module
+    
+    DEC_UINT32_LEB128 wasm_u32;                                     // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
+
+    
+    //get start index
+    wasm_u32 = DecodeLeb128UInt32(index);
+    if (wasm_u32.len == 0){
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        return result;                                        
+    }
+
+    index = index + wasm_u32.len;
+    module->start_function_index = wasm_u32.value;   // import's counter
+    
+    
+    
+    if(index != buf_end){
+        //Decode fails
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        result.detail.place = 230;
+        return result; 
+    }
+
+    return result;     
+    
+}
+//TODO
+static WpError DecodeElementSection(WasmBinSection *sec, WasmModule *module){
+
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 22, 0);       //No error
+    
+    const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = sec->content + sec->size;                   // pointer to end of binary module
+    uint32_t element_count;                                            // auxiliary variable    
+    
+    uint8_t byte_val;
+    uint32_t encoded_type;
+
+    WasmModuleElement *elements;    
+
+    //get type count
+    index = DecodeLeb128UInt32_Fast(index, &element_count);
+    if (index == NULL){
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        return result;                                        
+    }
+    module->element_len = element_count;      // type's counter
+   
+   
+    //alocating elements on heap
+    elements = ALLOCATE(WasmModuleElement, element_count);
+    module->elements = elements;
+    //TODO Check allocation works
+    
+    
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < element_count; i++){
+
+        //get type        
+        index = DecodeLeb128UInt32_Fast(index, &encoded_type);
+        if (index == NULL){
+            result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+            return result;                                        
+        }
+        
+        switch(encoded_type) {
+            case 0:
+                break;
+            case 1:
+                break;
+            case 2:
+                break;
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                break;
+            case 6:
+                break;
+            case 7:
+                break;
+            default:
+                result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+                return result; 
+            
+        }       
+        
+    }
+    
+    if(index != buf_end){
+        //Decode fails
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        result.detail.place = 114;
+        return result; 
+    }
+
+    return result; 
+    
+    #undef READ_BYTE
+    #undef NOT_END
+}
+
+static const uint8_t * DecodeCode(const uint8_t *code, WasmModule *module, uint32_t func_idx){
+
+    /// A local is defined as a number of item and the type for each item (Spec 5.5.13)
+    typedef struct Locals {
+        uint32_t n;
+        uint8_t type;
+    } Locals;
+
+    Locals *local;
+    const uint8_t *index = code;
+    const uint8_t *buf_end;                 // pointer to end of binary module  
+    uint32_t code_size;
+    uint32_t local_len;    
+    uint32_t local_totals;
+    uint32_t local_total_size;
+    uint32_t i;
+    uint32_t ii;
+    uint32_t iii=0;
+
+    //get code segment size
+    index = DecodeLeb128UInt32_Fast(index, &code_size);
+    if (index == NULL){            
+            return NULL;                                        
+    }
+    buf_end = code + code_size;
+
+    //get local vectors len
+    index = DecodeLeb128UInt32_Fast(index, &local_len);
+    if (index == NULL){
+        return NULL;                                       
+    }
+
+    //Alocating space for local variable
+    local = ALLOCATE(Locals, local_len);    
+    //TODO Check allocation works    
+    
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(i = 0; i < local_len; i++){        
+        
+        //get number of element
+        index = DecodeLeb128UInt32_Fast(index, &local[i].n);
+        if (index == NULL){
+           return NULL;                                    
+        }
+
+        //get type
+        local[i].type = READ_BYTE();
+
+        local_totals = local_totals + local[i].n;       //calc totals of local for field local_types_len
+        
+    }
+
+    //filling local relate field for module's func ////////////////////////////////////////////////////////////////////
+    module->funcs[func_idx].local_len = local_totals;
+    module->funcs[func_idx].local_types = ALLOCATE(uint8_t, local_totals);
+    //TODO check that allock works
+
+    //filling type array
+    for(i=0; i < local_len; i++){
+        for(ii=0; ii < local[i].n; ii++){
+            module->funcs[func_idx].local_types[iii]=local[i].type;
+            iii++;
+        }
+    }
+     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //calc func body
+    module->funcs[func_idx].body_len = buf_end - index;
+    module->funcs[func_idx].body = index;
+    
+    if(*buf_end != OPCODE_END){
+        //Decode fails instruction must be end with 0x0B        
+        return NULL; 
+    }
+
+    return buf_end; 
+    
+    #undef READ_BYTE
+    #undef NOT_END    
+    
+}
+
+static WpError DecodeCodeSection(WasmBinSection *sec, WasmModule *module){
+
+    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 133, 0);       //No error
+    
+    const uint8_t *index = sec->content;                                // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = sec->content + sec->size;                  // pointer to end of binary module    
+    uint32_t code_count;      
+    
+
+    //get code count
+    index = DecodeLeb128UInt32_Fast(index, &code_count);
+    if (index == NULL){
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        return result;                                        
+    }
+    
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < code_count; i++){
+        
+        //call decode code segment
+        if (i < module->func_len){
+            //check that function exits
+            index = DecodeCode(index, module, i);
+        }
+        else{
+            result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+            return result;  
+        }
+        
+
+    }
+    
+    if(index != buf_end){
+        //Decode fails
+        result.id = WP_DIAG_ID_INVALID_SECTION_ID;     //TODO better error for decoding import section
+        result.detail.place = 230;
+        return result; 
+    }
+
+    return result; 
+    
+    #undef READ_BYTE
+    #undef NOT_END    
+    
+}
+
 
 WpError DecodeWasmBinModule(RuntimeEnv *self, WasmBinModule *bin_mod, WasmModule *mod){
 
@@ -604,6 +944,36 @@ WpError DecodeWasmBinModule(RuntimeEnv *self, WasmBinModule *bin_mod, WasmModule
     // If table sec is present:
     if(bin_mod->tablesec.size > 0){
         result = DecodeTableSection(&bin_mod->tablesec, mod);
+    }
+
+    // If mem sec is present:
+    if(bin_mod->memsec.size > 0){
+        result = DecodeMemSection(&bin_mod->memsec, mod);
+    }
+
+    // If global sec is present:
+    if(bin_mod->globalsec.size > 0){
+        result = DecodeGlobalSection(&bin_mod->globalsec, mod);
+    }
+
+    // If export sec is present:
+    if(bin_mod->exportsec.size > 0){
+        result = DecodeExportSection(&bin_mod->exportsec, mod);
+    }
+
+    // If start sec is present:
+    if(bin_mod->startsec.size > 0){
+        result = DecodeStartSection(&bin_mod->startsec, mod);
+    }
+
+    // If element sec is present:
+    if(bin_mod->elemsec.size > 0){
+        result = DecodeElementSection(&bin_mod->elemsec, mod);
+    }
+
+    // If code sec is present:
+    if(bin_mod->codesec.size > 0){
+        result = DecodeCodeSection(&bin_mod->codesec, mod);
     }
 
     return result;
