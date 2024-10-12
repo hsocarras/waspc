@@ -25,6 +25,8 @@
 
 #define ALLOCATE(type, count) (type*)malloc(sizeof(type) * (count));
 
+#define FREE_MEM(ptr) free(ptr);
+
 
 
 #ifdef __cplusplus

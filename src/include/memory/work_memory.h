@@ -18,33 +18,33 @@
 
 //wasp includes
 #include "memory/memory.h"
-#include "diagnostic/error.h"
+#include "object/error.h"
 
 #include <stdint.h>
 
 /**
  * @brief Object for keep track for pou's source loaded in load memory
  * 
- */
+ *
 typedef struct WasmLoadInfo{
 
     uint32_t id;          /// pou's hash name
     uint32_t size;          /// pou's bin len
     uint8_t *start;         /// where the pou start in load memory
         
-} WasmLoadInfo;
+} WasmLoadInfo;*/
 
 /**
  * @brief Object for managed load memory
  * 
- */
+ *
 typedef struct WorkMemory {
     uint32_t code_size;     
     uint8_t *code;                  /// buffer to stored WasmBinModule
     uint8_t *index;                 // pointer to where start next free space
     uint32_t block_count;           // counter to keep track LoadBlock in load memory
 
-}WorkMemory;
+}WorkMemory;*/
 
 /**
  * @brief Constructor
@@ -53,15 +53,15 @@ typedef struct WorkMemory {
  * @param buf pointer to runtime's load memory
  * @param size Load memory size 
  */
-void InitWorkMemory(WorkMemory *self);
+//void InitWorkMemory(WorkMemory *self);
 
-void InitCodeMem(WorkMemory *self, uint8_t * buf, uint32_t size);
+//void InitCodeMem(WorkMemory *self, uint8_t * buf, uint32_t size);
 
-uint32_t GetFreeCodeMem (const WorkMemory *self);
+//uint32_t GetFreeCodeMem (const WorkMemory *self);
 
 //float GetLoadMemoryUsage(const WorkMemory *self);
 
-WpError AppendWasmCode(WorkMemory *self, const uint8_t *buf, const uint32_t size);
+//WpError AppendWasmCode(WorkMemory *self, const uint8_t *buf, const uint32_t size);
 
 #ifdef __cplusplus
     }

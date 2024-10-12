@@ -21,15 +21,6 @@
 #include <stdint.h>
 
 
-// Types //////////////////////////////////////////////////////////////////////////////////////////////
-/*
-typedef struct WasmModuleType{    
-    uint32_t type_len;    
-    FuncType *type;
-} WasmModuleType;*/
-//#####################################################################################################
-
-
 // Import //////////////////////////////////////////////////////////////////////////////////////////////
 typedef enum ImportDescType {
     WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_FUNC,
@@ -43,56 +34,37 @@ typedef struct ImportDesc {
     uint32_t idx;               //index defined at 2.5.1 Indices   
 } ImportDesc;
 
-typedef struct WasmModuleImport{
+typedef struct Import{
     
     uint32_t module_len;
-    const unsigned char *module;                   ///module name
+    const unsigned char *module;                   ///pointer to module name in binary file
     uint32_t name_len;
-    const unsigned char *name;
+    const unsigned char *name;                      ///pointer to import name in binary file
     ImportDesc *desc;
 
-} WasmModuleImport;
+} Import;
 //#####################################################################################################
 
 
 // FUNCTION ///////////////////////////////////////////////////////////////////////////////////////////
+//The funcs component of a module defines a vector of functions with the following structure:
+//  func ::= {type typeidx, locals vec(valtype), body expr}
 typedef struct Func{
     uint32_t idx;               //type index
-    uint32_t local_len;         //How many locals are
-    //uint32_t local_size;        //local's vector size in bytes because are diferen datatype
-    uint8_t * local_types;      //array with the type of each local vaiable    
-    ValType *locals;               //pointer to first local
+    uint32_t local_len;         //How many locals are    
+    uint8_t *locals;           //array with the type of each local vaiable 
     uint32_t body_len;
     const uint8_t *body;
 } Func;
 //#####################################################################################################
 
-// TABLE //////////////////////////////////////////////////////////////////////////////////////////////
-// Similar to dinamic array Lim is the capacity of table and usage is how many reference are.
-//However dinamic reference array can't grow beyond of lim.max.
-typedef struct Table{
-    Limits lim;
-    uint32_t usage;
-    RefType *references;
-} Table;
-//#####################################################################################################
-
-// MEM //////////////////////////////////////////////////////////////////////////////////////////////
-
-typedef struct Mem{
-    Limits lim;
-    uint32_t usage;
-    uint8_t *mem;
-} Mem;
-//#####################################################################################################
 
 // Global ///////////////////////////////////////////////////////////////////////////////////////////
 typedef struct Global{
     uint8_t type;
-    uint8_t mut;
-    ValType *value;
-    uint32_t init_len;
-    const uint8_t *init_code;    
+    uint8_t mut;    
+    uint32_t expr_len;
+    const uint8_t *expr;    
 } Global;
 //#####################################################################################################
 
@@ -109,75 +81,59 @@ typedef struct ExportDesc {
     uint32_t idx;               //index defined at 2.5.1 Indices   
 } ExportDesc;
 
-typedef struct WasmModuleExport{    
+typedef struct Export{    
     
     uint32_t name_len;
     const unsigned char *name;
     ExportDesc *desc;
 
-} WasmModuleExport;
+} Export;
 //#####################################################################################################
 
 // Element //////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef enum ElementMode {
+typedef enum ElemMode {
     WP_WAS_STRUC_MOD_ELEMENT_MODE_PASSIVE,
     WP_WAS_STRUC_MOD_ELEMENT_MODE_ACTIVE,
     WP_WAS_STRUC_MOD_ELEMENT_MODE_DECLARATIVE,     
-} ElementMode;
+} ElemMode;
 
-typedef struct WasmModuleElement{    
+typedef struct Elem{    
     
-    RefType type;
+    ElemMode mode;
+    uint8_t type;
+    uint32_t table_idx;             //table index
+
+    uint32_t offset_len;            //table offset expresion
+    const uint8_t *offset;          //table offset expresion
+
+    uint32_t init_len;
+    const uint8_t *init;    
+    
+    
+
+} Elem;
+//#####################################################################################################
+
+// Data //////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef enum DataMode {
+    WP_WAS_STRUC_MOD_DATA_MODE_PASSIVE,
+    WP_WAS_STRUC_MOD_DATA_MODE_ACTIVE,        
+} DataMode;
+
+typedef struct Data{
+    DataMode mode; 
+    uint32_t mem_idx;
+    uint32_t offset_len;
+    const uint8_t * offset;  
     uint32_t init_len;
     const uint8_t *init;
-    ElementMode mode;
-    uint32_t table;     //table index
-    uint32_t offset_len;
-    uint8_t *offset;
-
-} WasmModuleElement;
+} Data;
 //#####################################################################################################
 
 
-typedef struct WasmModule{
 
-    // type  
-    uint32_t type_len;    
-    FuncType *types;
-
-    // import
-    uint32_t imports_len;
-    WasmModuleImport *imports;
-
-    // Functions
-    uint32_t func_len;
-    Func *funcs;
-
-    //Tables
-    uint32_t table_len;
-    Table *tables;
-
-    //Mems
-    uint32_t mem_len;
-    Mem *mems;
-
-    //Global
-    uint32_t global_len;
-    Global *globals;
-
-    //Export
-    uint32_t exports_len;
-    WasmModuleExport *exports;
-
-    //start
-    uint32_t start_function_index;
-
-    //Element
-    uint32_t element_len;
-    WasmModuleElement *elements;
-
-} WasmModule;
 
 
 

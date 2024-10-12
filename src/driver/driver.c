@@ -10,11 +10,12 @@
 
 //wasp includes
 #include "config.h"
-#include "runtime/runtime.h"
-#include "diagnostic/error.h"
+//#include "runtime/runtime.h"
+#include "object/error.h"
+#include "object/result.h"
 #include "loader/wasm_loader.h"
 #include "memory/work_memory.h"
-#include "utils/hash_table.h"
+//#include "utils/hash_table.h"
 
 ////For TODO testing//////////////////////////////////////////////////////////////////////
 #include "webassembly/binary/module.h"
@@ -39,9 +40,9 @@ static uint8_t out[OUTPUT_SIZE];
 static uint8_t mark[MARK_SIZE];
 static uint8_t work_code_mem[CODE_MEMORY_SIZE];         //See tia portal code memory
 //////////////////////////////////////////////////////////////////////////////////////////////////
-
+void ReportError(WpObjectError *err);
 //instanciating the runtime;
-static RuntimeEnv env;
+//static RuntimeEnv env;
 
 /**
  * @brief Get the File Name object
@@ -89,16 +90,18 @@ uint32_t GetFileName(const char * path, char *name){
 int main(int argc, const char* argv[]) {
 
     assert(argc > 1);
+
     printf("Booting \n");
-    InitRuntime(&env);
-    env.code_mem = work_code_mem;
+
+    //InitRuntime(&env);
+    //env.code_mem = work_code_mem;
     //SetWorkMem(&env, code_mem, CODE_MEMORY_SIZE);
     
-    errno_t error_code; //Declaring a variable of type errno_t to store the return value of fopen_s
+    errno_t error_code;                             //Declaring a variable of type errno_t to store the return value of fopen_s
     FILE *wasm;
     int32_t len;
-    uint8_t *load_ptr = work_code_mem; //Declaring a variable to store the wasm file
-    uint8_t *load_base = work_code_mem; //Declaring a variable to store the wasm file
+    uint8_t *load_ptr = work_code_mem;              //Declaring a variable to store the wasm file
+    uint8_t *load_base = work_code_mem;             //Declaring a variable to store the wasm file
     uint32_t bytes_read;
     uint8_t *binary_file;
     //char pou_names[1024];
@@ -109,10 +112,8 @@ int main(int argc, const char* argv[]) {
     uint32_t pou_name_len;
    
     //uint8_t error_buf [16];
-
-    
-
-    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_HOST, 88, 0);            //No error
+    WpObjectResult result;      //wasp result object
+    ObjectResultInit(&result);
 
     // Opening file in reading mode
     printf("Openning wasm file \n");
@@ -122,12 +123,12 @@ int main(int argc, const char* argv[]) {
         printf("file can't be opened \n");
         return 1;
     }
-    printf("Done \n");
+    printf("Wasm module readed \n");
     //Get pou's name logic ///////////////////////////////////////////////////////////////////////////////////
-    GetFileName(argv[1], pou_name); //get name
-    len = strlen(pou_name);
-    id = fnv(pou_name, len);
-    printf("File name %s has a id %u\n", pou_name, id);
+    //GetFileName(argv[1], pou_name); //get name
+    //len = strlen(pou_name);
+    //id = fnv(pou_name, len);
+    //printf("File name %s has a id %u\n", pou_name, id);
     //pou_name_len = strlen(pou_name);  // get name leng
     //pou_name_index[0] = 0; //index wher the string will be saved  
     //strcpy()
@@ -154,26 +155,29 @@ int main(int argc, const char* argv[]) {
 
     if(bytes_read == len){
 
-        printf("Module Loaded. Total bytes %d \n", bytes_read);   
+        printf("Buffer Loaded. Total bytes %d \n", bytes_read);   
 
         //Loading process  
-        //call to runtime/loader.c wasm_runtime_load
+        //call to runtime/loader.c wasm_runtime_load   
+        WasmBinModule bin_mod;
+        ObjectWasmBinModuleInit(&bin_mod);   
+        result = LoadWasmBuffer(load_ptr, len, &bin_mod);
         
-        result = LoadWasmBuffer(&env, load_ptr, len, id);
-        
-        if(result.id == WP_DIAG_ID_OK){
+        if(result.result_type == WP_OBJECT_RESULT_TYPE_VALID){
             
-            WasmBinModule *bin_mod = (WasmBinModule *)HashTableGet(&env.table_wasm_bin, id);
-            printf("Module loaded into runtime. %i Bytes loaded \n", (bin_mod->bin_len));
+            //WasmBinModule *bin_mod = (WasmBinModule *)HashTableGet(&env.table_wasm_bin, id);
+            printf("Module loaded. %i Bytes loaded \n", (bin_mod.bin_len));
            
             WasmModule wmod;
-            result = DecodeWasmBinModule(&env, bin_mod, &wmod);
-            printf("Decoded type section: \n");     
-            printf("total types: %u\n", wmod.type_len); 
-            printf("First type parameters %u, \n", wmod.types[0].param_len);           
+            ObjectWasmModuleInit(&wmod);
+            result = DecodeWasmBinModule(&bin_mod, &wmod);
+            if(result.result_type == WP_OBJECT_RESULT_TYPE_VALID){
+                 printf("Decoded\n");
+            }
+                                     
         }
         else{
-            ReportError(&result);
+            ReportError(&result.value.err);
             printf("Module loaded fail  \n");
         }
 
@@ -196,10 +200,10 @@ int main(int argc, const char* argv[]) {
  * 
  * @param err 
  */
-void ReportError(WpError *err){
+void ReportError(WpObjectError *err){
 
-    switch(err->detail.origin){
-        case W_DIAG_MOD_LIST_HOST:
+    switch(err->mod){
+        case W_DIAG_MOD_LIST_EMBEDDER:
             printf("Error from host module: \n");
             break;
         case W_DIAG_MOD_LIST_LOADER:
@@ -213,9 +217,9 @@ void ReportError(WpError *err){
     }
 
     //get function name, for now line of code
-    printf("At function; %u \n", err->detail.func);
+    //printf("At function; %u \n", err->detail.func);
 
     //get function place, for now line of code
-    printf("in line; %u \n", err->detail.place);
+    printf("id; %u \n", err->id);
     
 }

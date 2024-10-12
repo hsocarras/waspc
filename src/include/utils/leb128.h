@@ -17,34 +17,18 @@
 #endif
 
 #include <stdint.h>
-
-    /// Decoded 32 integer in LEB32 format
-    typedef struct {
-        uint8_t len;            /// length in byte of encoded integer
-        int32_t value;          /// integer value
-    } DEC_INT32_LEB128;
-
-    /// Decoded 32 unsigend integer in LEB32 format
-    typedef struct {
-        uint8_t len;            /// length in byte of encoded integer            
-        uint32_t value;          /// integer value
-    } DEC_UINT32_LEB128;
+    
+    /**
+     * Function to decode a 32 bit LEB128 integer      
+     * Return a pointer to next uint8_t if success otherwise a null pointer
+     */
+    const uint8_t * DecodeLeb128Int32(const uint8_t *, int32_t *);
 
     /**
-     * @brief Function to decode a 32 bit LEB128 integer      
-     * @return DEC_INT32_LEB128 
+     * Function to decode a 32 bit unsigned LEB128 integer 
+     * Return a pointer to next uint8_t if success otherwise a null pointer      
      */
-    DEC_INT32_LEB128 DecodeLeb128Int32(const uint8_t *);
-
-    /**
-     * @brief Function to decode a 32 bit unsigned LEB128 integer 
-     * 
-     * @return DEC_UINT32_LEB128 
-     */
-    DEC_UINT32_LEB128 DecodeLeb128UInt32(const uint8_t *);
-
-    const uint8_t * DecodeLeb128Int32_Fast(const uint8_t *, int32_t *);
-    const uint8_t * DecodeLeb128UInt32_Fast(const uint8_t *, uint32_t *);
+    const uint8_t * DecodeLeb128UInt32(const uint8_t *, uint32_t *);
 
 #ifdef __cplusplus
     }

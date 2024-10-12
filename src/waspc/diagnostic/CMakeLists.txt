@@ -1,4 +1,4 @@
 
 
 
-add_library(diagnostic STATIC error.c)
+#add_library(diagnostic STATIC error.c)

@@ -1,20 +1,25 @@
 
-Execution:
+La validez de una definición individual se especifica en relación con un contexto, el cual recopila información relevante sobre el módulo circundante
+y las definiciones en el alcance:
 
-1 - Create a wasp instance:
+- Tipos: la lista de tipos definidos en el módulo actual.
 
-    struct waspc {
-        pointer to input area
-        pointer to output area
-        pointer to mark area
-        pointer to network input
-        pointer to network output
-    }
+- Funciones: la lista de funciones declaradas en el módulo actual, representadas por su tipo de función.
 
-2 - Load POU
+- Tablas: la lista de tablas declaradas en el módulo actual, representadas por su tipo de tabla.
 
-    InstanciateModule(binary_module)
+- Memorias: la lista de memorias declaradas en el módulo actual, representadas por su tipo de memoria.
 
-3 - Run main POU (program) function
+- Globales: la lista de globales declaradas en el módulo actual, representadas por su tipo global.
 
-    RunMain(waspc *self, binary_module)
+-Segmentos de Elementos: la lista de segmentos de elementos declarados en el módulo actual, representados por su tipo de elemento.
+
+-Segmentos de Datos: la lista de segmentos de datos declarados en el módulo actual, cada uno representado por una entrada válida (ok).
+
+-Locales: la lista de variables locales declaradas en la función actual (incluyendo parámetros), representadas por su tipo de valor.
+
+-Etiquetas: la pila de etiquetas accesibles desde la posición actual, representadas por su tipo de resultado.
+
+-Retorno: el tipo de retorno de la función actual, representado como un tipo de resultado opcional que está ausente cuando no se permite retorno, como en expresiones independientes.
+
+-Referencias: la lista de índices de funciones que aparecen en el módulo fuera de las funciones y que, por lo tanto, pueden usarse para formar referencias dentro de ellas.

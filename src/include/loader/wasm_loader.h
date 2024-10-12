@@ -17,23 +17,26 @@
 #endif
 
 //wasp includes
-#include "runtime/runtime.h"
-#include "diagnostic/error.h"
+#include "object/result.h"
+#include "object/wasm_bin_module.h"
+#include "object/wasm_module.h"
 
 #include <stdint.h>
 
 
 
 /**
- * @brief 
+ * Function to create a WasmBinModule from a byte array
  * 
  */
-WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, const uint32_t id);
+WpObjectResult LoadWasmBuffer(const uint8_t * const buf, const uint32_t size, WasmBinModule *bin_mod);
+
+WpObjectResult DecodeWasmBinModule(const WasmBinModule * const bin_mod, WasmModule *mod);
 
 
-WpError InstanciateModule(RuntimeEnv *self, WasmBinModule *mod, uint8_t *imports, uint32_t import_counts, const uint32_t id);
+//WpError InstanciateModule(RuntimeEnv *self, WasmBinModule *mod, uint8_t *imports, uint32_t import_counts, const uint32_t id);
 
-WpError DecodeWasmBinModule(RuntimeEnv *self, WasmBinModule *bin_mod, WasmModule *mod);
+
 
 #ifdef __cplusplus
     }

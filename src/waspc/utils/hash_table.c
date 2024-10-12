@@ -9,7 +9,7 @@
  * 
  */
 
-#include "diagnostic/error.h"
+//#include "diagnostic/error.h"
 #include "utils/hash_table.h"
 #include "memory/memory.h"
 
@@ -22,7 +22,7 @@
  * @param capacity 
  * @param key 
  * @return HashTableEntry* 
- */
+ *
 static Slot* FindSlot(Slot *slots, uint32_t capacity, uint32_t key) {
 
     Slot *slot;
@@ -40,14 +40,14 @@ static Slot* FindSlot(Slot *slots, uint32_t capacity, uint32_t key) {
     }
 
     return NULL;
-}
+}*/
 
 /**
  * @brief 
  * 
  * @param self 
  * @param new_capacity 
- */
+ *
 static void IncreaseCapacity(HashTable *self, uint32_t new_capacity) {
 
     uint32_t key;
@@ -79,7 +79,7 @@ static void IncreaseCapacity(HashTable *self, uint32_t new_capacity) {
     free(self->slots);
     self->slots = new_slots;
 
-}
+}*/
 
 
 /**
@@ -88,7 +88,7 @@ static void IncreaseCapacity(HashTable *self, uint32_t new_capacity) {
  * @param self 
  * @param data_type 
  * @param init_capacity 
- */
+ *
 void InitHashTable(HashTable *self, uint32_t init_capacity){
 
     self->capacity = init_capacity;
@@ -101,7 +101,7 @@ void InitHashTable(HashTable *self, uint32_t init_capacity){
         self->slots[i].value = NULL;
     }
     
-}
+}*/
 
 /*
 void FreeHashTable(HashTable *self){
@@ -109,7 +109,7 @@ void FreeHashTable(HashTable *self){
     self->capacity = 0;
     self->usage = 0;
     self->items = NULL;
-}*/
+}
 
 WpError HashTableSet(HashTable *self, uint32_t key, void *value){
 
@@ -165,5 +165,5 @@ WpError HasTableDelete(HashTable *self, uint32_t key) {
     match_slot->key = 0;
     match_slot->value = NULL;
     return result;
-}
+}*/
 

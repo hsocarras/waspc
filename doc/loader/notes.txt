@@ -1,5 +1,16 @@
+Loader module consist in 4 submodule:
 
-Entry point to loader module:
+1-Loader.
+2-Decoder.
+3-Validator.
+4-Instanciator.
+
+1-loader submodule:
+    El proposito principal de este modulo es crear una estructura WasmBinModule por 
+    cada wasm binary almacenado en la memoria de codigo.
+
+    Cargar los binarios de webassembly en la memoria de codigo es mision del embedder.
+
     WpError LoadWasmBuffer(RuntimeEnv *self, const uint8_t *buf, uint32_t size, uint32_t id)
 
         
@@ -7,3 +18,11 @@ Entry point to loader module:
         put WasmBinModule in code memory
 
         init varibles values from persisten value in warm restart or for init values from cold restart
+
+2- Decoder submodule
+    Este modulo se encarga de crear una estructura WasmModule por cada estructura WasmBinModule creada po el loader.
+
+    WpError DecodeWasmBinModule(RuntimeEnv *self, WasmBinModule *bin_mod, WasmModule *mod)
+
+3- Validator submodule se encarga de validar cada webasembly module devuelve un WpError por cada structura WasmModule 
+    validada correctamente.

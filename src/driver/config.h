@@ -16,7 +16,7 @@
     extern "C" {
 #endif
 
-#include "diagnostic/error.h"
+#include "object/error.h"
 
 #include <stdint.h>
 
@@ -25,7 +25,7 @@
  * 
  */
 
-#define ENABLE_DEBUG_INTERPRETER 0
+#define WASPC_CONFIG_DEV_FLAG 1  //enable devevelopment build
 
 
 

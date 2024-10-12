@@ -2,4 +2,4 @@
 
 
 
-add_library(memory STATIC work_memory.c)
+#add_library(memory STATIC work_memory.c)

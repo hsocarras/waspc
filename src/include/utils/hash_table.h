@@ -22,7 +22,7 @@
 
 #define HASH_TABLE_MAX_CAPACITY 100 //TODO come from config
 
-
+/*
 
 typedef struct HashTableSlot {     
     uint32_t key;                               /// complete hash
@@ -43,7 +43,7 @@ void * HashTableGet(HashTable *self, uint32_t key);
 WpError HasTableDelete(HashTable *self, uint32_t key);
 
 
-uint32_t fnv(const char *key, uint32_t len);
+uint32_t fnv(const char *key, uint32_t len);*/
 
 #ifdef __cplusplus
     }

@@ -20,18 +20,22 @@
 #include "webassembly/binary/module.h"
 #include "webassembly/structure/module.h"
 //#include "webassembly/execution/runtime/module_instance.h"
-#include "diagnostic/error.h"
+#include "object/error.h"
 //#include "memory/work_memory.h"
 #include "utils/hash_table.h"
 
 #include <stdint.h>
+
+typedef struct Store{
+
+} Store;
 
 
 /**
  * @brief Sandbox for webasembly runtime, customised for plc.
  * 
  */
-typedef struct {
+typedef struct RuntimeEnv{
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
     uint8_t *in;                            ///pointer to static allocation for input area
