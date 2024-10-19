@@ -19,7 +19,7 @@
  * @param ref_i32 reference to store decoded value
  * @return const uint8_t* pointer to next byte after encoded integer if success, otherwise is null
  */
-const uint8_t * DecodeLeb128Int32_Fast(const uint8_t *buff, int32_t *ref_i32) {
+const uint8_t * DecodeLeb128Int32(const uint8_t *buff, int32_t *ref_i32) {
 
     uint8_t byte;               /// hold the current procesing byte from encoded array
     uint8_t cicle_counter = 0;  /// nasa golden rule 2
@@ -38,9 +38,11 @@ const uint8_t * DecodeLeb128Int32_Fast(const uint8_t *buff, int32_t *ref_i32) {
             //check bit for signed value            
             if(shift < 32 && (byte & 0x40) != 0){
                 *ref_i32 = value | (~0 << shift);
+                buff++;
                 return buff;
             }
             *ref_i32 = value;
+            buff++;
             return buff;
         }
         //otherwise increment pointer and cicle_counter
@@ -75,7 +77,8 @@ const uint8_t * DecodeLeb128UInt32(const uint8_t *buff, uint32_t *ref_u32) {
         //if most significant bit is 0 then byte is the last byte.
         if((byte & 0x80) == 0){      
             
-            *ref_u32 = value;     
+            *ref_u32 = value;    
+            buff++; 
             return buff;
         }
         //otherwise increment pointer and cicle_counter

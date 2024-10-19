@@ -10,4 +10,4 @@ add_subdirectory(waspc)
 add_subdirectory(driver)
 
 #adding directory with tests source code
-#add_subdirectory(test)
+add_subdirectory(test)
