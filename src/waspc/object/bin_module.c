@@ -9,12 +9,12 @@
  * 
  */
 
-#include "object/wasm_bin_module.h"
+#include "object/bin_module.h"
 
 
-void ObjectWasmBinModuleInit(WasmBinModule *self){
+void WpBinModuleInit(WpBinModule *self){
 
-    self->type = WP_OBJECT_WASM_BIN_MODULE;
+    self->type = WP_OBJECT_BIN_MODULE;
     self->version = 0;
 
     self->typesec.size = 0;

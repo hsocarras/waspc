@@ -19,7 +19,7 @@
  * @param id  Diagnostic Id.
  * @param mod Module that produce the error
  */
-void ObjectErrorInit(WpObjectError *self, WpDiagId id, WpDiagModuleList mod){
+void WpErrorInit(WpError *self, WpDiagId id, WpDiagModuleList mod){
 
     
     self->type = WP_OBJECT_ERROR;

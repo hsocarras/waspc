@@ -17,7 +17,7 @@
  * 
  * @param self 
  */
-void ObjectResultInit(WpObjectResult *self){
+void WpResultInit(WpResult *self){
 
     self->type = WP_OBJECT_RESULT;
 
@@ -33,9 +33,10 @@ void ObjectResultInit(WpObjectResult *self){
  * @param id Diagnostic Id.
  * @param mod Module that produce the error
  */
-void ObjectResultAddError (WpObjectResult *self, WpDiagId id, WpDiagModuleList mod){
+void WpResultAddError (WpResult *self, WpDiagId id, WpDiagModuleList mod){
 
-    WpObjectError err;
-    ObjectErrorInit(&self->value.err, id, mod);
+    WpError err;
+    WpErrorInit(&self->value.err, id, mod);
 
+    self->result_type = WP_OBJECT_RESULT_TYPE_ERROR;
 }

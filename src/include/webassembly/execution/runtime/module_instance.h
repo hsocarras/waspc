@@ -16,7 +16,7 @@
     extern "C" {
 #endif
 
-#include "webassembly/runtime/export_instance.h"
+//#include "webassembly/execution/runtime/export_instance.h"
 
 #include <stdint.h>
 
@@ -34,10 +34,10 @@
  *   exports exportinst* }
  * 
  */
-typedef struct {
+typedef struct WasModuleInstance{
 
     
-} ModuleInstance;
+} WasModuleInstance;
 
 
 #ifdef __cplusplus

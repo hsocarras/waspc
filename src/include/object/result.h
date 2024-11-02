@@ -36,30 +36,30 @@ typedef enum WpResultType{
  * @brief union for all  possible return types;
  * 
  */
-typedef union ResultValue{
-    WpObjectError err;
+typedef union WpResultValue{
+    WpError err;
     uint32_t u32;
-} ResultValue;
+} WpResultValue;
 
 /**
  * @brief Result object for return values for most waspc internal functions.
  * 
  */
-typedef struct WpObjectResult{
+typedef struct WpResult{
     /// head for all Waspc object to allow cast
     WpObjectType type;
     /// type of result
     WpResultType result_type;
     ///Result value
-    ResultValue value;
+    WpResultValue value;
 
-} WpObjectResult;
+} WpResult;
 
 // Methods **************************************************************************************************
 
-void ObjectResultInit(WpObjectResult *self);
+void WpResultInit(WpResult *self);
 
-void ObjectResultAddError (WpObjectResult *self, WpDiagId id, WpDiagModuleList mod);
+void WpResultAddError (WpResult *self, WpDiagId id, WpDiagModuleList mod);
 
 #ifdef __cplusplus
     }

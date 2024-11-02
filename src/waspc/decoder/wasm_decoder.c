@@ -10,11 +10,13 @@
  */
 
 
-#include "loader/wasm_loader.h"
+#include "decoder/wasm_loader.h"
 #include "memory/memory.h"
 #include "utils/leb128.h"
-#include "webassembly/binary/opcode.h"
+#include "webassembly/binary/instructions.h"
+
 #include <stdint.h>
+
 
 /**
  * @brief  Function to decode expr rule
@@ -225,25 +227,24 @@ static const uint8_t * DecodeCodeLocals(const uint8_t *const code, const uint8_t
  * @return const uint8_t* pointer to next byte after code entry if success, otherwise NULL.
  */
 static const uint8_t * DecodeCode(const uint8_t *const code, Func *func){
-
-    
+        
     const uint8_t *index = code;
     const uint8_t *buf_end;                 // pointer to end of binary module  
     uint32_t code_size;    
     uint32_t i;
     uint32_t ii;
     uint32_t iii=0;
-
+    
     //get code segment size
-    index = DecodeLeb128UInt32(index, &code_size);
+    index = DecodeLeb128UInt32(index, &code_size);    
     if (!index){  
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return NULL;                                        
     } 
-    buf_end = code + code_size;
-
+    buf_end = code + code_size; 
+    
     //Decoding locals
     index = DecodeCodeLocals(index, buf_end, func);
     if (!index){  
@@ -266,7 +267,7 @@ static const uint8_t * DecodeCode(const uint8_t *const code, Func *func){
         #endif
         return NULL;  
     }
-
+    buf_end++;          //pointter to next byte for next code segment    
     return buf_end;   
     
 }
@@ -275,14 +276,14 @@ static const uint8_t * DecodeCode(const uint8_t *const code, Func *func){
  * @brief Decode Type Section
  * 
  * @param sec Binary section
- * @param types unallocated array of function types.
- * @return WpObjectResult error or types length if succsess in u32.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or types length if succsess in u32.
  */
-WpObjectResult DecodeTypeSection(const WasmBinSection *const sec, FuncType *types){
+WpResult DecodeTypeSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    FuncType *types = NULL;
     const uint8_t *index = sec->content;                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;          // pointer to end of binary module
     uint32_t type_count;                                        // auxiliary variable
@@ -296,18 +297,18 @@ WpObjectResult DecodeTypeSection(const WasmBinSection *const sec, FuncType *type
     index = DecodeLeb128UInt32(index, &type_count);
     if (!index){        
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result;                                        
     }  
-   
+    
     //alocating types on heap
-    types = ALLOCATE(FuncType, type_count);
-    if (!types){        
+    types = ALLOCATE(FuncType, type_count);    
+    if (!types){             
         //allocation check
-        ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -326,7 +327,7 @@ WpObjectResult DecodeTypeSection(const WasmBinSection *const sec, FuncType *type
         encoded_type = READ_BYTE();
         if (encoded_type != WP_WAS_BIN_ENC_FUNCTYPE){
             //invalid encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_INVALID_ENCODED_VALUE, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_INVALID_ENCODED_VALUE, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -337,7 +338,7 @@ WpObjectResult DecodeTypeSection(const WasmBinSection *const sec, FuncType *type
         index = DecodeLeb128UInt32(index, &aux_u32);
         if (!index){
             //invalid encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -347,11 +348,11 @@ WpObjectResult DecodeTypeSection(const WasmBinSection *const sec, FuncType *type
         param_count = aux_u32;
         types[i].param_len = param_count;
 
-        //allocating array for param count
-        types[i].param = ALLOCATE(uint8_t, param_count);
+        //allocating array for param count        
+        types[i].param = ALLOCATE(uint8_t, param_count);          
         if (!types[i].param){        
             //allocation check
-            ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -372,7 +373,7 @@ WpObjectResult DecodeTypeSection(const WasmBinSection *const sec, FuncType *type
         index = DecodeLeb128UInt32(index, &aux_u32);
         if (!index){
            //invalid LEB128 encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -386,7 +387,7 @@ WpObjectResult DecodeTypeSection(const WasmBinSection *const sec, FuncType *type
         types[i].result = ALLOCATE(uint8_t, param_count);
         if (!types[i].result){        
             //allocation check
-            ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -408,13 +409,14 @@ WpObjectResult DecodeTypeSection(const WasmBinSection *const sec, FuncType *type
     
     if(index != buf_end){
         //section check
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_TYPE_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_TYPE_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result; 
     }
-
+    mod->types = types;
+    mod->type_len = type_count;
     result.value.u32 = type_count;
     return result; 
     
@@ -426,14 +428,14 @@ WpObjectResult DecodeTypeSection(const WasmBinSection *const sec, FuncType *type
  * @brief function to decode the import section in a binary webassembly module
  * 
  * @param sec Binary section
- * @param imports unallocated array of Import objects
- * @return WpObjectResult error or import arraay's length if succsess in u32.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or import arraay's length if succsess in u32.
  */
-WpObjectResult DecodeImportSection(const WasmBinSection *const sec, Import *imports){
+WpResult DecodeImportSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    Import *imports;
     const uint8_t *index = sec->content;                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                 // pointer to end of binary module
     uint32_t import_count;
@@ -445,7 +447,7 @@ WpObjectResult DecodeImportSection(const WasmBinSection *const sec, Import *impo
     index = DecodeLeb128UInt32(index, &import_count);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -456,7 +458,7 @@ WpObjectResult DecodeImportSection(const WasmBinSection *const sec, Import *impo
     imports = ALLOCATE(Import, import_count);
     if (!imports){        
         //allocation check
-        ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -471,7 +473,7 @@ WpObjectResult DecodeImportSection(const WasmBinSection *const sec, Import *impo
         index = DecodeLeb128UInt32(index, &aux_u32);
         if (!index){
            //invalid LEB128 encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -488,7 +490,7 @@ WpObjectResult DecodeImportSection(const WasmBinSection *const sec, Import *impo
         index = DecodeLeb128UInt32(index, &aux_u32);
         if (!index){
             //invalid LEB128 encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -505,7 +507,7 @@ WpObjectResult DecodeImportSection(const WasmBinSection *const sec, Import *impo
         imports[i].desc = ALLOCATE(ImportDesc, 1);
         if (!imports[i].desc){        
             //allocation check
-            ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -529,7 +531,7 @@ WpObjectResult DecodeImportSection(const WasmBinSection *const sec, Import *impo
                 break;
             default:
                 //invalid desc type
-                ObjectResultAddError(&result, WP_DIAG_ID_INVALID_IMPORT_DESC_TYPE, W_DIAG_MOD_LIST_DECODER);
+                WpResultAddError(&result, WP_DIAG_ID_INVALID_IMPORT_DESC_TYPE, W_DIAG_MOD_LIST_DECODER);
                  #if WASPC_CONFIG_DEV_FLAG == 1
                 //TODO
                 #endif 
@@ -540,7 +542,7 @@ WpObjectResult DecodeImportSection(const WasmBinSection *const sec, Import *impo
         index = DecodeLeb128UInt32(index, &aux_u32);
         if (!index){
             //invalid LEB128 encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -553,13 +555,15 @@ WpObjectResult DecodeImportSection(const WasmBinSection *const sec, Import *impo
     
     if(index != buf_end){
         //section check
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_IMPORT_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_IMPORT_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result;
     }
     
+    mod->imports = imports;
+    mod->imports_len = import_count;
     result.value.u32 = import_count;
     return result; 
     
@@ -571,14 +575,14 @@ WpObjectResult DecodeImportSection(const WasmBinSection *const sec, Import *impo
  * @brief function to decode the function section in a binary webassembly module.
  * 
  * @param sec Binary section.
- * @param funcs unallocated array of Func objects.
- * @return WpObjectResult error or function array's length if succsess in u32.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or function array's length if succsess in u32.
  */
-WpObjectResult DecodeFunctionSection(const WasmBinSection *const sec, Func *funcs){
+WpResult DecodeFunctionSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    Func *funcs;
     const uint8_t *index = sec->content;                                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                          // pointer to end of binary module
     uint32_t func_count;                                                        // auxiliary variable    
@@ -591,7 +595,7 @@ WpObjectResult DecodeFunctionSection(const WasmBinSection *const sec, Func *func
     index = DecodeLeb128UInt32(index, &func_count);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -602,13 +606,13 @@ WpObjectResult DecodeFunctionSection(const WasmBinSection *const sec, Func *func
     funcs = ALLOCATE(Func, func_count);
     if (!funcs){        
         //allocation check
-        ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result;                                       
     }    
-        
+      
     #define READ_BYTE() (*index++)
     #define NOT_END() (index < buf_end)
 
@@ -620,7 +624,7 @@ WpObjectResult DecodeFunctionSection(const WasmBinSection *const sec, Func *func
         index = DecodeLeb128UInt32(index, &aux_u32);
         if (!index){
             //invalid LEB128 encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -628,18 +632,24 @@ WpObjectResult DecodeFunctionSection(const WasmBinSection *const sec, Func *func
         }
                
         funcs[i].idx = aux_u32;
+        funcs[i].local_len = 0;
+        funcs[i].locals = NULL;
+        funcs[i].body_len = 0;
+        funcs[i].body = NULL;
 
     }
     
     if(index != buf_end){
         //section check
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_FUNCTION_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_FUNCTION_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result; 
     }
 
+    mod->funcs = funcs;
+    mod->func_len = func_count;
     result.value.u32 = func_count;
     return result; 
     
@@ -651,14 +661,14 @@ WpObjectResult DecodeFunctionSection(const WasmBinSection *const sec, Func *func
  * @brief function to decode the table section in a binary webassembly module.
  * 
  * @param sec Binary section.
- * @param tables unallocated array of TableType objects.
- * @return WpObjectResult error or tabletype array's length if succsess in u32.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or tabletype array's length if succsess in u32.
  */
-WpObjectResult DecodeTableSection(const WasmBinSection *const sec, TableType *tables){
+WpResult DecodeTableSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    TableType *tables;
     const uint8_t *index = sec->content;                                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                          // pointer to end of binary module
     uint32_t table_count;                                                       // auxiliary variable
@@ -671,7 +681,7 @@ WpObjectResult DecodeTableSection(const WasmBinSection *const sec, TableType *ta
     index = DecodeLeb128UInt32(index, &table_count);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -682,7 +692,7 @@ WpObjectResult DecodeTableSection(const WasmBinSection *const sec, TableType *ta
     tables = ALLOCATE(TableType, table_count);
     if (!tables){        
         //allocation check
-        ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -708,7 +718,7 @@ WpObjectResult DecodeTableSection(const WasmBinSection *const sec, TableType *ta
         else{
             //Error
             //Decode fails
-            ObjectResultAddError(&result, WP_DIAG_ID_INVALID_REFERENCE_TYPE, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_INVALID_REFERENCE_TYPE, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -718,7 +728,7 @@ WpObjectResult DecodeTableSection(const WasmBinSection *const sec, TableType *ta
         index = DecodedLimitsType(index, &tables[i].lim);
         if(index == NULL){             
             //Decode fails
-            ObjectResultAddError(&result, WP_DIAG_ID_INVALID_LIMITS_TYPE, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_INVALID_LIMITS_TYPE, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -728,13 +738,14 @@ WpObjectResult DecodeTableSection(const WasmBinSection *const sec, TableType *ta
     
     if(index != buf_end){
         //Decode fails
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_TABLE_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_TABLE_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result; 
     }
-
+    mod->tables = tables;
+    mod->table_len = table_count;
     result.value.u32 = table_count;
     return result; 
     
@@ -746,14 +757,14 @@ WpObjectResult DecodeTableSection(const WasmBinSection *const sec, TableType *ta
  * @brief function to decode the mem section in a binary webassembly module.
  * 
  * @param sec Binary section.
- * @param mems unallocated array of MemType objects.
- * @return WpObjectResult error or memtype array's length if succsess in u32.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or memtype array's length if succsess in u32.
  */
-WpObjectResult DecodeMemSection( const WasmBinSection *const sec, MemType *mems){
+WpResult DecodeMemSection( const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    MemType *mems;
     const uint8_t *index = sec->content;                                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                      // pointer to end of binary module
     uint32_t mem_count;                                                            // auxiliary variable    
@@ -767,7 +778,7 @@ WpObjectResult DecodeMemSection( const WasmBinSection *const sec, MemType *mems)
     index = DecodeLeb128UInt32(index, &mem_count);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -778,7 +789,7 @@ WpObjectResult DecodeMemSection( const WasmBinSection *const sec, MemType *mems)
     mems = ALLOCATE(MemType, mem_count);
     if (!mems){        
         //allocation check
-        ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -795,7 +806,7 @@ WpObjectResult DecodeMemSection( const WasmBinSection *const sec, MemType *mems)
 
         if(index == NULL){             
             //Decode fails
-            ObjectResultAddError(&result, WP_DIAG_ID_INVALID_LIMITS_TYPE, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_INVALID_LIMITS_TYPE, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -807,13 +818,15 @@ WpObjectResult DecodeMemSection( const WasmBinSection *const sec, MemType *mems)
     
     if(index != buf_end){
         //Decode fails
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_MEM_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_MEM_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result; 
     }
 
+    mod->mems = mems;
+    mod->mem_len = mem_count;
     result.value.u32 = mem_count;
     return result; 
     
@@ -825,14 +838,14 @@ WpObjectResult DecodeMemSection( const WasmBinSection *const sec, MemType *mems)
  * @brief function to decode the global section in a binary webassembly module.
  * 
  * @param sec Binary section.
- * @param globals unallocated array of Global objects.
- * @return WpObjectResult error or global array's length if succsess in u32.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or global array's length if succsess in u32.
  */
-WpObjectResult DecodeGlobalSection(const WasmBinSection *const sec, Global *globals){
+WpResult DecodeGlobalSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    Global *globals;
     const uint8_t *index = sec->content;                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                   // pointer to end of binary module
     uint32_t global_count;                                            
@@ -845,7 +858,7 @@ WpObjectResult DecodeGlobalSection(const WasmBinSection *const sec, Global *glob
     index = DecodeLeb128UInt32(index, &global_count);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -856,7 +869,7 @@ WpObjectResult DecodeGlobalSection(const WasmBinSection *const sec, Global *glob
     globals = ALLOCATE(Global, global_count);
     if (!globals){        
         //allocation check
-        ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -883,7 +896,7 @@ WpObjectResult DecodeGlobalSection(const WasmBinSection *const sec, Global *glob
             globals[i].mut = byte_val;
         }
         else{
-            ObjectResultAddError(&result, WP_DIAG_ID_INVALID_GLOBAL_TYPE, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_INVALID_GLOBAL_TYPE, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -895,7 +908,7 @@ WpObjectResult DecodeGlobalSection(const WasmBinSection *const sec, Global *glob
         index = DecodeExpr(index, buf_end-index, &globals[i].expr_len);
         if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -906,13 +919,15 @@ WpObjectResult DecodeGlobalSection(const WasmBinSection *const sec, Global *glob
     
     if(index != buf_end){
         //Decode fails
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_GLOBAL_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_GLOBAL_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result; 
     }
 
+    mod->globals = globals;
+    mod->global_len = global_count;
     result.value.u32 = global_count;
     return result; 
     
@@ -924,14 +939,14 @@ WpObjectResult DecodeGlobalSection(const WasmBinSection *const sec, Global *glob
  * @brief function to decode the export section on a binary webassembly module.
  * 
  * @param sec Binary section.
- * @param exports unallocated array of Export objects.
- * @return WpObjectResult error or export array's length if succsess in u32.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or export array's length if succsess in u32.
  */
-WpObjectResult DecodeExportSection(const WasmBinSection *const sec, Export *exports){
+WpResult DecodeExportSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    Export *exports;
     const uint8_t *index = sec->content;                      // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                 // pointer to end of binary module
     uint32_t export_count;
@@ -942,7 +957,7 @@ WpObjectResult DecodeExportSection(const WasmBinSection *const sec, Export *expo
     index = DecodeLeb128UInt32(index, &export_count);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -954,7 +969,7 @@ WpObjectResult DecodeExportSection(const WasmBinSection *const sec, Export *expo
     exports = ALLOCATE(Export, export_count);
     if (!exports){        
         //allocation check
-        ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -970,7 +985,7 @@ WpObjectResult DecodeExportSection(const WasmBinSection *const sec, Export *expo
         index = DecodeLeb128UInt32(index, &aux_u32);
         if (!index){
             //invalid LEB128 encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -986,7 +1001,7 @@ WpObjectResult DecodeExportSection(const WasmBinSection *const sec, Export *expo
         exports[i].desc = ALLOCATE(ExportDesc, 1);
         if (!exports[i].desc){        
             //allocation check
-            ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -1008,7 +1023,7 @@ WpObjectResult DecodeExportSection(const WasmBinSection *const sec, Export *expo
                 exports[i].desc->type = WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_GLOBAL;
                 break;
             default:
-                ObjectResultAddError(&result, WP_DIAG_ID_INVALID_EXPORT_DESCRIPTION_TYPE, W_DIAG_MOD_LIST_DECODER);
+                WpResultAddError(&result, WP_DIAG_ID_INVALID_EXPORT_DESCRIPTION_TYPE, W_DIAG_MOD_LIST_DECODER);
                 #if WASPC_CONFIG_DEV_FLAG == 1
                 //TODO
                 #endif
@@ -1019,7 +1034,7 @@ WpObjectResult DecodeExportSection(const WasmBinSection *const sec, Export *expo
         index = DecodeLeb128UInt32(index, &aux_u32);
         if (!index){
             //invalid LEB128 encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -1031,13 +1046,15 @@ WpObjectResult DecodeExportSection(const WasmBinSection *const sec, Export *expo
     
     if(index != buf_end){
         //Decode fails
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_EXPORT_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_EXPORT_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result;
     }
 
+    mod->exports = exports;
+    mod->exports_len = export_count;
     result.value.u32 = export_count;
     return result; 
     
@@ -1049,23 +1066,23 @@ WpObjectResult DecodeExportSection(const WasmBinSection *const sec, Export *expo
  * @brief function to decode the start section on a binary webassembly module.
  * 
  * @param sec Binary section.
- * @param start pointer to start property for wasmodule object
- * @return WpObjectResult error or start value if succsess in u32.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or start value if succsess in u32.
  */
-WpObjectResult DecodeStartSection(const WasmBinSection *const sec, uint32_t *start){
+WpResult DecodeStartSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    uint32_t start;
     const uint8_t *index = sec->content;                      // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                 // pointer to end of binary module    
   
     
     //get start index
-    index = DecodeLeb128UInt32(index, start);
+    index = DecodeLeb128UInt32(index, &start);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -1074,14 +1091,15 @@ WpObjectResult DecodeStartSection(const WasmBinSection *const sec, uint32_t *sta
     
     if(index != buf_end){
         //Decode fails
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_START_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_START_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result;
     }
-
-    result.value.u32 = *start;
+    
+    mod->start = start;
+    result.value.u32 = 1;
     return result;     
     
 }
@@ -1090,14 +1108,14 @@ WpObjectResult DecodeStartSection(const WasmBinSection *const sec, uint32_t *sta
  * @brief function to decode the element section on a binary webassembly module.
  * 
  * @param sec Binary section.
- * @param elems unallocated array of Elem objects.
- * @return WpObjectResult error or elem array's length if succsess in u32.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or elem array's length if succsess in u32.
  */
-WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems){
+WpResult DecodeElementSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    Elem *elems;
     const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                   // pointer to end of binary module
     const uint8_t * start_pos;
@@ -1112,7 +1130,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
     index = DecodeLeb128UInt32(index, &element_count);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -1123,7 +1141,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
     elems = ALLOCATE(Elem, element_count);
     if (!elems){        
         //allocation check
-        ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -1140,7 +1158,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
         index = DecodeLeb128UInt32(index, &encoded_type);
         if (!index){
             //invalid LEB128 encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -1158,7 +1176,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeExpr(index, sec->size, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1171,7 +1189,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1195,7 +1213,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1212,7 +1230,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1224,7 +1242,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeExpr(index, sec->size, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1239,7 +1257,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1262,7 +1280,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1282,7 +1300,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeExpr(index, sec->size, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1295,7 +1313,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1319,7 +1337,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1338,7 +1356,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1350,7 +1368,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeExpr(index, sec->size, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1365,7 +1383,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1387,7 +1405,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1399,7 +1417,7 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
                 break;
                 
             default:
-                ObjectResultAddError(&result, WP_DIAG_ID_INVALID_ELEMENT_TYPE, W_DIAG_MOD_LIST_DECODER);
+                WpResultAddError(&result, WP_DIAG_ID_INVALID_ELEMENT_TYPE, W_DIAG_MOD_LIST_DECODER);
                 #if WASPC_CONFIG_DEV_FLAG == 1
                 //TODO
                 #endif
@@ -1411,13 +1429,15 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
     
     if(index != buf_end){
         //Decode fails
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_ELEM_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_ELEM_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result;
     }
 
+    mod->elems = elems;
+    mod->elem_len = element_count;
     result.value.u32 = element_count;
     return result; 
     
@@ -1429,22 +1449,22 @@ WpObjectResult DecodeElementSection(const WasmBinSection *const sec, Elem *elems
  * @brief function to decode the data count section on a binary webassembly module.
  * 
  * @param sec Binary section.
- * @param data_count Pointer to wsam module's data_count property. 
- * @return WpObjectResult error or u32 value if success.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or u32 value if success.
  */
-WpObjectResult DecodeDataCountSection(const WasmBinSection *const sec, uint32_t *data_count){
+WpResult DecodeDataCountSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    uint32_t data_count;
     const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;         // pointer to end of binary module
     
     //get type count
-    index = DecodeLeb128UInt32(index, data_count);
+    index = DecodeLeb128UInt32(index, &data_count);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -1453,14 +1473,15 @@ WpObjectResult DecodeDataCountSection(const WasmBinSection *const sec, uint32_t 
     
     if(index != buf_end){
         //Decode fails
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_DATA_COUNT_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_DATA_COUNT_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result;
     }
 
-    result.value.u32 = *data_count;
+    mod->data_count = data_count;
+    result.value.u32 = data_count;
     return result;     
     
 }
@@ -1469,55 +1490,56 @@ WpObjectResult DecodeDataCountSection(const WasmBinSection *const sec, uint32_t 
  * @brief function to decode the code section on a binary webassembly module.
  * 
  * @param sec Binary section.
- * @param funcs Array of Func object
- * @param func_len len of array
- * @return WpObjectResult error or count of code entry decoded if succsess in u32.
+ * @param mod pointer to decoded mod instance. 
+ * @return WpResult error or count of code entry decoded if succsess in u32.
  */
-WpObjectResult DecodeCodeSection(const WasmBinSection *const sec, const uint32_t func_len, Func *funcs){
+WpResult DecodeCodeSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    Func *funcs = mod->funcs;
+    const uint32_t func_len = mod->func_len;
     const uint8_t *index = sec->content;                                // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                  // pointer to end of binary module    
-    uint32_t code_count;      
-    
+    uint32_t code_count; 
+    ;
     //ensure thar funcs is not null
     if(!funcs){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_ASERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
+        
+        WpResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result; 
     }
-
+    
     //get code count
     index = DecodeLeb128UInt32(index, &code_count);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result;                                       
     }
-
+    
     if(code_count != func_len){
         //Mistmatch
-        ObjectResultAddError(&result, WP_DIAG_ID_ASERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result; 
     }    
-
+    
     for(uint32_t i = 0; i < code_count; i++){        
-       
-        index = DecodeCode(index, &funcs[i]);
+        
+        index = DecodeCode(index, &funcs[i]);        
         if (!index){
             //invalid LEB128 encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_CODE_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_CODE_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -1528,7 +1550,7 @@ WpObjectResult DecodeCodeSection(const WasmBinSection *const sec, const uint32_t
     
     if(index != buf_end){        
         //Decode fails
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -1545,14 +1567,14 @@ WpObjectResult DecodeCodeSection(const WasmBinSection *const sec, const uint32_t
  * @brief function to decode the data section on a binary webassembly module.
  * 
  * @param sec Binary section.
- * @param datas unallocated array of Data objects.
- * @return WpObjectResult error or edata array's length if succsess in u32.
+ * @param mod pointer to decoded mod instance.
+ * @return WpResult error or edata array's length if succsess in u32.
  */
-WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
+WpResult DecodeDataSection(const WasmBinSection * const sec, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
-    
+    WpResult result;
+    WpResultInit(&result);
+    Data *datas;
     const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                   // pointer to end of binary module
     const uint8_t *start_pos;
@@ -1567,7 +1589,7 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
     index = DecodeLeb128UInt32(index, &data_count);
     if (!index){
         //invalid LEB128 encoded
-        ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -1578,7 +1600,7 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
     datas = ALLOCATE(Data, data_count);
     if (!datas){        
         //allocation check
-        ObjectResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -1595,7 +1617,7 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
         index = DecodeLeb128UInt32(index, &mode_type);
         if (!index){
             //invalid LEB128 encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
@@ -1613,7 +1635,7 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
                 index = DecodeExpr(index, sec->size, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1625,7 +1647,7 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1646,7 +1668,7 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1664,7 +1686,7 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1676,7 +1698,7 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
                 index = DecodeExpr(index, sec->size, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1688,7 +1710,7 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
                 index = DecodeLeb128UInt32(index, &expr_len);
                 if (!index){
                     //invalid LEB128 encoded
-                    ObjectResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
                     #if WASPC_CONFIG_DEV_FLAG == 1
                     //TODO
                     #endif
@@ -1700,7 +1722,7 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
                 break;           
             default:                
                 //invalid Data mode
-                ObjectResultAddError(&result, WP_DIAG_ID_INVALID_DATA_MODE, W_DIAG_MOD_LIST_DECODER);
+                WpResultAddError(&result, WP_DIAG_ID_INVALID_DATA_MODE, W_DIAG_MOD_LIST_DECODER);
                 #if WASPC_CONFIG_DEV_FLAG == 1
                 //TODO
                 #endif
@@ -1710,13 +1732,14 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
     
     if(index != buf_end){
         //Decode fails
-        ObjectResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_DATA_SECTION, W_DIAG_MOD_LIST_DECODER);
+        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_DATA_SECTION, W_DIAG_MOD_LIST_DECODER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
         return result;
     }
 
+    mod->datas = datas;
     result.value.u32 = data_count;
     return result; 
     
@@ -1730,79 +1753,74 @@ WpObjectResult DecodeDataSection(const WasmBinSection * const sec, Data *datas){
  * 
  * @param bin_mod pointer to source wasm binary module
  * @param mod pointer to target wasm module
- * @return WpObjectResult error or 1 in u32
+ * @return WpResult error or 1 in u32
  */
-WpObjectResult DecodeWasmBinModule(const WasmBinModule *const bin_mod, WasmModule *mod){
+WpResult DecodeWpBinModule(const WpBinModule *const bin_mod, WpDecodedModule *mod){
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
+    WpResult result;
+    WpResultInit(&result);
     
     // If type sec is present:
     if(bin_mod->typesec.size > 0){
-        result = DecodeTypeSection(&bin_mod->typesec, mod->types);      
+        result = DecodeTypeSection(&bin_mod->typesec, mod);      
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
-        } 
-        mod->type_len = result.value.u32;
+        }      
     }
     
     // If import sec is present:
     if(bin_mod->importsec.size > 0){
-        result = DecodeImportSection(&bin_mod->importsec, mod->imports);
+        result = DecodeImportSection(&bin_mod->importsec, mod);
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
         } 
-        mod->imports_len = result.value.u32;
     }
 
     // If function sec is present:
     if(bin_mod->functionsec.size > 0){
-        result = DecodeFunctionSection(&bin_mod->functionsec, mod->funcs);
+        result = DecodeFunctionSection(&bin_mod->functionsec, mod);
+        
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
         } 
-        mod->func_len = result.value.u32;
     }
 
     // If table sec is present:
     if(bin_mod->tablesec.size > 0){
-        result = DecodeTableSection(&bin_mod->tablesec, mod->tables);
+        result = DecodeTableSection(&bin_mod->tablesec, mod);
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
         } 
-        mod->table_len = result.value.u32;
     }
 
     // If mem sec is present:
     if(bin_mod->memsec.size > 0){
-        result = DecodeMemSection(&bin_mod->memsec, mod->mems);
+        result = DecodeMemSection(&bin_mod->memsec, mod);
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
         } 
-        mod->mem_len = result.value.u32;
     }
 
     // If global sec is present:
     if(bin_mod->globalsec.size > 0){
-        result = DecodeGlobalSection(&bin_mod->globalsec, mod->globals);
+        result = DecodeGlobalSection(&bin_mod->globalsec, mod);
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
         } 
-        mod->global_len = result.value.u32;
     }
-
+    
     // If export sec is present:
     if(bin_mod->exportsec.size > 0){
-        result = DecodeExportSection(&bin_mod->exportsec, mod->exports);
+        result = DecodeExportSection(&bin_mod->exportsec, mod);
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
         } 
-        mod->exports_len = result.value.u32;
+           
     }
 
     // If start sec is present:
     if(bin_mod->startsec.size > 0){
-        result = DecodeStartSection(&bin_mod->startsec, &mod->start);
+        result = DecodeStartSection(&bin_mod->startsec, mod);
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
         }         
@@ -1810,30 +1828,31 @@ WpObjectResult DecodeWasmBinModule(const WasmBinModule *const bin_mod, WasmModul
 
     // If element sec is present:
     if(bin_mod->elemsec.size > 0){
-        result = DecodeElementSection(&bin_mod->elemsec, mod->elems);
+        result = DecodeElementSection(&bin_mod->elemsec, mod);
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
         } 
-        mod->elem_len = result.value.u32;
     }
 
     // If data count sec is not empty
     if(bin_mod->datacountsec.size > 0){
-        result = DecodeDataCountSection(&bin_mod->datasec, &mod->data_count);
+        result = DecodeDataCountSection(&bin_mod->datasec, mod);
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
         } 
     }
-
+    
     // If code sec is present:
     if(bin_mod->codesec.size > 0){
+       
         if(mod->func_len > 0){
-            result = DecodeCodeSection(&bin_mod->codesec, mod->func_len, mod->funcs);
+            result = DecodeCodeSection(&bin_mod->codesec, mod);
+            
             if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
                 return result;
             } 
             if(result.value.u32 != mod->func_len){
-                ObjectResultAddError(&result, WP_DIAG_ID_ASERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
+                WpResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
                 #if WASPC_CONFIG_DEV_FLAG == 1
                 //TODO
                 #endif
@@ -1841,23 +1860,23 @@ WpObjectResult DecodeWasmBinModule(const WasmBinModule *const bin_mod, WasmModul
             }
         }
         else{
-            ObjectResultAddError(&result, WP_DIAG_ID_ASERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif
             return result; 
         }
     }
-
+    
     // If data sec is not empty
     if(bin_mod->datasec.size > 0){
-        result = DecodeDataSection(&bin_mod->datasec, mod->datas);
+        result = DecodeDataSection(&bin_mod->datasec, mod);
         if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
             return result;
         } 
 
         if(result.value.u32 != mod->data_count){
-            ObjectResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_DATA_SECTION, W_DIAG_MOD_LIST_DECODER);
+            WpResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_DATA_SECTION, W_DIAG_MOD_LIST_DECODER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif

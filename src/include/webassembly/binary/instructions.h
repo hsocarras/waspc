@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef WASPC_OPCODE_H
-#define WASPC_OPCODE_H
+#ifndef WASPC_INSTRUCTION_H
+#define WASPC_INSTRUCTION_H
 
 #ifdef __cplusplus
     extern "C" {

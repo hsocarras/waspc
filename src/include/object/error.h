@@ -26,7 +26,7 @@
  * @brief Error object for return values for most waspc internal functions.
  * 
  */
-typedef struct WpObjectError{
+typedef struct WpError{
 
     /// head for all Waspc object to allow cast
     WpObjectType type;
@@ -41,12 +41,12 @@ typedef struct WpObjectError{
     uint16_t func;
     #endif
 
-} WpObjectError;
+} WpError;
 
 // Methods **************************************************************************************************
 
 
-void ObjectErrorInit(WpObjectError *self, WpDiagId id, WpDiagModuleList mod);
+void WpErrorInit(WpError *self, WpDiagId id, WpDiagModuleList mod);
 
 // **********************************************************************************************************
 

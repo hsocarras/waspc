@@ -13,9 +13,12 @@
 //#include "runtime/runtime.h"
 #include "object/error.h"
 #include "object/result.h"
-#include "loader/wasm_loader.h"
+#include "object/bin_module.h"
+#include "object/decoded_module.h"
+#include "decoder/wasm_loader.h"
+#include "decoder/wasm_decoder.h"
 #include "memory/work_memory.h"
-//#include "utils/hash_table.h"
+#include "vm/vm.h"
 
 ////For TODO testing//////////////////////////////////////////////////////////////////////
 #include "webassembly/binary/module.h"
@@ -40,7 +43,8 @@ static uint8_t out[OUTPUT_SIZE];
 static uint8_t mark[MARK_SIZE];
 static uint8_t work_code_mem[CODE_MEMORY_SIZE];         //See tia portal code memory
 //////////////////////////////////////////////////////////////////////////////////////////////////
-void ReportError(WpObjectError *err);
+void ReportError(WpError *err);
+
 //instanciating the runtime;
 //static RuntimeEnv env;
 
@@ -91,8 +95,10 @@ int main(int argc, const char* argv[]) {
 
     assert(argc > 1);
 
-    printf("Booting \n");
+    printf("Starting \n");
 
+    VM machine;
+    VmInit(&machine);
     //InitRuntime(&env);
     //env.code_mem = work_code_mem;
     //SetWorkMem(&env, code_mem, CODE_MEMORY_SIZE);
@@ -112,8 +118,8 @@ int main(int argc, const char* argv[]) {
     uint32_t pou_name_len;
    
     //uint8_t error_buf [16];
-    WpObjectResult result;      //wasp result object
-    ObjectResultInit(&result);
+    WpResult result;      //wasp result object
+    WpResultInit(&result);
 
     // Opening file in reading mode
     printf("Openning wasm file \n");
@@ -159,8 +165,8 @@ int main(int argc, const char* argv[]) {
 
         //Loading process  
         //call to runtime/loader.c wasm_runtime_load   
-        WasmBinModule bin_mod;
-        ObjectWasmBinModuleInit(&bin_mod);   
+        WpBinModule bin_mod;
+        WpBinModuleInit(&bin_mod);   
         result = LoadWasmBuffer(load_ptr, len, &bin_mod);
         
         if(result.result_type == WP_OBJECT_RESULT_TYPE_VALID){
@@ -168,12 +174,21 @@ int main(int argc, const char* argv[]) {
             //WasmBinModule *bin_mod = (WasmBinModule *)HashTableGet(&env.table_wasm_bin, id);
             printf("Module loaded. %i Bytes loaded \n", (bin_mod.bin_len));
            
-            WasmModule wmod;
-            ObjectWasmModuleInit(&wmod);
-            result = DecodeWasmBinModule(&bin_mod, &wmod);
+            WpDecodedModule dmod;
+            WpDecodedModuleInit(&dmod);
+            result = DecodeWpBinModule(&bin_mod, &dmod);
+
             if(result.result_type == WP_OBJECT_RESULT_TYPE_VALID){
-                 printf("Decoded\n");
-            }
+                printf("Decoded\n");
+                printf("Execute %i\n", dmod.funcs[0].body[0]);
+                result = VmExecute(&machine, dmod.funcs[0].body);
+
+                printf("result type %i \n",result.type);
+                
+            }  
+            else{
+                ReportError(&result.value.err);
+            }      
                                      
         }
         else{
@@ -200,7 +215,7 @@ int main(int argc, const char* argv[]) {
  * 
  * @param err 
  */
-void ReportError(WpObjectError *err){
+void ReportError(WpError *err){
 
     switch(err->mod){
         case W_DIAG_MOD_LIST_EMBEDDER:

@@ -28,8 +28,8 @@
 typedef enum {
     WP_OBJECT_ERROR,
     WP_OBJECT_RESULT,
-    WP_OBJECT_WASM_BIN_MODULE,
-    WP_OBJECT_WASM_MODULE,
+    WP_OBJECT_BIN_MODULE,
+    WP_OBJECT_DECODED_MODULE,    
 }WpObjectType;
 
 typedef struct WpObject{

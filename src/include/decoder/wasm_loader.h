@@ -18,8 +18,8 @@
 
 //wasp includes
 #include "object/result.h"
-#include "object/wasm_bin_module.h"
-#include "object/wasm_module.h"
+#include "object/bin_module.h"
+#include "object/decoded_module.h"
 
 #include <stdint.h>
 
@@ -29,9 +29,7 @@
  * Function to create a WasmBinModule from a byte array
  * 
  */
-WpObjectResult LoadWasmBuffer(const uint8_t * const buf, const uint32_t size, WasmBinModule *bin_mod);
-
-WpObjectResult DecodeWasmBinModule(const WasmBinModule * const bin_mod, WasmModule *mod);
+WpResult LoadWasmBuffer(const uint8_t * const buf, const uint32_t size, WpBinModule *bin_mod);
 
 
 //WpError InstanciateModule(RuntimeEnv *self, WasmBinModule *mod, uint8_t *imports, uint32_t import_counts, const uint32_t id);

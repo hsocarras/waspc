@@ -9,37 +9,22 @@
  * 
  */
 
-#ifndef WASPC_OBJECT_WASM_MODULE_H
-#define WASPC_OBJECT_WASM_MODULE_H
+#ifndef WASPC_OBJECT_DECODED_MODULE_H
+#define WASPC_OBJECT_DECODED_MODULE_H
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-//wasp includes
+//waspc includes
 #include "object/object.h"
 #include "webassembly/structure/module.h"
 #include "webassembly/structure/types.h"
 
 #include <stdint.h>
 
-/**
- * @brief 2.5
- * A module collects definitions for types, functions, tables, memories, and globals. In addition, it can declare imports
- * and exports and provide initialization in the form of data and element segments, or a start function.
- * module ::= { types vec(functype),
- *      funcs vec(func),
- *      tables vec(table),
- *      mems vec(mem),
- *      globals vec(global),
- *      elems vec(elem),
- *      datas vec(data),
- *      start start?,
- *      imports vec(import),
- *      exports vec(export) }
- * 
- */
-typedef struct WasmModule{
+
+typedef struct WpDecodedModule{
     /// head for all Waspc object to allow cast
     WpObjectType type;
 
@@ -83,10 +68,10 @@ typedef struct WasmModule{
     Export *exports;   
     
 
-} WasmModule;
+} WpDecodedModule;
 
 // Methods *****************************************************************************************
-void ObjectWasmModuleInit(WasmModule *self);
+void WpDecodedModuleInit(WpDecodedModule *self);
 
 #ifdef __cplusplus
     }

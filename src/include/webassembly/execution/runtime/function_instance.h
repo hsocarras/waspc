@@ -17,7 +17,7 @@
 #endif
 
 #include "webassembly/structure/types.h"
-#include "webassembly/runtime/module_instance.h"
+#include "webassembly/execution/runtime/module_instance.h"
 
 #include <stdint.h>
 
@@ -30,19 +30,19 @@
  * | {type functype, hostcode hostfunc}
  * 
  */
-typedef struct FunctionInstance{
+typedef struct WasFunctionInstance{
 
-    //bool is_host_function;
+    //bool is_host_function;   //TODO
 
     FuncType type;
     
-    ModuleInstance *module;
+    WasModuleInstance *module;
 
     uint8_t *locals;
 
     uint8_t *body;
 
-} FunctionInstance;
+} WasFunctionInstance;
 
 
 #ifdef __cplusplus

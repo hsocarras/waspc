@@ -11,7 +11,7 @@
  */
 
 
-#include "loader/wasm_loader.h"
+#include "decoder/wasm_loader.h"
 #include "utils/leb128.h"
 #include "memory/memory.h"
 
@@ -83,7 +83,7 @@ static const uint8_t * LoadBinSection(const uint8_t *index, WasmBinSection *sec)
 
 }
 
-static const uint8_t* LoadBinSectionById(const uint8_t *index, const uint8_t section_id, uint8_t *last_loaded_sec, WasmBinModule *bin_mod){
+static const uint8_t* LoadBinSectionById(const uint8_t *index, const uint8_t section_id, uint8_t *last_loaded_sec, WpBinModule *bin_mod){
 
     uint32_t aux_u32;
 
@@ -285,12 +285,12 @@ static const uint8_t* LoadBinSectionById(const uint8_t *index, const uint8_t sec
  * @param buf Pointer to wasm binary location
  * @param size Len in bytes for wasm binary
  * 
- * @return WpObjectResult 
+ * @return WpResult 
  */
-WpObjectResult LoadWasmBuffer(const uint8_t * const buf, const uint32_t size, WasmBinModule *bin_mod) {
+WpResult LoadWasmBuffer(const uint8_t * const buf, const uint32_t size, WpBinModule *bin_mod) {
 
-    WpObjectResult result;
-    ObjectResultInit(&result);
+    WpResult result;
+    WpResultInit(&result);
 
     const uint8_t *index = buf;                             // pointer to byte to traverse the binary file
     //const uint8_t *pos_mark;                              // auxiliary pointer to calc len
@@ -311,7 +311,7 @@ WpObjectResult LoadWasmBuffer(const uint8_t * const buf, const uint32_t size, Wa
     // Check minimun buffer length for magic and version number ///////////////////////////////////
     if(size < 8){
         //if buffer's size is less than 4 is a wrong binary module
-        ObjectResultAddError(&result, WP_DIAG_ID_INVALID_MODULE_SIZE, W_DIAG_MOD_LIST_LOADER);
+        WpResultAddError(&result, WP_DIAG_ID_INVALID_MODULE_SIZE, W_DIAG_MOD_LIST_LOADER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -322,7 +322,7 @@ WpObjectResult LoadWasmBuffer(const uint8_t * const buf, const uint32_t size, Wa
     // Check magic number /////////////////////////////////////////////////////////////////////////    
     if (!ValidateMagic(index)){
         //invalid magic number
-        ObjectResultAddError(&result, WP_DIAG_ID_INVALID_MAGIC, W_DIAG_MOD_LIST_LOADER);
+        WpResultAddError(&result, WP_DIAG_ID_INVALID_MAGIC, W_DIAG_MOD_LIST_LOADER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -335,7 +335,7 @@ WpObjectResult LoadWasmBuffer(const uint8_t * const buf, const uint32_t size, Wa
     // Check version number /////////////////////////////////////////////////////////////////////////    
     if (!ValidateVersion(index, &aux_u32)){
         //invalid version
-        ObjectResultAddError(&result, WP_DIAG_ID_INVALID_VERSION, W_DIAG_MOD_LIST_LOADER);
+        WpResultAddError(&result, WP_DIAG_ID_INVALID_VERSION, W_DIAG_MOD_LIST_LOADER);
         #if WASPC_CONFIG_DEV_FLAG == 1
         //TODO
         #endif
@@ -354,7 +354,7 @@ WpObjectResult LoadWasmBuffer(const uint8_t * const buf, const uint32_t size, Wa
         index = LoadBinSectionById(index, section_id, &last_loaded_section, bin_mod);
         if (!index){  
             //invalid encoded
-            ObjectResultAddError(&result, WP_DIAG_ID_UNEXPECTED_SECTION_ID, W_DIAG_MOD_LIST_LOADER);
+            WpResultAddError(&result, WP_DIAG_ID_UNEXPECTED_SECTION_ID, W_DIAG_MOD_LIST_LOADER);
             #if WASPC_CONFIG_DEV_FLAG == 1
             //TODO
             #endif

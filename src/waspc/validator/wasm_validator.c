@@ -22,28 +22,54 @@
  * 
  * @param li Limit value to validate
  * @param k Bound to check
- * @return uint8_t 0-OK, 1-Invalid min, 2-Invalid max
+ * @return uint8_t 0-Invalid, 1-valid
  */
-static uint8_t ValidateTypeLimits(Limits *li, uint32_t k){    
+static uint8_t ValidateLimitsType(const Limits *li, uint32_t k){    
 
     if(li->min >= k){
         if(li->max >0){
             if(li->max <= k & li->max >= li->min){
                 //valid
-                return 0;
+                return 1;
             }
             else{
                 //not valid max value
-                return 2;
+                return 0;
             }
 
         }        
     }
     else{
         //not valid min value        
-        return 1;
+        return 0;
     }
 }
+
+/**
+ * @brief Validate table type
+ * The limits limits must be valid within range 2^32 − 1.
+ * 
+ * @param t table type to validate
+ * @return uint8_t 0-Invalid, 1-valid
+ */
+static uint8_t ValidateTableType(const TableType *t){    
+
+    return ValidateLimitsType(&t->lim, 0xFFFFFFFF);
+}
+
+/**
+ * @brief Validate Memory type
+ * The limits limits must be valid within range 2^16 − 1.
+ * 
+ * @param m Memory type to validate
+ * @return uint8_t 0-Invalid, 1-valid
+ */
+static uint8_t ValidateTableType(const MemType *m){    
+
+    return ValidateLimitsType(m, 0xFFFF);
+}
+
+
 
 
 /**
@@ -98,7 +124,7 @@ static WpObjectResult ValidateImportSection(Import *imports, uint32_t imports_le
  * @param mod 
  * @return WpError 
  */
-static WpError ValidateModTable(WasmModule *mod){
+static WpError ValidateTableSection(WasmModule *mod){
 
     uint32_t i;
     Table t;

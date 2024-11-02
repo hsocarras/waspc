@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef WASPC_OBJECT_WASMBINMODULE_H
-#define WASPC_OBJECT_WASMBINMODULE_H
+#ifndef WASPC_OBJECT_BIN_MODULE_H
+#define WASPC_OBJECT_BIN_MODULE_H
 
 #ifdef __cplusplus
     extern "C" {
@@ -59,12 +59,12 @@
                 data𝑚: datasec
                 customsec* ⇒ { ...)
  */
-typedef struct WasmBinModule {
+typedef struct WpBinModule {
     /// head for all Waspc object to allow cast
     WpObjectType type;
     
     uint32_t bin_len;                   /// len of module
-    const uint8_t * start;                     /// pointer to where the module start in the Load Memory
+    const uint8_t * start;              /// pointer to where the module start in the Load Memory
      
     uint32_t version;                   /// the version read from the WASM file    
     WasmBinSection typesec;             /// encoded type section
@@ -82,10 +82,10 @@ typedef struct WasmBinModule {
 
     ///Custom section will be ignored due has no use for interpreter execution.
 
-} WasmBinModule;
+} WpBinModule;
 
 // Methods *****************************************************************************************
-void ObjectWasmBinModuleInit(WasmBinModule *self);
+void WpBinModuleInit(WpBinModule *self);
 
 #ifdef __cplusplus
     }

@@ -9,11 +9,11 @@
  * 
  */
 
- #include "object/wasm_module.h"
+ #include "object/decoded_module.h"
 
- void ObjectWasmModuleInit(WasmModule *self){
+ void WpDecodedModuleInit(WpDecodedModule *self){
 
-    self->type = WP_OBJECT_WASM_MODULE;
+    self->type = WP_OBJECT_DECODED_MODULE;
 
     // type  
     self->type_len = 0;    
