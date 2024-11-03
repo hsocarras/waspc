@@ -17,10 +17,11 @@
 #endif
 
 #include "object/result.h"
+#include "vm/values.h"
 
 #include <stdint.h>
 
-#define VM_VALUE_STACK_SIZE 512       //later must see how to include the PortConfig.h with Cmake and a target variable
+#define VM_VALUE_STACK_SIZE 4096      //later must see how to include the PortConfig.h with Cmake and a target variable
 
 #ifndef VM_VALUE_STACK_SIZE
         #error Missing definition:  VM_MAX_STACK_SIZE must be defined in PortConfig.h.
@@ -37,16 +38,40 @@ typedef struct VM{
     
     const uint8_t * byte_code;
     const uint8_t * ip;
+
+    uint8_t value_stack[VM_VALUE_STACK_SIZE];       //value stack implemented with array of byte instead value struct for memory optimization    
+    uint8_t * value_stack_top;
     
 }VM;
 
+/// @brief constructor for vm struct
+/// @param  pointer to vm.
 void VmInit(VM *);
 
 void VmFree(VM *);
 
+/// @brief wraper to call VmEvalFrame function. Perform some nit steps.
+/// @param  pointer to vm instance.
+/// @param  code to execute.
+/// @return 
 WpResult VmExecute(VM *, const uint8_t *);
 
+/// @brief Main evaluaction loop
+/// @param  
+/// @return 
 WpResult VmEvalFrame (VM *);
+
+/// @brief function to push a value into value stack
+/// @param  vm Virtual machine instance.
+/// @param  val Value to push.
+/// @return bytes pushed into stack.
+WpResult VmPushValue(VM *vm, VmValue val);
+
+/// @brief function to pop a value from stack
+/// @param  vm Virtual machine instance.
+/// @param  val_type Type value to push
+/// @return 
+VmValue VmPopValue(VM *vm);
 
 #ifdef __cplusplus
     }

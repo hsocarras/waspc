@@ -34,21 +34,10 @@ typedef uint8_t byte;
  * their interpretation is determined by individual operations.
  * 
  */
-typedef union I32{
-    int32_t s;
-    uint32_t u;
-} I32;
-
-/**
- * @brief The types i32 and i64 classify 32 and 64 bit integers, respectively. 
- * Integers are not inherently signed or unsigned,
- * their interpretation is determined by individual operations.
- * 
- */
-typedef union I64{
-    int64_t s;
-    uint64_t u;
-} I64;
+typedef int32_t I32;
+typedef uint32_t U32;
+typedef int64_t I64;
+typedef uint64_t U64;
 
 /**
  * @brief The types f32 and f64 classify 32 and 64 bit floating-point data, respectively. They correspond to the respective

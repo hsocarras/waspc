@@ -21,7 +21,7 @@
 WpResult VmEvalFrame (VM *self){
 
     uint8_t instruction;
-    int32_t aux_i32;
+    VmValue c1;
 
     WpResult result;      //wasp result object
     WpResultInit(&result);
@@ -36,13 +36,23 @@ WpResult VmEvalFrame (VM *self){
 
     while(current_t - start_t < watchdog){
         instruction = READ_BYTE();
+
         printf("instruction %i\n", instruction);
+
         switch(instruction){
             case OPCODE_RETURN:
                 return result;
             case OPCODE_I32_CONST:
-                self->ip = DecodeLeb128Int32(self->ip, &aux_i32);
-                printf("%i \n", aux_i32);
+                c1.type = VM_NUM_I32;
+                self->ip = DecodeLeb128Int32(self->ip, &c1.val.s32);
+                if(!self->ip){
+                    WpResultAddError(&result, WP_DIAG_ID_ASSERT_EVAL_I32_CONST, W_DIAG_MOD_LIST_VM);
+                    return result;
+                }
+                result = VmPushValue(self, c1);
+                if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
+                    return result;
+                }
                 break;
         }
 
@@ -50,7 +60,7 @@ WpResult VmEvalFrame (VM *self){
         current_t = clock();
     }
 
-    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
+    WpResultAddError(&result, WP_DIAG_ID_ASSERT_EVAL_WATCHDOG, W_DIAG_MOD_LIST_VM);
     return result;
 
     #undef READ_BYTE

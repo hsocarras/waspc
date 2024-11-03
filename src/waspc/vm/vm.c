@@ -15,6 +15,8 @@ void VmInit(VM *self){
 
     self->byte_code = NULL;
     self->ip = NULL;
+
+    self->value_stack_top = self->value_stack;      //reset the stack pointer
 }
 
 void VmFree(VM *self){

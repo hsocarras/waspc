@@ -24,6 +24,7 @@
 #include "webassembly/binary/module.h"
 #include "webassembly/structure/module.h"
 #include "utils/hash_table.h"
+#include "vm/values.h"
 //////////////////////////////////////////////////////////////////////////////////////////
 #include <stdio.h>
 #include <stdlib.h>
@@ -182,7 +183,11 @@ int main(int argc, const char* argv[]) {
                 printf("Decoded\n");
                 printf("Execute %i\n", dmod.funcs[0].body[0]);
                 result = VmExecute(&machine, dmod.funcs[0].body);
-
+                VmValue entry;
+                entry = VmPopValue(&machine);
+                printf("entry val %i \n", entry.val.s32);
+                entry = VmPopValue(&machine);
+                printf("entry val %i \n", entry.val.s32);
                 printf("result type %i \n",result.type);
                 
             }  
