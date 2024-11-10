@@ -50,7 +50,7 @@ typedef struct Import{
 //The funcs component of a module defines a vector of functions with the following structure:
 //  func ::= {type typeidx, locals vec(valtype), body expr}
 typedef struct Func{
-    uint32_t idx;               //type index
+    uint32_t type;               //type index
     uint32_t local_len;         //How many locals are    
     uint8_t *locals;           //array with the type of each local vaiable 
     uint32_t body_len;

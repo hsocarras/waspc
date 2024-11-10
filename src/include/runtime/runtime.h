@@ -26,11 +26,6 @@
 
 #include <stdint.h>
 
-typedef struct Store{
-
-} Store;
-
-
 /**
  * @brief Sandbox for webasembly runtime, customised for plc.
  * 
@@ -47,7 +42,7 @@ typedef struct RuntimeEnv{
     uint32_t code_mem_size;
     uint8_t *code_mem;
 
-    HashTable table_wasm_bin;               /// Hash table for store loaded bin modules in ram. //Online project
+    //HashTable table_wasm_bin;               /// Hash table for store loaded bin modules in ram. //Online project
 
     //WasmBinModule mod;
     //ModuleInstance module_instance;         /// instance     

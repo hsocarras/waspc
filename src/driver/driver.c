@@ -19,12 +19,12 @@
 #include "decoder/wasm_decoder.h"
 #include "memory/work_memory.h"
 #include "vm/vm.h"
-
+#include "runtime/store.h"
 ////For TODO testing//////////////////////////////////////////////////////////////////////
 #include "webassembly/binary/module.h"
 #include "webassembly/structure/module.h"
 #include "utils/hash_table.h"
-#include "vm/values.h"
+#include "webassembly/execution/runtime/instances.h"
 //////////////////////////////////////////////////////////////////////////////////////////
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,7 +91,8 @@ uint32_t GetFileName(const char * path, char *name){
 }
 
 
- 
+static Store store;
+
 int main(int argc, const char* argv[]) {
 
     assert(argc > 1);
@@ -100,6 +101,7 @@ int main(int argc, const char* argv[]) {
 
     VM machine;
     VmInit(&machine);
+    machine.store = &store;
     //InitRuntime(&env);
     //env.code_mem = work_code_mem;
     //SetWorkMem(&env, code_mem, CODE_MEMORY_SIZE);
@@ -166,28 +168,31 @@ int main(int argc, const char* argv[]) {
 
         //Loading process  
         //call to runtime/loader.c wasm_runtime_load   
-        WpBinModule bin_mod;
-        WpBinModuleInit(&bin_mod);   
-        result = LoadWasmBuffer(load_ptr, len, &bin_mod);
-        
+        //WpBinModule bin_mod;
+        //WpBinModuleInit(&bin_mod);   
+        //result = LoadWasmBuffer(load_ptr, len, &bin_mod);
+        ModuleInst mod;
+        result = InstantiateModule(&machine, load_ptr, len);
         if(result.result_type == WP_OBJECT_RESULT_TYPE_VALID){
             
             //WasmBinModule *bin_mod = (WasmBinModule *)HashTableGet(&env.table_wasm_bin, id);
-            printf("Module loaded. %i Bytes loaded \n", (bin_mod.bin_len));
+            //printf("Module loaded. %i Bytes loaded \n", (bin_mod.bin_len));
            
-            WpDecodedModule dmod;
-            WpDecodedModuleInit(&dmod);
-            result = DecodeWpBinModule(&bin_mod, &dmod);
+            //WpDecodedModule dmod;
+            //WpDecodedModuleInit(&dmod);
+            //result = DecodeWpBinModule(&bin_mod, &dmod);
 
             if(result.result_type == WP_OBJECT_RESULT_TYPE_VALID){
                 printf("Decoded\n");
-                printf("Execute %i\n", dmod.funcs[0].body[0]);
-                result = VmExecute(&machine, dmod.funcs[0].body);
+                printf("Execute \n");
+                result = VmExecuteFrame(&machine, machine.mod.main.body);
                 VmValue entry;
                 entry = VmPopValue(&machine);
-                printf("entry val %i \n", entry.val.s32);
+                printf("entry val %i \n", entry.as.s32);
                 entry = VmPopValue(&machine);
-                printf("entry val %i \n", entry.val.s32);
+                printf("entry val %i \n", entry.as.s32);
+                entry = VmPopValue(&machine);
+                printf("entry val %i \n", entry.as.s32);
                 printf("result type %i \n",result.type);
                 
             }  

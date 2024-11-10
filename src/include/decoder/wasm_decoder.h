@@ -23,9 +23,29 @@
 
 #include <stdint.h>
 
+WpResult DecodeTypeSection(const WasmBinSection *const sec, WpDecodedModule *mod);
 
+WpResult DecodeImportSection(const WasmBinSection *const sec, WpDecodedModule *mod);
 
+WpResult DecodeFunctionSection(const WasmBinSection *const sec, WpDecodedModule *mod);
 
+WpResult DecodeTableSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+
+WpResult DecodeMemSection( const WasmBinSection *const sec, WpDecodedModule *mod);
+
+WpResult DecodeGlobalSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+
+WpResult DecodeExportSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+
+WpResult DecodeStartSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+
+WpResult DecodeElementSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+
+WpResult DecodeDataCountSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+
+WpResult DecodeCodeSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+
+WpResult DecodeDataSection(const WasmBinSection * const sec, WpDecodedModule *mod);
 
 WpResult DecodeWpBinModule(const WpBinModule * const bin_mod, WpDecodedModule *mod);
 

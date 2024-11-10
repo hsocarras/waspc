@@ -16,7 +16,6 @@
     extern "C" {
 #endif
 
-#include "webassembly/execution/runtime/addresses.h"
 
 #include <stdint.h>
 
@@ -26,7 +25,7 @@
  *      byte ::= 0x00 | . . . | 0xFF
  * 
  */
-typedef uint8_t byte;
+typedef uint8_t Byte;
 
 /**
  * @brief The types i32 and i64 classify 32 and 64 bit integers, respectively. 
@@ -55,17 +54,6 @@ typedef float F32;
  */
 typedef double F64;
 
-/**
- * @brief Number types classify numeric values.
- *      numtype ::= i32 | i64 | f32 | f64
- * 
- */
-typedef union NumType {
-    I32 i32;
-    I64 i64;
-    F32 f32;
-    F64 f64;
-} NumType;
 
 // Vectors ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
@@ -83,34 +71,38 @@ typedef void *FuncRef;
 
 typedef void *ExternRef;
 
-typedef union RefType {
-    FuncRef funcref;
-    ExternRef externref; 
+typedef union RefType{
+    FuncRef fref;
+    ExternRef xref;
 } RefType;
+
 // Reference ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * @brief Value types classify the individual values that WebAssembly code can compute with and the values that a variable
- * accepts. They are either number types, vector types, or reference types.
- *  valtype ::= numtype | vectype | reftype
- * 
- */
-typedef union ValType {
-    NumType num;
-    VecType v128;
-    RefType ref;
-} ValType;
+//VALUE Type ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+//2.3.4 y 5.3.4
+typedef enum ValType {
+    
+    WAS_FUNCT_TYPE = 0x60,
+    WAS_EXTERN_REF_TYPE = 0x6F,
+    WAS_FUNC_REF_TYPE = 0x70,
+    WAS_V128 = 0x7B,
+    WAS_F64 = 0x7C,
+    WAS_F32 = 0x7D,
+    WAS_I64 = 0x7E,
+    WAS_I32 = 0x7F,    
+    //Extension to WAS SPEC
+    WAS_UNDEF = 0x00,
 
-/**
- * @brief Result types classify the result of executing instructions or functions, which is a sequence of values, written with
- * brackets.
- *      resulttype ::= [vec(valtype)]
- * 
- */
-typedef struct ResultType {
-    uint32_t count;
-    ValType *vec;
+} ValType;
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Result type ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+//2.3.5
+typedef struct ResultType{
+    uint32_t len;
+    ValType *types;
 }ResultType;
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief Function types classify the signature of functions, mapping a vector of parameters to a vector of results.
@@ -118,19 +110,15 @@ typedef struct ResultType {
  * functype ::= resulttype → resulttype
  */
 typedef struct FuncType{
-
-    uint32_t param_len;
-    uint8_t *param;             //encoded type see enum on binary/module.h
-
-    uint32_t result_len;
-    uint8_t *result;               //encoded type see enum on binary/module.h
+    ResultType param;
+    ResultType ret;
 } FuncType;
 //#################################################################################################################
 
 
 typedef struct Limits {
-    uint32_t min;
-    uint32_t max;
+    U32 min;
+    U32 max;
 } Limits;
 
 // Memory //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -149,15 +137,15 @@ typedef struct TableType{
 // Global //////////////////////////////////////////////////////////////////////////////////////////////////////////
 typedef struct GlobalType {
     uint8_t mut;                //0-constant, 1-variable
-    ValType value;
+    ValType type;
 } GlobalType;
 // Global //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // External //////////////////////////////////////////////////////////////////////////////////////////////////////////
 typedef union ExternType {
     FuncType func;
-    //TableType table;
-    //MemType mem;
+    TableType table;
+    MemType mem;
     GlobalType global;
 } ExternType;
 // External //////////////////////////////////////////////////////////////////////////////////////////////////////////

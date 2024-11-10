@@ -2,4 +2,4 @@
 
 
 
-add_library(vm STATIC vm.c eval.c stack.c) 
+add_library(vm STATIC vm.c eval.c stack.c instanciator.c) 

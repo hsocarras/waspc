@@ -17,7 +17,9 @@
 #endif
 
 #include "object/result.h"
-#include "vm/values.h"
+#include "runtime/store.h"
+#include "webassembly/execution/runtime/values.h"
+#include "webassembly/execution/runtime/instances.h"
 
 #include <stdint.h>
 
@@ -29,6 +31,15 @@
 
 #define VM_CALL_STACK_SIZE = 24       //must not be greater than 255
 
+/**
+ * @brief 
+ * 
+ */
+typedef struct VmValue
+{
+    ValType type;       
+    Val as;    
+}VmValue;
 
 /**
  * @brief Struct for Virtual machine object
@@ -41,6 +52,9 @@ typedef struct VM{
 
     uint8_t value_stack[VM_VALUE_STACK_SIZE];       //value stack implemented with array of byte instead value struct for memory optimization    
     uint8_t * value_stack_top;
+
+    Store *store;
+    ModuleInst mod;
     
 }VM;
 
@@ -50,11 +64,13 @@ void VmInit(VM *);
 
 void VmFree(VM *);
 
+Val VmExecuteExpresion(VM *self, const uint8_t * exp);
+
 /// @brief wraper to call VmEvalFrame function. Perform some nit steps.
 /// @param  pointer to vm instance.
 /// @param  code to execute.
 /// @return 
-WpResult VmExecute(VM *, const uint8_t *);
+WpResult VmExecuteFrame(VM *, const uint8_t *);
 
 /// @brief Main evaluaction loop
 /// @param  
@@ -72,6 +88,8 @@ WpResult VmPushValue(VM *vm, VmValue val);
 /// @param  val_type Type value to push
 /// @return 
 VmValue VmPopValue(VM *vm);
+
+WpResult InstantiateModule(VM *self, const uint8_t * const buf, const uint32_t size);
 
 #ifdef __cplusplus
     }

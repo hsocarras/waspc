@@ -12,7 +12,7 @@
 //Wasp includes
 #include "memory/memory.h"
 #include "memory/work_memory.h"
-#include "diagnostic/error.h"
+#include "diagnostic/diag.h"
 
 //standard includes
 //#include <stdio.h>

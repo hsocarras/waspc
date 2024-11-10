@@ -4,7 +4,7 @@
 #adding utils module
 add_subdirectory(utils)
 
-#add_subdirectory(memory)
+add_subdirectory(runtime)
 
 #adding loader module
 add_subdirectory(decoder)
@@ -15,4 +15,4 @@ add_subdirectory(vm)
 
 # Merge all necesary libs
 add_library(waspc INTERFACE)
-target_link_libraries(waspc INTERFACE utils decoder object vm)
+target_link_libraries(waspc INTERFACE utils decoder object vm runtime)

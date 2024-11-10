@@ -23,8 +23,19 @@ void VmFree(VM *self){
 
 }
 
+Val VmExecuteExpresion(VM *self, const uint8_t * exp){
+    WpResult result;      //wasp result object
+    WpResultInit(&result);
 
-WpResult VmExecute(VM *self, const uint8_t * code){
+    self->byte_code = exp;
+    self->ip = exp;
+    result = VmEvalFrame(self);
+
+    return result.value.was;
+}
+
+
+WpResult VmExecuteFrame(VM *self, const uint8_t * code){
     
     WpResult result;      //wasp result object
     WpResultInit(&result);

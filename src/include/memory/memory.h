@@ -27,7 +27,11 @@
 
 #define FREE_MEM(ptr) free(ptr);
 
+#define GROW_ARRAY(type, pointer, oldCount, newCount) \
+    (type*)Reallocate(pointer, sizeof(type) * (oldCount), sizeof(type) * (newCount))
 
+
+void * Reallocate (void* pointer, size_t oldSize, size_t newSize);
 
 #ifdef __cplusplus
     }

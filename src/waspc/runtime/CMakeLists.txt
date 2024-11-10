@@ -1,6 +1,5 @@
 
 
 
+add_library(runtime STATIC instances.c store.c)
 
-add_library(runtime STATIC init_runtime.c)
-target_link_libraries(runtime PRIVATE memory)

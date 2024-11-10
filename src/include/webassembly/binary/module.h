@@ -18,22 +18,7 @@
 
 #include <stdint.h>
 
-// Encoded Types///////////////////////////////////////////////////////////////////////////////////////
 
-typedef enum EncodedValTypes {
-
-    WP_WAS_BIN_ENC_FUNCTYPE = 0x60,
-    WP_WAS_BIN_ENC_EXTERN_REF_TYPE = 0x6F,
-    WP_WAS_BIN_ENC_FUNC_REF_TYPE = 0x70,
-    WP_WAS_BIN_ENC_V128 = 0x7B,
-    WP_WAS_BIN_ENC_F64 = 0x7C,
-    WP_WAS_BIN_ENC_F32 = 0x7D,
-    WP_WAS_BIN_ENC_I64 = 0x7E,
-    WP_WAS_BIN_ENC_I32 = 0x7F,
-
-} EncodedValTypes;
-
-//#####################################################################################################
 
 /**
  * @brief Enum with section id number inside binary format.
@@ -56,13 +41,10 @@ typedef enum SectionId{
 } SectionId;
 
 typedef struct WasmBinSection {   
-
     /// Section size
     uint32_t size;
     /// Section body ( not include id and size)
     const uint8_t *content;
-    
-
 } WasmBinSection;
 
 

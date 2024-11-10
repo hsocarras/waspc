@@ -20,6 +20,7 @@
 #include "object/object.h"
 #include "object/error.h"
 #include "diagnostic/diag.h"
+#include "webassembly/execution/runtime/values.h"
 
 #include <stdint.h>
 
@@ -39,6 +40,8 @@ typedef enum WpResultType{
 typedef union WpResultValue{
     WpError err;
     uint32_t u32;
+    Val was;
+    void *addr;
 } WpResultValue;
 
 /**
