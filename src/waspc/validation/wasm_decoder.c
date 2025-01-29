@@ -10,7 +10,8 @@
  */
 
 
-#include "decoder/wasm_loader.h"
+#include "validation/wasm_decoder.h"
+#include "validation/wasm_validator.h"
 #include "memory/memory.h"
 #include "utils/leb128.h"
 #include "webassembly/binary/instructions.h"
@@ -26,7 +27,7 @@
  * @param max_len max len to traverse the buffer
  * @param size Reference to a variable to store the expresion lenght in bytes.
  * @return const uint8_t* pointer to next byte after expr
- */
+ *
 static const uint8_t * DecodeExpr(const uint8_t *const buf, const uint32_t max_len){
 
     const uint8_t *index = buf; 
@@ -51,7 +52,7 @@ static const uint8_t * DecodeExpr(const uint8_t *const buf, const uint32_t max_l
 
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 /**
  * @brief 
@@ -59,7 +60,7 @@ static const uint8_t * DecodeExpr(const uint8_t *const buf, const uint32_t max_l
  * @param buf  Binary encoded wasm module
  * @param lim Limit type value
  * @return const uint8_t* return pointer to next byte after encoded limit.
- */
+ *
 static const uint8_t * DecodedLimitsType(const uint8_t *const buf, Limits *lim){
 
     const uint8_t *index = buf; 
@@ -106,7 +107,7 @@ static const uint8_t * DecodedLimitsType(const uint8_t *const buf, Limits *lim){
 
     #undef READ_BYTE
 
-}
+}*/
 
 /**
  * @brief function to decode vector of locals inside a code entry
@@ -116,13 +117,15 @@ static const uint8_t * DecodedLimitsType(const uint8_t *const buf, Limits *lim){
  * @param buf_end limit to avoid endless loop
  * @param func A function as Structure webassembly spec. See webassembly/structure/module.h
  * @return const uint8_t* pointer to next byte after vector if success, otherwise NULL.
- */
+ *
 static const uint8_t * DecodeCodeLocals(const uint8_t *const code, const uint8_t *buf_end, Func *func){
-
-    typedef struct EncodedLocal {
-        uint32_t count;
+    
+    ///locals ::= 𝑛:u32 𝑡:valtype
+    typedef struct _Locals {
+        uint32_t n;
         uint8_t val_type;
-    }EncodedLocal;
+    }_Locals;
+    
 
     const uint8_t *index = code;    
     uint32_t local_count;
@@ -130,15 +133,16 @@ static const uint8_t * DecodeCodeLocals(const uint8_t *const code, const uint8_t
     uint32_t i = 0;
     uint32_t ii = 0;
     uint32_t iii = 0;
-    EncodedLocal *vector_local;
+    _Locals *vector_local;
 
-    //get local count
+    //get local count 
     index = DecodeLeb128UInt32(index, &local_count);
     if (!index){
         return NULL;                                        
     }
 
-    vector_local = ALLOCATE(EncodedLocal, local_count);
+    //Allocate memory to store temporary locals array
+    vector_local = ALLOCATE(_Locals, local_count);
     if (!vector_local){        
         return NULL;                                       
     }
@@ -148,8 +152,8 @@ static const uint8_t * DecodeCodeLocals(const uint8_t *const code, const uint8_t
 
     for(i = 0; i < local_count; i++){        
         
-        //get number of element
-        index = DecodeLeb128UInt32(index, &vector_local[i].count);
+        //get number of element n
+        index = DecodeLeb128UInt32(index, &vector_local[i].n);
         if (!index){        
             return NULL;                                     
         }
@@ -178,7 +182,7 @@ static const uint8_t * DecodeCodeLocals(const uint8_t *const code, const uint8_t
                     return NULL;
             }
 
-            local_total = local_total + vector_local[i].count;       //calc totals of local for field local_types_len
+            local_total = local_total + vector_local[i].n;       //calc totals of local for field local_types_len
         }
         else{
             return NULL;
@@ -187,15 +191,17 @@ static const uint8_t * DecodeCodeLocals(const uint8_t *const code, const uint8_t
     }
 
     //allocating space for function locals
-    func->locals = ALLOCATE(uint8_t, local_total);
+    func->locals = ALLOCATE(ExtLocal, local_total);
     if(!func->locals){
         return NULL;
     }
     func->local_len = local_total;
 
-    //traversing the local_vector array to fill func.local
+    
+
+    //traversing the local_vector array to fill locals array
     for(i = 0; i < local_count; i++){        
-        for(ii = 0; ii < vector_local[i].count; ii++){
+        for(ii = 0; ii < vector_local[i].n; ii++){
             //check that index iii used for func.local is in range            
             if(iii < local_total){
                 func->locals[iii] = vector_local[i].val_type;        //asign the value type 
@@ -214,7 +220,7 @@ static const uint8_t * DecodeCodeLocals(const uint8_t *const code, const uint8_t
 
     #undef READ_BYTE
     #undef NOT_END
-}
+}/*
 
 /**
  * @brief function to decode a code entry inside code section
@@ -223,7 +229,7 @@ static const uint8_t * DecodeCodeLocals(const uint8_t *const code, const uint8_t
  *              code ::= size:u32 code:func  
  * @param func A function as Structure webassembly spec. See webassembly/structure/module.h
  * @return const uint8_t* pointer to next byte after code entry if success, otherwise NULL.
- */
+ *
 static const uint8_t * DecodeCode(const uint8_t *const code, Func *func){
         
     const uint8_t *index = code;
@@ -268,7 +274,7 @@ static const uint8_t * DecodeCode(const uint8_t *const code, Func *func){
     buf_end++;          //pointter to next byte for next code segment    
     return buf_end;   
     
-}
+}*/
 
 /**
  * @brief Decode Type Section
@@ -277,84 +283,58 @@ static const uint8_t * DecodeCode(const uint8_t *const code, Func *func){
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or types length if succsess in u32.
  */
-WpResult DecodeTypeSection(const WasmBinSection *const sec, WpDecodedModule *mod){
+VecFuncTypes *DecodeTypeSection(WpModuleState *mod){
 
-    WpResult result;
-    WpResultInit(&result);
-    FuncType *types = NULL;
+    WasmBinSection *sec = &mod->typesec;
+    VecFuncTypes *types = &mod->was.types;                     // pounter to inner types section
     const uint8_t *index = sec->content;                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;          // pointer to end of binary module
-    uint32_t type_count;                                        // auxiliary variable
+    uint32_t length;                                            // auxiliary variable
     uint32_t param_count;
-    uint32_t aux_u32;                                           // auxiliary variable to decode leb128 values
-    uint8_t byte_val;
+    uint32_t dec_u32;                                           // auxiliary variable to decode leb128 values
+    uint8_t byte_value;                                         // auxiliary
     ValType encoded_type;
 
     
-    //get type count
-    index = DecodeLeb128UInt32(index, &type_count);
+    //get vector length
+    index = DecodeLeb128UInt32(index, &length);
     if (!index){        
-        //invalid LEB128 encoded
-        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result;                                        
+        return NULL;                                       
     }  
     
-    //alocating types on heap
-    types = ALLOCATE(FuncType, type_count);    
-    if (!types){             
-        //allocation check
-        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result;                                        
+    //alocating Funtypes on heap
+    types->elements = ALLOCATE(FuncType, length);    
+    if (!types->elements){             
+        return NULL;                                        
     }  
-
+    types->lenght = length;
     //TODO maybe is good idea make something similar to string internals (Crafting interpreter's book)
     // for function signature.
     
     #define READ_BYTE() (*index++)
     #define NOT_END() (index < buf_end)
 
-    for(uint32_t i = 0; i < type_count; i++){
+    for(uint32_t i = 0; i < length; i++){
 
         //get functype (0x60)
         encoded_type = READ_BYTE();
         if (encoded_type != WAS_FUNCT_TYPE){
-            //invalid encoded
-            WpResultAddError(&result, WP_DIAG_ID_INVALID_ENCODED_VALUE, W_DIAG_MOD_LIST_DECODER);
-            #if WASPC_CONFIG_DEV_FLAG == 1
-            //TODO
-            #endif
-            return result;                                        
+            return NULL;                                    
         }
         
         //get parameters count        
-        index = DecodeLeb128UInt32(index, &aux_u32);
+        index = DecodeLeb128UInt32(index, &dec_u32);
         if (!index){
-            //invalid encoded
-            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-            #if WASPC_CONFIG_DEV_FLAG == 1
-            //TODO
-            #endif
-            return result;                                      
+            return NULL;                                      
         }
         
-        param_count = aux_u32;
-        types[i].param.len = param_count;
+        param_count = dec_u32;
+        types->elements[i].params.lenght = param_count;
 
-        //allocating array for param count        
-        types[i].param.types = ALLOCATE(ValType, param_count);          
-        if (!types[i].param.types){        
-            //allocation check
-            WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
-            #if WASPC_CONFIG_DEV_FLAG == 1
-            //TODO
-            #endif
-            return result;                                       
+        //allocating array for parameters vector        
+        types->elements[i].params.val_types = ALLOCATE(ValType, param_count);          
+        if (!types->elements[i].params.val_types){        
+            NULL;                                        
         } 
 
         //Loop for read parameter vector
@@ -364,32 +344,23 @@ WpResult DecodeTypeSection(const WasmBinSection *const sec, WpDecodedModule *mod
             encoded_type = READ_BYTE();
 
             //TODO check for valid type
-            types[i].param.types[ii] = encoded_type;
+            if(!ValidateValType(encoded_type)){
+                return NULL;                                    
+            }
+            types->elements[i].params.val_types[ii] = encoded_type;
         }
         
         //getting result count
-        index = DecodeLeb128UInt32(index, &aux_u32);
+        index = DecodeLeb128UInt32(index, &dec_u32);
         if (!index){
-           //invalid LEB128 encoded
-            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-            #if WASPC_CONFIG_DEV_FLAG == 1
-            //TODO
-            #endif
-            return result;                                         
-        }
-        
-        param_count = aux_u32;
-        types[i].ret.len = param_count;
-        
+            return NULL;                                    
+        }        
+        types->elements[i].results.lenght = dec_u32;
+        param_count = dec_u32;
         //allocating array for result count
-        types[i].ret.types = ALLOCATE(ValType, param_count);
-        if (!types[i].ret.types){        
-            //allocation check
-            WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
-            #if WASPC_CONFIG_DEV_FLAG == 1
-            //TODO
-            #endif
-            return result;                                       
+        types->elements[i].results.val_types = ALLOCATE(ValType, param_count);
+        if (!types->elements[i].results.val_types){        
+                                                   
         }
 
         //Loop for read result vector
@@ -397,8 +368,10 @@ WpResult DecodeTypeSection(const WasmBinSection *const sec, WpDecodedModule *mod
 
             //get encoded parameter type            
             encoded_type = READ_BYTE();            
-            //TODO check for valid type
-            types[i].ret.types[ii] = encoded_type;
+            if(!ValidateValType(encoded_type)){
+                return NULL;                                    
+            }
+            types->elements[i].results.val_types[ii] = encoded_type;
             
         }  
           
@@ -406,17 +379,10 @@ WpResult DecodeTypeSection(const WasmBinSection *const sec, WpDecodedModule *mod
     }
     
     if(index != buf_end){
-        //section check
-        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_TYPE_SECTION, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result; 
+         return NULL;
     }
-    mod->types = types;
-    mod->type_len = type_count;
-    result.value.u32 = type_count;
-    return result; 
+    
+    return types;
     
     #undef READ_BYTE
     #undef NOT_END
@@ -428,7 +394,7 @@ WpResult DecodeTypeSection(const WasmBinSection *const sec, WpDecodedModule *mod
  * @param sec Binary section
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or import arraay's length if succsess in u32.
- */
+ *
 WpResult DecodeImportSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -567,7 +533,7 @@ WpResult DecodeImportSection(const WasmBinSection *const sec, WpDecodedModule *m
     
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 /**
  * @brief function to decode the function section in a binary webassembly module.
@@ -575,7 +541,7 @@ WpResult DecodeImportSection(const WasmBinSection *const sec, WpDecodedModule *m
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or function array's length if succsess in u32.
- */
+ *
 WpResult DecodeFunctionSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -653,7 +619,7 @@ WpResult DecodeFunctionSection(const WasmBinSection *const sec, WpDecodedModule 
     
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 /**
  * @brief function to decode the table section in a binary webassembly module.
@@ -661,7 +627,7 @@ WpResult DecodeFunctionSection(const WasmBinSection *const sec, WpDecodedModule 
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or tabletype array's length if succsess in u32.
- */
+ *
 WpResult DecodeTableSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -749,7 +715,7 @@ WpResult DecodeTableSection(const WasmBinSection *const sec, WpDecodedModule *mo
     
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 /**
  * @brief function to decode the mem section in a binary webassembly module.
@@ -757,7 +723,7 @@ WpResult DecodeTableSection(const WasmBinSection *const sec, WpDecodedModule *mo
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or memtype array's length if succsess in u32.
- */
+ *
 WpResult DecodeMemSection( const WasmBinSection *const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -830,7 +796,7 @@ WpResult DecodeMemSection( const WasmBinSection *const sec, WpDecodedModule *mod
     
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 /**
  * @brief function to decode the global section in a binary webassembly module.
@@ -838,7 +804,7 @@ WpResult DecodeMemSection( const WasmBinSection *const sec, WpDecodedModule *mod
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or global array's length if succsess in u32.
- */
+ *
 WpResult DecodeGlobalSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -931,7 +897,7 @@ WpResult DecodeGlobalSection(const WasmBinSection *const sec, WpDecodedModule *m
     
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 /**
  * @brief function to decode the export section on a binary webassembly module.
@@ -939,7 +905,7 @@ WpResult DecodeGlobalSection(const WasmBinSection *const sec, WpDecodedModule *m
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or export array's length if succsess in u32.
- */
+ *
 WpResult DecodeExportSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -1058,7 +1024,7 @@ WpResult DecodeExportSection(const WasmBinSection *const sec, WpDecodedModule *m
     
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 /**
  * @brief function to decode the start section on a binary webassembly module.
@@ -1066,7 +1032,7 @@ WpResult DecodeExportSection(const WasmBinSection *const sec, WpDecodedModule *m
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or start value if succsess in u32.
- */
+ *
 WpResult DecodeStartSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -1100,7 +1066,7 @@ WpResult DecodeStartSection(const WasmBinSection *const sec, WpDecodedModule *mo
     result.value.u32 = 1;
     return result;     
     
-}
+}*/
 
 /**
  * @brief function to decode the element section on a binary webassembly module.
@@ -1108,7 +1074,7 @@ WpResult DecodeStartSection(const WasmBinSection *const sec, WpDecodedModule *mo
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or elem array's length if succsess in u32.
- */
+ *
 WpResult DecodeElementSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -1442,7 +1408,7 @@ WpResult DecodeElementSection(const WasmBinSection *const sec, WpDecodedModule *
     
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 /**
  * @brief function to decode the data count section on a binary webassembly module.
@@ -1450,7 +1416,7 @@ WpResult DecodeElementSection(const WasmBinSection *const sec, WpDecodedModule *
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or u32 value if success.
- */
+ *
 WpResult DecodeDataCountSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -1483,7 +1449,7 @@ WpResult DecodeDataCountSection(const WasmBinSection *const sec, WpDecodedModule
     result.value.u32 = data_count;
     return result;     
     
-}
+}*/
 
 /**
  * @brief function to decode the code section on a binary webassembly module.
@@ -1491,7 +1457,7 @@ WpResult DecodeDataCountSection(const WasmBinSection *const sec, WpDecodedModule
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance. 
  * @return WpResult error or count of code entry decoded if succsess in u32.
- */
+ *
 WpResult DecodeCodeSection(const WasmBinSection *const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -1560,7 +1526,7 @@ WpResult DecodeCodeSection(const WasmBinSection *const sec, WpDecodedModule *mod
     return result; 
        
     
-}
+}*/
 
 /**
  * @brief function to decode the data section on a binary webassembly module.
@@ -1568,7 +1534,7 @@ WpResult DecodeCodeSection(const WasmBinSection *const sec, WpDecodedModule *mod
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance.
  * @return WpResult error or edata array's length if succsess in u32.
- */
+ *
 WpResult DecodeDataSection(const WasmBinSection * const sec, WpDecodedModule *mod){
 
     WpResult result;
@@ -1745,7 +1711,7 @@ WpResult DecodeDataSection(const WasmBinSection * const sec, WpDecodedModule *mo
     
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 //TODO conditional compilation for tis function
 /**
@@ -1754,7 +1720,7 @@ WpResult DecodeDataSection(const WasmBinSection * const sec, WpDecodedModule *mo
  * @param bin_mod pointer to source wasm binary module
  * @param mod pointer to target wasm module
  * @return WpResult error or 1 in u32
- */
+ *
 WpResult DecodeWpBinModule(const WpBinModule *const bin_mod, WpDecodedModule *mod){
 
     WpResult result;
@@ -1887,4 +1853,4 @@ WpResult DecodeWpBinModule(const WpBinModule *const bin_mod, WpDecodedModule *mo
     result.value.u32 = 1;
     return result;
 
-}
+}*/

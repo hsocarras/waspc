@@ -20,6 +20,14 @@
 
 #include <stdint.h>
 
+//Types //////////////////////////////////////////////////////////////////////////////////////////////
+typedef struct VecFuncTypes{
+
+    // types  
+    uint32_t lenght;    
+    FuncType *elements;
+
+} VecFuncTypes;
 
 // Import //////////////////////////////////////////////////////////////////////////////////////////////
 typedef enum ImportDescType {
@@ -49,10 +57,18 @@ typedef struct Import{
 // FUNCTION ///////////////////////////////////////////////////////////////////////////////////////////
 //The funcs component of a module defines a vector of functions with the following structure:
 //  func ::= {type typeidx, locals vec(valtype), body expr}
+typedef struct ExtLocal{
+        uint8_t *val_type;      //val_type
+        uint32_t *offset;       //Extended property, used to calculate local address in the value stack from frame satck pointer.
+    } ExtLocal;                  
+
 typedef struct Func{
     uint32_t type;               //type index
-    uint32_t local_len;         //How many locals are    
-    uint8_t *locals;           //array with the type of each local vaiable 
+
+    uint32_t local_len;         //How many locals are 
+    ExtLocal *locals;                  //array of extended local variable
+
+       
     uint32_t body_len;
     const uint8_t *body;
 } Func;
@@ -133,6 +149,16 @@ typedef struct Data{
 //#####################################################################################################
 
 
+/**
+ * @brief Module acording to webassembly spec 2.5
+ * 
+ */
+typedef struct WasModule{
+
+    // types  
+    VecFuncTypes types;
+
+}WasModule;
 
 
 

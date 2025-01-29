@@ -48,9 +48,6 @@ typedef struct WasmBinSection {
 } WasmBinSection;
 
 
-
-
-
 #ifdef __cplusplus
     }
 #endif

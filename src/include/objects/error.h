@@ -17,8 +17,8 @@
 #endif
 
 //wasp includes
-#include "object/object.h"
-#include "diagnostic/diag.h"
+#include "config.h"
+#include "objects/object.h"
 
 #include <stdint.h>
 
@@ -32,13 +32,11 @@ typedef struct WpError{
     WpObjectType type;
 
     /// errors id, unique for every posible error
-    WpDiagId id;
-
-    /// module that produce the error
-    WpDiagModuleList mod;  
+    uint32_t id;     
 
     #if WASPC_CONFIG_DEV_FLAG == 1
-    uint16_t func;
+    char file[64];
+    char func[32];
     #endif
 
 } WpError;
@@ -46,7 +44,7 @@ typedef struct WpError{
 // Methods **************************************************************************************************
 
 
-void WpErrorInit(WpError *self, WpDiagId id, WpDiagModuleList mod);
+void WpErrorInit(WpError *self);
 
 // **********************************************************************************************************
 

@@ -13,157 +13,241 @@
 #include "utils/hash_table.h"
 #include "memory/memory.h"
 
-#include <stdio.h> //TODO remove
+#include <string.h>
+#include <assert.h> 
+//#include <stdio.h>
 
 /**
- * @brief 
+ * @brief Fowler–Noll–Vo hash function 
  * 
- * @param slots 
- * @param capacity 
- * @param key 
- * @return HashTableEntry* 
- *
-static Slot* FindSlot(Slot *slots, uint32_t capacity, uint32_t key) {
+ * @param key Null terminated string.
+ * @return uint32_t 
+ */
+static uint32_t fnv(const char *key){
 
-    Slot *slot;
-    uint32_t index = key % capacity;
-    uint32_t i = 0;
+    //Constant definition for FNV algoritm
+    #define FNV_PRIME_32 16777619
+    #define FNV_OFFSET_BASIC 2166136261u
+
     
-    while(index < capacity) {
-
-        slot = &slots[index];
-        if (slot->key == 0 || slot->key == key) {
-            return slot;
-        }
-        
-        index++;
+    uint32_t hash = FNV_OFFSET_BASIC;    
+    
+    for(const char *k = key; *k; k++){
+        hash ^= (uint32_t)(unsigned char)(*k);
+        hash *= FNV_PRIME_32;
     }
 
-    return NULL;
-}*/
+    return hash;
+}
+
 
 /**
  * @brief 
  * 
  * @param self 
  * @param new_capacity 
- *
-static void IncreaseCapacity(HashTable *self, uint32_t new_capacity) {
+ */
+static uint8_t HashTableGrow(HashTable *self, uint32_t new_capacity) {
 
-    uint32_t key;
-    Slot *new_slots = ALLOCATE(Slot, new_capacity);
-    Slot *free_slot;
+    //new array
+    HtEntry *old_entries = self->entries;
+    self->entries = GROW_ARRAY(HtEntry, self->entries, new_capacity);
     
-    //TODO check max capacity and new_capacity > old capacity
-
-    //Init new slots to default values
-    for (int i = 0; i < new_capacity; i++) {
-        new_slots[i].key = 0;
-        new_slots[i].value = NULL;
-    }
-   
-    //inserting all no empty slots into the new one
-    for (int ii = 0; ii < self->capacity; ii++) {
-        key = self->slots[ii].key;
-        //If empty slot continue
-        if(key == 0){
-            continue;
+    if(self->entries){
+        //Init new slots to default values
+        for (int i = self->length; i < new_capacity; i++) {
+            self->entries[i].key = NULL;
+            self->entries[i].value = NULL;
         }
-        
-        free_slot = FindSlot(new_slots, new_capacity, key);
-        free_slot->key = self->slots[ii].key;
-        free_slot->value=self->slots[ii].value;
+        self->capacity = new_capacity;
+        return 1;
+    }
+    else{
+        self->entries = old_entries;
+        return 0;
+    }
+
+}
+
+static uint32_t HashTableSetEntry(HashTable *self, const char *key, void *value){
+
+    
+    uint32_t hash = fnv(key);
+    uint32_t index = hash % self->capacity;
+    uint32_t i = 0;             //iterator
+
+    // Loop till we find an empty entry.
+    while (i < self->capacity) {
+
+        if(self->entries[index].key == NULL){
+            //empty bucket at index. New entry
+            self->entries[index].key = key;                     //copy key
+            self->entries[index].value = value;                 //copy value
+            self->length++;                                     //increment length
+            return index;
+        }
+        else if (strcmp(key, self->entries[index].key) == 0) {
+            // Found key (it already exists), update value.
+            self->entries[index].value = value;
+            return index;
+        }
+
+        // Key wasn't in this slot, move to next (linear probing).
+        index++;
+        if (index >= self->capacity) {
+            // At end of entries array, wrap around.
+            index = 0;
+        }
+    }
+
+    assert(0); // Should never get here.
+    return 0;
+}
+
+
+/**
+ * @brief Hash Table constructor.
+ * 
+ * @param self 
+ * @param data_type 
+ * @param init_capacity 
+ */
+void HashTableInit(HashTable *self){
+    
+    self->length = 0;
+    
+    self->entries = ALLOCATE(HtEntry, HASH_TABLE_GROW_STEP);
+
+    if (self->entries == NULL) {        
+        self->capacity = 0;
+    }
+    else{        
+        self->capacity = HASH_TABLE_GROW_STEP;        
+        //Initialize entries
+        for(int i = 0; i < HASH_TABLE_GROW_STEP; i++){
+            self->entries[i].key = NULL;
+            self->entries[i].value = NULL;
+        }
     }
     
-    //releasing old reseved memory
-    free(self->slots);
-    self->slots = new_slots;
+}
 
-}*/
+/**
+ * @brief Destroy all data in table, not table itself
+ * 
+ * @param self 
+ */
+void HashTableDestroy(HashTable *self){
 
+    // First free allocated keys.
+    for (size_t i = 0; i < self->capacity; i++) {
+        free((void*)self->entries[i].key);
+    }
+
+    free(self->entries);
+    self->capacity = 0;
+    self->length = 0;
+    
+}
 
 /**
  * @brief 
  * 
  * @param self 
- * @param data_type 
- * @param init_capacity 
- *
-void InitHashTable(HashTable *self, uint32_t init_capacity){
+ * @param key 
+ * @return void* 
+ */
+void * HashTableGet(HashTable *self, const char *key){
 
-    self->capacity = init_capacity;
-    self->usage = 0;
-    //seld->data_type = data_type;
-    self->slots = ALLOCATE(Slot, init_capacity);
+    //hash table must be initilised first
+    assert(self->capacity > 0);
+    // key must be valid
+    assert(key);
 
-    for(int i = 0; i < init_capacity; i++){
-        self->slots[i].key = 0;
-        self->slots[i].value = NULL;
-    }
+    uint32_t hash = fnv(key);
+    uint32_t index = hash % self->capacity;  
+    uint32_t i = 0;             //iterator 
     
-}*/
+    //Linear probe algoritm
+    while(i < self->capacity) {     //used i instead index for start at begining if key is not found between index and final bucket
+        
+        if(self->entries[index].key == NULL){
+            //empty bucket at index. Key not found
+            goto next;
+        }
+        
 
-/*
-void FreeHashTable(HashTable *self){
+        if(strcmp(key, self->entries[index].key) == 0){                
+                // Found key, return value.
+                return self->entries[index].value;
+        }
+        
+        next:
+        index++;
+        
+        if (index >= self->capacity) {
+            // At end of entries array, wrap around.
+            index = 0;
+        }
 
-    self->capacity = 0;
-    self->usage = 0;
-    self->items = NULL;
-}
-
-WpError HashTableSet(HashTable *self, uint32_t key, void *value){
-
-    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_UTILS, 114, 0);       //No error
-    
-    if (self->usage + 1 > (self->capacity * HASH_TABLE_MAX_LOAD)/100) {
-        uint32_t new_capacity = ((self->usage+1)*100)/75;
-        IncreaseCapacity(self, new_capacity);
-    }
-    
-    Slot* match_slot = FindSlot(self->slots, self->capacity, key);
-
-    if(match_slot == NULL){
-        result.id = WP_DIAG_ID_TODO;
-        return result;
-    };
-
-    if (match_slot->key == 0) {
-        //new key
-        self->usage++;
+        i++;
     }
 
-    match_slot->key = key;
-    match_slot->value = value;
-
-    return result;
+    //not found
+    return NULL;    
 }
 
-void * HashTableGet(HashTable *self, uint32_t key){
+/**
+ * @brief Function to set entry into table
+ * 
+ * @param self 
+ * @param key 
+ * @param value 
+ * @return void* vaule if succes otherwise null
+ */
+void * HashTableSet(HashTable *self, const char *key, void *value){
 
+    //hash table must be initialise first
+    assert(self->capacity > 0);
+    //key diferent than null
+    assert(key);    
+    uint32_t hash = fnv(key);
+    uint32_t index;    
     
-    if (self->usage == 0) return NULL;
-
-    Slot *match_slot = FindSlot(self->slots, self->capacity, key);
-
-    if (match_slot->key == 0) return NULL;
-    
-    return match_slot->value;
+    //Check for enought capacity
+    if (self->length + 1 > (self->capacity * HASH_TABLE_MAX_LOAD)/100) {
+        
+        //check for max capacity allowed
+        if(self->capacity < HASH_TABLE_MAX_CAPACITY){
+            uint32_t new_capacity = self->capacity + HASH_TABLE_GROW_STEP;
+            //if table grow array success 
+            if(HashTableGrow(self, new_capacity)){
+                index = HashTableSetEntry(self, key, value);
+                return value;
+            }
+            else{
+                return NULL;
+            }
+        }
+        //if table can't grow more
+        else{
+            //check if are free entry
+            if(self->length < self->capacity){
+                index = HashTableSetEntry(self, key, value);
+                return value;
+            }
+            else{
+                //table completly full
+                return NULL;
+            }
+        }
+    }
+    else{ //enought space        
+        index = HashTableSetEntry(self, key, value);        
+        return value;
+    }
 }
 
-WpError HasTableDelete(HashTable *self, uint32_t key) {
 
-    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_UTILS, 153, 0);       //No error
 
-    if (self->usage == 0) return result;
-
-    // Find the entry.
-    Slot *match_slot = FindSlot(self->slots, self->capacity, key);
-
-    if (match_slot->key == 0) return result;
-
-    // Place a tombstone in the entry.
-    match_slot->key = 0;
-    match_slot->value = NULL;
-    return result;
-}*/
 

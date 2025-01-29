@@ -9,8 +9,9 @@
  * 
  */
 
-#include "object/error.h"
+#include "objects/error.h"
 
+#include <string.h>
 
 /**
  * @brief Default constructor for Error objects
@@ -19,17 +20,15 @@
  * @param id  Diagnostic Id.
  * @param mod Module that produce the error
  */
-void WpErrorInit(WpError *self, WpDiagId id, WpDiagModuleList mod){
-
+void WpErrorInit(WpError *self){
     
     self->type = WP_OBJECT_ERROR;
 
-    self->id = id;
-
-    self->mod = mod;
+    self->id = 0;
     
-    #if WASPC_CONFIG_DEV_FLAG == 1
-    uint16_t func = 0;
-    #endif
+    //#if WASPC_CONFIG_DEV_FLAG == 1    
+    strcpy_s(self->file, 64, "none"); 
+    strcpy_s(self->func, 32, "nan");    
+    //#endif
     
 }

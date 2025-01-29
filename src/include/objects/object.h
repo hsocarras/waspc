@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef WASPC_OBJECT_OBJECT_H
-#define WASPC_OBJECT_OBJECT_H
+#ifndef WASPC_OBJECTS_WPOBJECT_H
+#define WASPC_OBJECTS_WPOBJECT_H
 
 #ifdef __cplusplus
     extern "C" {
@@ -26,10 +26,8 @@
  * 
  */
 typedef enum {
-    WP_OBJECT_ERROR,
-    WP_OBJECT_RESULT,
-    WP_OBJECT_BIN_MODULE,
-    WP_OBJECT_DECODED_MODULE,    
+    WP_OBJECT_ERROR,    
+    WP_OBJECT_MODULE,
 }WpObjectType;
 
 typedef struct WpObject{

@@ -16,6 +16,8 @@
     extern "C" {
 #endif
 
+#include "vm/frame.h"
+#include "vm/values.h"
 #include "object/result.h"
 #include "runtime/store.h"
 #include "webassembly/execution/runtime/values.h"
@@ -24,22 +26,12 @@
 #include <stdint.h>
 
 #define VM_VALUE_STACK_SIZE 4096      //later must see how to include the PortConfig.h with Cmake and a target variable
+#define VM_CALL_STACK_SIZE  64       //must not be greater than 255
 
 #ifndef VM_VALUE_STACK_SIZE
         #error Missing definition:  VM_MAX_STACK_SIZE must be defined in PortConfig.h.
 #endif
 
-#define VM_CALL_STACK_SIZE = 24       //must not be greater than 255
-
-/**
- * @brief 
- * 
- */
-typedef struct VmValue
-{
-    ValType type;       
-    Val as;    
-}VmValue;
 
 /**
  * @brief Struct for Virtual machine object
@@ -50,8 +42,12 @@ typedef struct VM{
     const uint8_t * byte_code;
     const uint8_t * ip;
 
-    uint8_t value_stack[VM_VALUE_STACK_SIZE];       //value stack implemented with array of byte instead value struct for memory optimization    
-    uint8_t * value_stack_top;
+    VmValue value_stack[VM_VALUE_STACK_SIZE];       //value stack implemented with array of byte instead value struct for memory optimization    
+    VmValue *value_stack_top;                       //pointer to stack's top
+    VmValue *value_stack_end;                       //pointer to last element of stack for avoid stack overflow
+
+    ActivationFrame frames[VM_CALL_STACK_SIZE];
+    uint32_t call_index;
 
     Store *store;
     ModuleInst mod;

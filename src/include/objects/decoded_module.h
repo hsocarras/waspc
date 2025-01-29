@@ -17,7 +17,7 @@
 #endif
 
 //waspc includes
-#include "object/object.h"
+#include "objects/object.h"
 #include "webassembly/structure/module.h"
 #include "webassembly/structure/types.h"
 

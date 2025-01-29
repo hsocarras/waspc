@@ -30,18 +30,16 @@ typedef struct ModuleInst{
 
     uint32_t globaladdrs_len;
     GlobalAddr *globaladdrs;
-
-    Func main;
-
+    
 }ModuleInst;
 
 typedef struct FuncInst{
 
     FuncType *type;
-    ModuleInst module;
+    ModuleInst *module;
     Func code;
 
-} FunctInst;
+} FuncInst;
 
 typedef struct GlobalInst
 {

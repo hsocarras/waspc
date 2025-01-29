@@ -89,9 +89,7 @@ typedef enum ValType {
     WAS_F64 = 0x7C,
     WAS_F32 = 0x7D,
     WAS_I64 = 0x7E,
-    WAS_I32 = 0x7F,    
-    //Extension to WAS SPEC
-    WAS_UNDEF = 0x00,
+    WAS_I32 = 0x7F,   
 
 } ValType;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -99,8 +97,8 @@ typedef enum ValType {
 // Result type ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 //2.3.5
 typedef struct ResultType{
-    uint32_t len;
-    ValType *types;
+    uint32_t lenght;
+    ValType * val_types;
 }ResultType;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -110,8 +108,8 @@ typedef struct ResultType{
  * functype ::= resulttype → resulttype
  */
 typedef struct FuncType{
-    ResultType param;
-    ResultType ret;
+    ResultType params;
+    ResultType results;
 } FuncType;
 //#################################################################################################################
 

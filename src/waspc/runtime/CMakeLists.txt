@@ -1,5 +1,6 @@
 
 
 
-add_library(runtime STATIC instances.c store.c)
+add_library(runtime STATIC runtime.c)
+target_link_libraries(runtime PRIVATE  objects utils validation )
 

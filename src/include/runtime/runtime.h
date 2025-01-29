@@ -17,36 +17,41 @@
 #endif
 
 //wasp includes
-#include "webassembly/binary/module.h"
-#include "webassembly/structure/module.h"
-//#include "webassembly/execution/runtime/module_instance.h"
-#include "object/error.h"
-//#include "memory/work_memory.h"
+#include "config.h"
+#include "objects/module.h"
+#include "objects/error.h"
 #include "utils/hash_table.h"
+#include "validation/wasm_validator.h"
 
 #include <stdint.h>
+
 
 /**
  * @brief Sandbox for webasembly runtime, customised for plc.
  * 
  */
-typedef struct RuntimeEnv{
+typedef struct WpRuntimeState{
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
-    uint8_t *in;                            ///pointer to static allocation for input area
-    uint32_t input_size;
-    uint8_t *out;                           ///pointer to static allocation for output area
-    uint32_t output_size;
-    uint8_t *mark;                          ///pointer to static allocation for mark area
-    uint32_t mark_size;    
+    //uint8_t *in;                            ///pointer to static allocation for input area
+    //uint32_t input_size;
+    //uint8_t *out;                           ///pointer to static allocation for output area
+    //uint32_t output_size;
+    //uint8_t *mark;                          ///pointer to static allocation for mark area
+    //uint32_t mark_size;    
+
+    /// @brief Properties related to memory to store in ram the web asembly wasm file
+    const uint8_t *code_mem_start;
+    const uint8_t *code_mem_ptr;
     uint32_t code_mem_size;
-    uint8_t *code_mem;
 
-    //HashTable table_wasm_bin;               /// Hash table for store loaded bin modules in ram. //Online project
+    WpError err;                           ///Error object for runtime
+    
+    /// @brief Hash table for store loaded modules. Online project.
+    HashTable modules; 
 
-    //WasmBinModule mod;
-    //ModuleInstance module_instance;         /// instance     
-
+    WpValidatorState validator;            ///Validator state object
+   
     /**
      * @brief TODO This is for mannage the running user programs pou.
      * It should be inplemented later in a hash table or linked list to keep track 
@@ -55,17 +60,28 @@ typedef struct RuntimeEnv{
      */
     //WasmLoadInfo wasm_loaded[2];              
 
-}RuntimeEnv;
+}WpRuntimeState;
 
 /**
- * @brief TODO Runtime constructor. Must be improve with parameters later.
+ * @brief Runtime constructor.
  * 
  * @param self 
  *  
  */
-void InitRuntime(RuntimeEnv *self);
+void WpRuntimeInit(WpRuntimeState *self);
 
+/**
+ * @brief Function to init code memory area
+ * 
+ * @param self 
+ * @param start pointer to where memory start
+ * @param mem_size memory size in bytes
+ */
+void WpRuntimeCodeMemInit(WpRuntimeState *self, const uint8_t *start, uint32_t mem_size);
 
+WpObject * WpRuntimeReadModule(WpRuntimeState *self, const char * mod_name, const uint8_t *mod_start, uint32_t mod_size);
+
+WpObject * WpRuntimeValidateModule(WpRuntimeState *self, const char *mod_name);
 
 #ifdef __cplusplus
     }
