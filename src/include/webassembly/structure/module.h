@@ -21,13 +21,13 @@
 #include <stdint.h>
 
 //Types //////////////////////////////////////////////////////////////////////////////////////////////
-typedef struct VecFuncTypes{
+typedef struct VecFuncType{
 
     // types  
     uint32_t lenght;    
     FuncType *elements;
 
-} VecFuncTypes;
+} VecFuncType;
 
 // Import //////////////////////////////////////////////////////////////////////////////////////////////
 typedef enum ImportDescType {
@@ -37,20 +37,28 @@ typedef enum ImportDescType {
     WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_GLOBAL,
 } ImportDescType;
 
-typedef struct ImportDesc {
-    ImportDescType type;
-    uint32_t idx;               //index defined at 2.5.1 Indices   
-} ImportDesc;
-
 typedef struct Import{
     
-    uint32_t module_len;
-    const unsigned char *module;                   ///pointer to module name in binary file
-    uint32_t name_len;
-    const unsigned char *name;                      ///pointer to import name in binary file
-    ImportDesc *desc;
+    Name module;                   ///pointer to module name in binary file
+    Name name;                      ///pointer to import name in binary file                          
+    ImportDescType type;
+
+    union desc{
+        uint32_t x;
+        TableType tt;
+        MemType mt;
+        GlobalType gt;
+    } desc;
 
 } Import;
+
+typedef struct VecImport {
+
+    // types  
+    uint32_t lenght;    
+    Import *elements;
+
+}VecImport;
 //#####################################################################################################
 
 
@@ -63,25 +71,49 @@ typedef struct ExtLocal{
     } ExtLocal;                  
 
 typedef struct Func{
-    uint32_t type;               //type index
 
-    uint32_t local_len;         //How many locals are 
-    ExtLocal *locals;                  //array of extended local variable
+    FuncType * type;               //type index
+
+    //uint32_t local_len;         //How many locals are 
+    //ExtLocal *locals;                  //array of extended local variable
 
        
-    uint32_t body_len;
-    const uint8_t *body;
+    //uint32_t body_len;
+    //const uint8_t *body;
 } Func;
-//#####################################################################################################
 
+typedef struct VecFunc{
+
+    // funcs
+    uint32_t lenght;    
+    Func *elements;
+
+} VecFunc;
+//#####################################################################################################
+// Table //////////////////////////////////////////////////////////////////////////////////////////////
+typedef TableType Table;
+
+typedef struct VecTable{
+    uint32_t lenght;
+    Table *elements;
+} VecTable;
+
+// Memory //////////////////////////////////////////////////////////////////////////////////////////////
+typedef struct VecMem{
+    uint32_t lenght;
+    MemType *elements;
+} VecMem;
 
 // Global ///////////////////////////////////////////////////////////////////////////////////////////
 typedef struct Global{
-    uint8_t type;
-    uint8_t mut;    
-    uint32_t expr_len;
-    const uint8_t *expr;    
+    GlobalType gt;
+    Expr e;    
 } Global;
+
+typedef struct VecGlobal{
+    uint32_t lenght;
+    Global *elements;
+}VecGlobal;
 //#####################################################################################################
 
 // Export //////////////////////////////////////////////////////////////////////////////////////////////
@@ -94,16 +126,20 @@ typedef enum ExportDescType {
 
 typedef struct ExportDesc {
     ExportDescType type;
-    uint32_t idx;               //index defined at 2.5.1 Indices   
+    uint32_t x;               //index defined at 2.5.1 Indices   
 } ExportDesc;
 
 typedef struct Export{    
     
-    uint32_t name_len;
-    const unsigned char *name;
-    ExportDesc *desc;
+    Name nm;
+    ExportDesc d;
 
 } Export;
+
+typedef struct VecExport{
+    uint32_t lenght;
+    Export *elements;
+} VecExport;
 //#####################################################################################################
 
 // Element //////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,21 +150,27 @@ typedef enum ElemMode {
     WP_WAS_STRUC_MOD_ELEMENT_MODE_DECLARATIVE,     
 } ElemMode;
 
-typedef struct Elem{    
-    
+typedef struct ElemModeActive{
+    uint32_t table_idx;
+    Expr offset;
+} ElemModeActive;
+
+typedef struct Elem{  
+    //type
+    RefType type;
+    //init expression
+    VecExpr init;
+    //mode
     ElemMode mode;
-    uint8_t type;
-    uint32_t table_idx;             //table index
-
-    uint32_t offset_len;            //table offset expresion
-    const uint8_t *offset;          //table offset expresion
-
-    uint32_t init_len;
-    const uint8_t *init;    
-    
-    
+    //Active mode
+    ElemModeActive active;
 
 } Elem;
+
+typedef struct VecElem{
+    uint32_t lenght;
+    Elem *elements;
+} VecElem;
 //#####################################################################################################
 
 // Data //////////////////////////////////////////////////////////////////////////////////////////////
@@ -156,7 +198,23 @@ typedef struct Data{
 typedef struct WasModule{
 
     // types  
-    VecFuncTypes types;
+    VecFuncType types;
+    //Imports
+    VecImport imports;
+    //Functions
+    VecFunc funcs;
+    //Tables
+    VecTable tables;
+    //Memories
+    VecMem mems;
+    //Globals
+    VecGlobal globals;
+    //Exports
+    VecExport exports;
+    //Start
+    uint32_t start;
+    //Elements
+    VecElem elem;
 
 }WasModule;
 

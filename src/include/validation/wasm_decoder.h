@@ -21,21 +21,21 @@
 
 #include <stdint.h>
 
-VecFuncTypes *DecodeTypeSection(WpModuleState *mod);
+VecFuncType *DecodeTypeSection(WpModuleState *mod);
 
-//WpResult DecodeImportSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+VecImport * DecodeImportSection(WpModuleState *mod);
 
-//WpResult DecodeFunctionSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+VecFunc * DecodeFunctionSection(WpModuleState *mod);
 
-//WpResult DecodeTableSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+VecTable * DecodeTableSection(WpModuleState *mod);
 
-//WpResult DecodeMemSection( const WasmBinSection *const sec, WpDecodedModule *mod);
+VecMem * DecodeMemSection(WpModuleState *mod);
 
-//WpResult DecodeGlobalSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+VecGlobal * DecodeGlobalSection(WpModuleState *mod);
 
-//WpResult DecodeExportSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+VecExport * DecodeExportSection(WpModuleState *mod);
 
-//WpResult DecodeStartSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+uint32_t * DecodeStartSection(WpModuleState *mod);
 
 //WpResult DecodeElementSection(const WasmBinSection *const sec, WpDecodedModule *mod);
 

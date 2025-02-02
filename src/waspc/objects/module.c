@@ -13,7 +13,11 @@
 
 static void WasModuleInit(WasModule *self){
     
-    self->types = (VecFuncTypes){0, NULL};
+    self->types = (VecFuncType){0, NULL};
+
+    self->imports = (VecImport){0, NULL};
+
+    self->funcs = (VecFunc){0, NULL};
 }
 
 void WpModuleInit(WpModuleState *self){

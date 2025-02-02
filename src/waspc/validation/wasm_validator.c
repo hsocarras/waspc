@@ -329,10 +329,11 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         if (!index){                
             return NULL;                                        
         }
-        VecFuncTypes *types = DecodeTypeSection(mod);
+        VecFuncType *types = DecodeTypeSection(mod);
         if(!types){
             return NULL;
         }
+        ///Types are always valid Wev Assembly Spec 3.2.3
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_TYPE;
         return index;
     }
@@ -343,6 +344,10 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         index = ReadBinSection(index, &mod->importsec);
         if (!index){                
             return NULL;                                        
+        }
+        VecImport *imports = DecodeImportSection(mod);
+        if(!imports){
+            return NULL;
         }
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_IMPORT;
         return index;
@@ -355,6 +360,10 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         if (!index){                
             return NULL;                                        
         }
+        VecFunc *funcs = DecodeFunctionSection(mod);
+        if(!funcs){
+            return NULL;
+        }
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_FUNCTION;
         return index;
     }
@@ -366,6 +375,7 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         if (!index){                
             return NULL;                                        
         }   
+        VecTable *tables = DecodeTableSection(mod);
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_TABLE;
         return index;
     }
@@ -377,6 +387,7 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         if (!index){                
             return NULL;                                        
         } 
+        VecMem *mems = DecodeMemSection(mod);
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_MEMORY;
         return index;
     }
@@ -388,6 +399,7 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         if (!index){                
             return NULL;                                        
         } 
+        VecGlobal *globals = DecodeGlobalSection(mod);
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_GLOBAL;
         return index;
     }
@@ -399,6 +411,7 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         if (!index){                
             return NULL;                                        
         } 
+        VecExport *exports = DecodeExportSection(mod);
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_EXPORT;
         return index;   
     }
@@ -410,6 +423,7 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         if (!index){                
             return NULL;                                        
         } 
+        uint32_t *start = DecodeStartSection(mod);
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_START;
         return index;  
     }
