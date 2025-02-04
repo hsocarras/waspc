@@ -435,6 +435,7 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         if (!index){                
             return NULL;                                        
         } 
+        VecElem *elem = DecodeElementSection(mod);
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_ELEMENT;
         return index;      
     }
@@ -445,7 +446,8 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         index = ReadBinSection(index, &mod->datacountsec);
         if (!index){                
             return NULL;                                        
-        } 
+        }
+        uint32_t *data_count = DecodeDataCountSection(mod); 
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_DATA_COUNT;
         return index;
     }
@@ -457,6 +459,7 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         if (!index){                
             return NULL;                                        
         } 
+        VecFunc *funcs = DecodeCodeSection(mod);
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_CODE;
         return index;
     }

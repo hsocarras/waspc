@@ -71,15 +71,12 @@ typedef struct ExtLocal{
     } ExtLocal;                  
 
 typedef struct Func{
-
-    FuncType * type;               //type index
-
-    //uint32_t local_len;         //How many locals are 
-    //ExtLocal *locals;                  //array of extended local variable
-
-       
-    //uint32_t body_len;
-    //const uint8_t *body;
+    //type index
+    FuncType * type;               
+    //array of locals variables
+    VecValType *locals;                  
+    //function body
+    Expr body;
 } Func;
 
 typedef struct VecFunc{
@@ -153,6 +150,7 @@ typedef enum ElemMode {
 typedef struct ElemModeActive{
     uint32_t table_idx;
     Expr offset;
+    const uint8_t *inst;
 } ElemModeActive;
 
 typedef struct Elem{  
@@ -169,9 +167,31 @@ typedef struct Elem{
 
 typedef struct VecElem{
     uint32_t lenght;
-    Elem *elements;
+    Elem *elements;                         
 } VecElem;
 //#####################################################################################################
+
+// Code //////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef struct Locals{
+    uint32_t n;                             //number of local variables
+    ValType t;                              //local variable type
+} Locals;
+
+typedef struct VecLocals{
+    uint32_t lenght;
+    Locals *elements;
+} VecLocals;
+
+typedef struct CodeFunc{    
+    VecLocals locals;
+    Expr e;
+} CodeFunc;
+
+typedef struct Code{
+    uint32_t size;
+    CodeFunc code;
+} Code;
 
 // Data //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -215,6 +235,8 @@ typedef struct WasModule{
     uint32_t start;
     //Elements
     VecElem elem;
+    //Data
+    uint32_t data_count;
 
 }WasModule;
 

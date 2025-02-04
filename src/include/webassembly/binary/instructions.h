@@ -46,6 +46,8 @@
         //OPCODE_I32_SUB = 0x6B,
 
         //OPCODE_I32_XOR = 0X73,
+
+        OPCODE_FUNCION_REFERENCE = 0xD2,     /// function reference
     }OpCode;
 
 #ifdef __cplusplus

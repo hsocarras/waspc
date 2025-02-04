@@ -106,171 +106,114 @@ static const uint8_t * DecodedLimitsType(const uint8_t *const buf, Limits *lim){
 }
 
 /**
- * @brief function to decode vector of locals inside a code entry
- * 
- * @param code A binary segment for a encoded vector of locals non terminal symbol.
- *              locals ::= 𝑛:u32 𝑡:valtype
- * @param buf_end limit to avoid endless loop
- * @param func A function as Structure webassembly spec. See webassembly/structure/module.h
- * @return const uint8_t* pointer to next byte after vector if success, otherwise NULL.
- *
-static const uint8_t * DecodeCodeLocals(const uint8_t *const code, const uint8_t *buf_end, Func *func){
+ * @brief function to func rule on code section
+ *              func ::= (𝑡*)*:vec(locals) 𝑒:expr ⇒ concat((𝑡*)*), 𝑒 (if |concat((𝑡*)*)| < 232)
+ *              locals ::= 𝑛:u32 𝑡:valtype ⇒ 𝑡𝑛
+ * @param code pointer to binary code segment
+ * @param code_entry Pointer to a Code structure.
+ * @return const uint8_t* pointer to next Code segment, otherwise NULL.
+ */
+static const uint8_t * DecodeCodeFunc(const uint8_t *code, Code *code_entry){
     
-    ///locals ::= 𝑛:u32 𝑡:valtype
-    typedef struct _Locals {
-        uint32_t n;
-        uint8_t val_type;
-    }_Locals;
     
-
+    CodeFunc *func = &code_entry->code;
     const uint8_t *index = code;    
+    const uint8_t *buf_end = code + code_entry->size;
     uint32_t local_count;
-    uint32_t local_total = 0;
+    uint32_t dec_u32;
+    uint8_t byte_val;
     uint32_t i = 0;
-    uint32_t ii = 0;
-    uint32_t iii = 0;
-    _Locals *vector_local;
+    
 
     //get local count 
     index = DecodeLeb128UInt32(index, &local_count);
     if (!index){
         return NULL;                                        
     }
-
-    //Allocate memory to store temporary locals array
-    vector_local = ALLOCATE(_Locals, local_count);
-    if (!vector_local){        
-        return NULL;                                       
+    func->locals.lenght = local_count;    
+    func->locals.elements = ALLOCATE(Locals, local_count);
+    if (!func->locals.elements){        
+        return NULL;                                      
     }
 
     #define READ_BYTE() (*index++)
     #define NOT_END() (index < buf_end)
 
+    //decoding locals
     for(i = 0; i < local_count; i++){        
         
         //get number of element n
-        index = DecodeLeb128UInt32(index, &vector_local[i].n);
+        index = DecodeLeb128UInt32(index, &dec_u32);
         if (!index){        
             return NULL;                                     
         }
-
-        if(NOT_END()){
-            //get type
-            vector_local[i].val_type = READ_BYTE();
-            //Check val type
-            switch(vector_local[i].val_type){
-                case 0x7F:  //i32
-                    break;
-                case 0x7E:  //i64
-                    break;
-                case 0x7D:  //f32
-                    break;
-                case 0x7C:  //f64
-                    break;
-                case 0x7B:  //v128
-                    break;
-                case 0x70:  //funcref
-                    break;
-                case 0x6F:  //externref
-                    break;
-                default:
-                    //error
-                    return NULL;
-            }
-
-            local_total = local_total + vector_local[i].n;       //calc totals of local for field local_types_len
-        }
+        func->locals.elements[i].n = dec_u32;
+        //get type
+        byte_val = READ_BYTE();
+        if(!ValidateValType(byte_val)){
+            func->locals.elements[i].t = byte_val;       //calc totals of local for field local_types_len        
+        }        
         else{
             return NULL;
         }
-        
+
+
     }
 
-    //allocating space for function locals
-    func->locals = ALLOCATE(ExtLocal, local_total);
-    if(!func->locals){
-        return NULL;
+    //decode expression
+    func->e.instr = index;
+    index = DecodeExpr(index, buf_end - index);
+    if (!index){
+        return NULL;                                      
     }
-    func->local_len = local_total;
-
-    
-
-    //traversing the local_vector array to fill locals array
-    for(i = 0; i < local_count; i++){        
-        for(ii = 0; ii < vector_local[i].n; ii++){
-            //check that index iii used for func.local is in range            
-            if(iii < local_total){
-                func->locals[iii] = vector_local[i].val_type;        //asign the value type 
-                iii++;                                              //inc index
-            }
-            else{
-                return NULL;
-            }
-        }        
+    func->e.end = index;
+     //Last byte code must be END
+    if(*index-1 != OPCODE_END){
+        //Decode fails instruction must be end with 0x0B        
+        return NULL;        
     }
-
     //free vector_local;
-    FREE_MEM(vector_local);
+    //FREE_MEM(vector_local);
 
     return index;
 
     #undef READ_BYTE
     #undef NOT_END
-}/*
+}
 
 /**
  * @brief function to decode a code entry inside code section
  * 
  * @param code A binary segment for a encoded code non terminal symbol.
  *              code ::= size:u32 code:func  
- * @param func A function as Structure webassembly spec. See webassembly/structure/module.h
- * @return const uint8_t* pointer to next byte after code entry if success, otherwise NULL.
- *
-static const uint8_t * DecodeCode(const uint8_t *const code, Func *func){
+ * @param code_entry Pointer to a Code structure.
+ * @return const uint8_t* pointer to next Code segment, otherwise NULL.
+ */
+static const uint8_t * DecodeCode(const uint8_t * code, Code *code_entry){
         
-    const uint8_t *index = code;
-    const uint8_t *buf_end;                 // pointer to end of binary module  
-    uint32_t code_size;    
+    const uint8_t *index = code;           // pointer to end of binary module      
+    uint32_t dec_u32;    
     uint32_t i;
     uint32_t ii;
     uint32_t iii=0;
     
     //get code segment size
-    index = DecodeLeb128UInt32(index, &code_size);    
-    if (!index){  
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
+    index = DecodeLeb128UInt32(index, &dec_u32);    
+    if (!index){
         return NULL;                                        
     } 
-    buf_end = code + code_size; 
+    code_entry->size = dec_u32;
     
-    //Decoding locals
-    index = DecodeCodeLocals(index, buf_end, func);
-    if (!index){  
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
+    //Decoding func
+    index = DecodeCodeFunc(index, code_entry);
+    if (!index){          
         return NULL;                                        
     }
+        
+    //pointter to next byte for next code segment    
+    return index;   
     
-    //calc func body
-    func->body_len = buf_end - index;
-    func->body = index;
-    
-    //Last byte code must be END
-    if(*buf_end != OPCODE_END){
-        //Decode fails instruction must be end with 0x0B        
-        return NULL; 
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return NULL;  
-    }
-    buf_end++;          //pointter to next byte for next code segment    
-    return buf_end;   
-    
-}*/
+}
 
 /**
  * @brief Decode Type Section
@@ -880,7 +823,7 @@ uint32_t * DecodeStartSection(WpModuleState *mod){
  * 
  * @param mod pointer to Module State.
  * @return Pointer to module's elem if success otherwise NULL.
- *
+ */
 VecElem * DecodeElementSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->elemsec;
@@ -889,10 +832,10 @@ VecElem * DecodeElementSection(WpModuleState *mod){
     const uint8_t *buf_end = sec->content + sec->size;                   // pointer to end of binary module
     const uint8_t * start_pos;
     uint32_t element_count;                                            // auxiliary variable   
-    uint32_t expr_len;     
+    uint32_t dec_u32;     
     uint8_t byte_val;
     uint32_t encoded_type;
-
+    uint8_t *inst = NULL;
     
 
     //get type count
@@ -922,12 +865,8 @@ VecElem * DecodeElementSection(WpModuleState *mod){
         switch(encoded_type) {
             /// 0:u32 𝑒:expr 𝑦*:vec(funcidx) ⇒ {type funcref, init ((ref.func 𝑦) end)*, mode active {table 0, offset 𝑒}}
             case 0:
-                //reference function instruction
-                uint8_t expr_ref[6] = {0xD2, 0x00, 0x00, 0x00, 0x00, 0x0B};
-
-                elem->elements[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_ACTIVE;
+                
                 elem->elements[i].type = WAS_REFTYPE_FUNCREF;
-                elem->elements[i].active.table_idx = 0;
 
                 //decoding e
                 start_pos = index;
@@ -939,310 +878,433 @@ VecElem * DecodeElementSection(WpModuleState *mod){
                 elem->elements[i].active.offset.instr = start_pos;
 
                 //decoding vector y* 
-                index = DecodeLeb128UInt32(index, &expr_len);
+                index = DecodeLeb128UInt32(index, &dec_u32);
                 if (!index){
                     return NULL;                                       
                 }
 
                 //alocating elements on heap
-                elem->elements[i].init.elements = ALLOCATE(Expr, element_count);
+                elem->elements[i].init.elements = ALLOCATE(Expr, dec_u32);
                 if (elem->elements[i].init.elements == NULL){        
                     return NULL;                                       
                 } 
-                elem->elements[i].init.lenght = expr_len;
-                for (uint32_t ii = 0; ii < expr_len; ii++)
-                {
-                     
+                elem->elements[i].init.lenght = dec_u32;
+
+                //allocating bytes for each instruction
+                inst = ALLOCATE(uint8_t, dec_u32*6);
+                if (inst == NULL){        
+                    return NULL;                                       
                 }
+                for (uint32_t ii = 0; ii < dec_u32; ii++)
+                {
+                    inst[ii*6] = OPCODE_FUNCION_REFERENCE;          //opcode ref.func
+                    inst[ii*6+1] = READ_BYTE();                     //byte 1 index
+                    inst[ii*6+2] = READ_BYTE();                     //byte 2 index
+                    inst[ii*6+3] = READ_BYTE();                     //byte 3 index
+                    inst[ii*6+4] = READ_BYTE();                     //byte 4 index
+                    inst[ii*6+5] = OPCODE_END;                      //opcode end
+
+                    elem->elements[i].init.elements[ii].instr = inst + ii*6;
+                    elem->elements[i].init.elements[ii].end = inst + ii*6 + 6;
+                    
+                }
+
+                elem->elements[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_ACTIVE;                
+                elem->elements[i].active.table_idx = 0;
+                elem->elements[i].active.inst=inst;
+
                           
                 break;
             /// 1:u32 et : elemkind 𝑦*:vec(funcidx) ⇒ {type et, init ((ref.func 𝑦) end)*, mode passive}
             case 1:
-                elems[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_PASSIVE;
-                elems[i].type = READ_BYTE();
-                //TODO Check  elemking must be 0x00
-
-                elems[i].table_idx = 0;
-
-                elems[i].offset_len = 0;
-                elems[i].offset = NULL;
-
-                index = DecodeLeb128UInt32(index, &expr_len);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                
+                byte_val = READ_BYTE();     //read elemnt kind
+                if(byte_val != 0){
+                    //invalid elemkind
+                    return NULL; 
                 }
-                elems[i].init_len = expr_len;
-                elems[i].init = index;
+                elem->elements[i].type = WAS_REFTYPE_FUNCREF;               
+
+                //decoding vector y* 
+                index = DecodeLeb128UInt32(index, &dec_u32);
+                if (!index){
+                    return NULL;                                       
+                }
+
+                //alocating elements on heap
+                elem->elements[i].init.elements = ALLOCATE(Expr, dec_u32);
+                if (elem->elements[i].init.elements == NULL){        
+                    return NULL;                                       
+                } 
+                elem->elements[i].init.lenght = dec_u32;
+                //allocating bytes for each instruction
+                inst = ALLOCATE(uint8_t, dec_u32*6);
+                if (inst == NULL){        
+                    return NULL;                                       
+                }
+                for (uint32_t ii = 0; ii < dec_u32; ii++)
+                {
+                    inst[ii*6] = OPCODE_FUNCION_REFERENCE;          //opcode ref.func
+                    inst[ii*6+1] = READ_BYTE();                     //byte 1 index
+                    inst[ii*6+2] = READ_BYTE();                     //byte 2 index
+                    inst[ii*6+3] = READ_BYTE();                     //byte 3 index
+                    inst[ii*6+4] = READ_BYTE();                     //byte 4 index
+                    inst[ii*6+5] = OPCODE_END;                      //opcode end
+
+                    elem->elements[i].init.elements[ii].instr = inst + ii*6;
+                    elem->elements[i].init.elements[ii].end = inst + ii*6 + 6;
+                    
+                }
+
+                elem->elements[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_PASSIVE;
+
+                elem->elements[i].active.table_idx = 0;
+                elem->elements[i].active.offset.end = NULL;
+                elem->elements[i].active.offset.instr = NULL;
+                elem->elements[i].active.inst=inst;
+                
                 break;
             //2:u32 𝑥:tableidx 𝑒:expr et : elemkind 𝑦*:vec(funcidx) ⇒ {type et, init ((ref.func 𝑦) end)*, mode active {table 𝑥, offset 𝑒}}
             case 2:
-
-                elems[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_ACTIVE;
-
-                index = DecodeLeb128UInt32(index, &expr_len);
+                
+                //get table index x
+                index = DecodeLeb128UInt32(index, &dec_u32);
                 if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                    return NULL;                                      
                 }
-                elems[i].table_idx = expr_len;
+                elem->elements[i].active.table_idx = dec_u32;               //𝑥:tableidx
 
+                
+                //decoding e
                 start_pos = index;
                 index = DecodeExpr(index, sec->size);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                if (!index){                    
+                    return NULL;                                       
                 }
-                elems[i].offset_len = expr_len;
-                elems[i].offset = start_pos;
+                elem->elements[i].active.offset.end = index;
+                elem->elements[i].active.offset.instr = start_pos;
 
-                elems[i].type = READ_BYTE();
-                //TODO check elemkind is 0x00
-
-                index = DecodeLeb128UInt32(index, &expr_len);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                //decoding et
+                byte_val = READ_BYTE();     //read elemnt kind
+                if(byte_val != 0){
+                    //invalid elemkind
+                    return NULL; 
                 }
-                elems[i].init_len = expr_len;
-                elems[i].init = index;                
+                elem->elements[i].type = WAS_REFTYPE_FUNCREF; 
+                
+                //decoding vector y* 
+                index = DecodeLeb128UInt32(index, &dec_u32);
+                if (!index){
+                    return NULL;                                       
+                }
+
+                //alocating elements on heap
+                elem->elements[i].init.elements = ALLOCATE(Expr, dec_u32);
+                if (elem->elements[i].init.elements == NULL){        
+                    return NULL;                                       
+                } 
+                elem->elements[i].init.lenght = dec_u32;
+
+                //allocating bytes for each instruction
+                inst = ALLOCATE(uint8_t, dec_u32*6);
+                if (inst == NULL){        
+                    return NULL;                                       
+                }
+                for (uint32_t ii = 0; ii < dec_u32; ii++)
+                {
+                    inst[ii*6] = OPCODE_FUNCION_REFERENCE;          //opcode ref.func
+                    inst[ii*6+1] = READ_BYTE();                     //byte 1 index
+                    inst[ii*6+2] = READ_BYTE();                     //byte 2 index
+                    inst[ii*6+3] = READ_BYTE();                     //byte 3 index
+                    inst[ii*6+4] = READ_BYTE();                     //byte 4 index
+                    inst[ii*6+5] = OPCODE_END;                      //opcode end
+
+                    elem->elements[i].init.elements[ii].instr = inst + ii*6;
+                    elem->elements[i].init.elements[ii].end = inst + ii*6 + 6;
+                    
+                }
+
+                elem->elements[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_ACTIVE;                
+                elem->elements[i].active.table_idx = 0;
+                elem->elements[i].active.inst=inst;             
                 
                 break;
             // 3:u32 et : elemkind 𝑦*:vec(funcidx) ⇒ {type et, init ((ref.func 𝑦) end)*, mode declarative}
             case 3:
 
-                elems[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_DECLARATIVE;
-                elems[i].type = READ_BYTE();
-                //TODO check elemking is 0x00
-
-                elems[i].offset_len = 0;
-                elems[i].offset = NULL;
-
-                index = DecodeLeb128UInt32(index, &expr_len);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                //decoding et
+                byte_val = READ_BYTE();     //read elemnt kind
+                if(byte_val != 0){
+                    //invalid elemkind
+                    return NULL; 
                 }
-                elems[i].init_len = expr_len;
-                elems[i].init = index;
+                elem->elements[i].type = WAS_REFTYPE_FUNCREF; 
+               
+                //decoding vector y* 
+                index = DecodeLeb128UInt32(index, &dec_u32);
+                if (!index){
+                    return NULL;                                       
+                }
+
+                //alocating elements on heap
+                elem->elements[i].init.elements = ALLOCATE(Expr, dec_u32);
+                if (elem->elements[i].init.elements == NULL){        
+                    return NULL;                                       
+                } 
+                elem->elements[i].init.lenght = dec_u32;
+
+                //allocating bytes for each instruction
+                inst = ALLOCATE(uint8_t, dec_u32*6);
+                if (inst == NULL){        
+                    return NULL;                                       
+                }
+                for (uint32_t ii = 0; ii < dec_u32; ii++)
+                {
+                    inst[ii*6] = OPCODE_FUNCION_REFERENCE;          //opcode ref.func
+                    inst[ii*6+1] = READ_BYTE();                     //byte 1 index
+                    inst[ii*6+2] = READ_BYTE();                     //byte 2 index
+                    inst[ii*6+3] = READ_BYTE();                     //byte 3 index
+                    inst[ii*6+4] = READ_BYTE();                     //byte 4 index
+                    inst[ii*6+5] = OPCODE_END;                      //opcode end
+
+                    elem->elements[i].init.elements[ii].instr = inst + ii*6;
+                    elem->elements[i].init.elements[ii].end = inst + ii*6 + 6;
+                    
+                }
+
+                elem->elements[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_DECLARATIVE;                
+                elem->elements[i].active.table_idx = 0;
+                elem->elements[i].active.offset.end = NULL;
+                elem->elements[i].active.offset.instr = NULL;
+                elem->elements[i].active.inst=inst; 
 
                 break;
             // 4:u32 𝑒:expr el*:vec(expr) ⇒ {type funcref, init el*, mode active {table 0, offset 𝑒}}
             case 4:
-                elems[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_ACTIVE;
-                elems[i].type = WAS_FUNC_REF_TYPE;
-                elems[i].table_idx = 0;
 
+                elem->elements[i].type = WAS_REFTYPE_FUNCREF;
+
+                //decoding e
                 start_pos = index;
                 index = DecodeExpr(index, sec->size);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                if (!index){                    
+                    return NULL;                                       
                 }
-                elems[i].offset_len = expr_len;
-                elems[i].offset = start_pos;
+                elem->elements[i].active.offset.end = index;
+                elem->elements[i].active.offset.instr = start_pos;
 
-                //get init vector len 
-                index = DecodeLeb128UInt32(index, &expr_len);
+                //decoding vector el
+                index = DecodeLeb128UInt32(index, &dec_u32);
                 if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                    return NULL;                                       
                 }
-                elems[i].init_len = expr_len;
-                elems[i].init = index;
+
+                //alocating elements on heap
+                elem->elements[i].init.elements = ALLOCATE(Expr, dec_u32);
+                if (elem->elements[i].init.elements == NULL){        
+                    return NULL;                                       
+                } 
+                elem->elements[i].init.lenght = dec_u32;
+                for (uint32_t ii = 0; ii < dec_u32; ii++)
+                {   
+                    start_pos = index;
+                    index = DecodeExpr(index, sec->size);
+                    if (!index){                    
+                        return NULL;                                       
+                    }                    
+                    elem->elements[i].init.elements[ii].instr = start_pos;
+                    elem->elements[i].init.elements[ii].end = index;
+                    
+                }
+
+                elem->elements[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_ACTIVE;                
+                elem->elements[i].active.table_idx = 0;
+                elem->elements[i].active.offset.end = NULL;
+                elem->elements[i].active.offset.instr = NULL;
+                elem->elements[i].active.inst=NULL;
 
                 break;
             // 5:u32 et : reftype el*:vec(expr) ⇒ {type 𝑒𝑡, init el*, mode passive}
             case 5:
 
-                elems[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_PASSIVE;
-                elems[i].type = WAS_EXTERN_REF_TYPE;
-                elems[i].table_idx = 0;
-
-                elems[i].offset_len = 0;
-                elems[i].offset = NULL;
-
-                //get init vector len 
-                index = DecodeLeb128UInt32(index, &expr_len);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                //decoding et
+                byte_val = READ_BYTE();     //read reference type
+                if(byte_val != 0x6F || byte_val != 0x70){
+                    //invalid reftype
+                    return NULL; 
                 }
-                elems[i].init_len = expr_len;
-                elems[i].init = index;
+                elem->elements[i].type = byte_val;
+
+                //decoding vector el
+                index = DecodeLeb128UInt32(index, &dec_u32);
+                if (!index){
+                    return NULL;                                       
+                }
+                //alocating elements on heap
+                elem->elements[i].init.elements = ALLOCATE(Expr, dec_u32);
+                if (elem->elements[i].init.elements == NULL){        
+                    return NULL;                                       
+                } 
+                elem->elements[i].init.lenght = dec_u32;
+
+                for (uint32_t ii = 0; ii < dec_u32; ii++)
+                {   
+                    start_pos = index;
+                    index = DecodeExpr(index, sec->size);
+                    if (!index){                    
+                        return NULL;                                       
+                    }                    
+                    elem->elements[i].init.elements[ii].instr = start_pos;
+                    elem->elements[i].init.elements[ii].end = index;
+                    
+                }
+
+                elem->elements[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_PASSIVE;                
+                elem->elements[i].active.table_idx = 0;
+                elem->elements[i].active.offset.end = NULL;
+                elem->elements[i].active.offset.instr = NULL;
+                elem->elements[i].active.inst=NULL;
 
                 break;
             // 6:u32 𝑥:tableidx 𝑒:expr et : reftype el*:vec(expr) ⇒ {type 𝑒𝑡, init el*, mode active {table 𝑥, offset 𝑒}}
             case 6:
 
-                elems[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_ACTIVE;
-                elems[i].type = WAS_EXTERN_REF_TYPE;
-
-                index = DecodeLeb128UInt32(index, &expr_len);
+                //get table index x
+                index = DecodeLeb128UInt32(index, &dec_u32);
                 if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                    return NULL;                                      
                 }
-                elems[i].table_idx = expr_len;
+                elem->elements[i].active.table_idx = dec_u32;               //𝑥:tableidx
 
+                //decoding e
                 start_pos = index;
                 index = DecodeExpr(index, sec->size);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                if (!index){                    
+                    return NULL;                                       
                 }
-                //TODO calc expr len
-                elems[i].offset_len = expr_len;
-                elems[i].offset = start_pos;
+                elem->elements[i].active.offset.end = index;
+                elem->elements[i].active.offset.instr = start_pos;
 
-                elems[i].type = READ_BYTE();
-                //TODO check elemkind is 0x00
-
-                index = DecodeLeb128UInt32(index, &expr_len);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                //decoding et
+                byte_val = READ_BYTE();     //read reference type
+                if(byte_val != 0x6F || byte_val != 0x70){
+                    //invalid reftype
+                    return NULL; 
                 }
-                elems[i].init_len = expr_len;
-                elems[i].init = index;  
+                elem->elements[i].type = byte_val;
+
+                //decoding vector el
+                index = DecodeLeb128UInt32(index, &dec_u32);
+                if (!index){
+                    return NULL;                                       
+                }
+                //alocating elements on heap
+                elem->elements[i].init.elements = ALLOCATE(Expr, dec_u32);
+                if (elem->elements[i].init.elements == NULL){        
+                    return NULL;                                       
+                } 
+                elem->elements[i].init.lenght = dec_u32;
+
+                for (uint32_t ii = 0; ii < dec_u32; ii++)
+                {   
+                    start_pos = index;
+                    index = DecodeExpr(index, sec->size);
+                    if (!index){                    
+                        return NULL;                                       
+                    }                    
+                    elem->elements[i].init.elements[ii].instr = start_pos;
+                    elem->elements[i].init.elements[ii].end = index;
+                    
+                }
+
+                elem->elements[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_ACTIVE;  
+                elem->elements[i].active.inst=NULL;
+
+
                 break;
             // 7:u32 et : reftype el*:vec(expr) ⇒ {type 𝑒𝑡, init el*, mode declarative}
             case 7:
 
-                elems[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_DECLARATIVE;
-                elems[i].type = WAS_EXTERN_REF_TYPE;
-                
-
-                elems[i].offset_len = 0;
-                elems[i].offset = NULL;
-
-                index = DecodeLeb128UInt32(index, &expr_len);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                //decoding et
+                byte_val = READ_BYTE();     //read reference type
+                if(byte_val != 0x6F || byte_val != 0x70){
+                    //invalid reftype
+                    return NULL; 
                 }
-                elems[i].init_len = expr_len;
-                elems[i].init = index;
+
+                //decoding vector el
+                index = DecodeLeb128UInt32(index, &dec_u32);
+                if (!index){
+                    return NULL;                                       
+                }
+                //alocating elements on heap
+                elem->elements[i].init.elements = ALLOCATE(Expr, dec_u32);
+                if (elem->elements[i].init.elements == NULL){        
+                    return NULL;                                       
+                } 
+                elem->elements[i].init.lenght = dec_u32;
+
+                for (uint32_t ii = 0; ii < dec_u32; ii++)
+                {   
+                    start_pos = index;
+                    index = DecodeExpr(index, sec->size);
+                    if (!index){                    
+                        return NULL;                                       
+                    }                    
+                    elem->elements[i].init.elements[ii].instr = start_pos;
+                    elem->elements[i].init.elements[ii].end = index;
+                    
+                }
+
+                elem->elements[i].mode = WP_WAS_STRUC_MOD_ELEMENT_MODE_DECLARATIVE;                
+                elem->elements[i].active.table_idx = 0;
+                elem->elements[i].active.offset.end = NULL;
+                elem->elements[i].active.offset.instr = NULL;
+                elem->elements[i].active.inst=NULL;
 
                 break;
                 
             default:
-                WpResultAddError(&result, WP_DIAG_ID_INVALID_ELEMENT_TYPE, W_DIAG_MOD_LIST_DECODER);
-                #if WASPC_CONFIG_DEV_FLAG == 1
-                //TODO
-                #endif
-                return result;
+                return NULL;
             
         }       
         
     }
     
     if(index != buf_end){
-        //Decode fails
-        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_ELEM_SECTION, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result;
+       return NULL;
     }
-
-    mod->elems = elems;
-    mod->elem_len = element_count;
-    result.value.u32 = element_count;
-    return result; 
+    return elem;
     
     #undef READ_BYTE
     #undef NOT_END
-}*/
+}
 
 /**
  * @brief function to decode the data count section on a binary webassembly module.
  * 
- * @param sec Binary section.
- * @param mod pointer to decoded mod instance.
- * @return WpResult error or u32 value if success.
- *
-WpResult DecodeDataCountSection(const WasmBinSection *const sec, WpDecodedModule *mod){
+ * @param mod pointer to Module State.
+ * @return Pointer to module's data_counts otherwise NULL.
+ */
+uint32_t * DecodeDataCountSection(WpModuleState *mod){
 
-    WpResult result;
-    WpResultInit(&result);
-    uint32_t data_count;
+    WasmBinSection *sec = &mod->datacountsec;
+    uint32_t *data_count= &mod->was.data_count;
     const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;         // pointer to end of binary module
     
     //get type count
-    index = DecodeLeb128UInt32(index, &data_count);
+    index = DecodeLeb128UInt32(index, data_count);
     if (!index){
-        //invalid LEB128 encoded
-        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result;                                       
+       return NULL;                                      
     }   
     
     if(index != buf_end){
-        //Decode fails
-        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_DATA_COUNT_SECTION, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result;
+       return NULL;
     }
 
-    mod->data_count = data_count;
-    result.value.u32 = data_count;
-    return result;     
-    
-}*/
+    return data_count;
+}
 
 /**
  * @brief function to decode the code section on a binary webassembly module.
@@ -1250,76 +1312,83 @@ WpResult DecodeDataCountSection(const WasmBinSection *const sec, WpDecodedModule
  * @param sec Binary section.
  * @param mod pointer to decoded mod instance. 
  * @return WpResult error or count of code entry decoded if succsess in u32.
- *
-WpResult DecodeCodeSection(const WasmBinSection *const sec, WpDecodedModule *mod){
+ */
+VecFunc * DecodeCodeSection(WpModuleState *mod){
 
-    WpResult result;
-    WpResultInit(&result);
-    Func *funcs = mod->funcs;
-    const uint32_t func_len = mod->func_len;
+    WasmBinSection *sec = &mod->codesec;
+    Code code_entry;    
+    VecFunc *funcs = &mod->was.funcs; 
     const uint8_t *index = sec->content;                                // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                  // pointer to end of binary module    
     uint32_t code_count; 
-    ;
+    
     //ensure thar funcs is not null
     if(!funcs){
-        //invalid LEB128 encoded
-        
-        WpResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result; 
+        return NULL;
     }
     
     //get code count
     index = DecodeLeb128UInt32(index, &code_count);
     if (!index){
-        //invalid LEB128 encoded
-        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result;                                       
+        return NULL;                                      
     }
     
-    if(code_count != func_len){
-        //Mistmatch
-        WpResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result; 
+    if(code_count != funcs->lenght){
+        return NULL;
     }    
     
     for(uint32_t i = 0; i < code_count; i++){        
         
-        index = DecodeCode(index, &funcs[i]);        
+        //Decoding code rule
+        index = DecodeCode(index, &code_entry);        
         if (!index){
-            //invalid LEB128 encoded
-            WpResultAddError(&result, WP_DIAG_ID_DECODE_CODE_FAIL, W_DIAG_MOD_LIST_DECODER);
-            #if WASPC_CONFIG_DEV_FLAG == 1
-            //TODO
-            #endif
-            return result;                                       
+            return NULL;                                      
         }
+
+        //traversing locals to get total
+        uint32_t total_locals = 0;
+        for(uint32_t j = 0; j < code_entry.code.locals.lenght; j++){
+            total_locals += code_entry.code.locals.elements[j].n;
+        } 
+
+        //allocating memory for locals   
+        funcs->elements[i].locals->elements = ALLOCATE(ValType, total_locals);
+        if (!funcs->elements[i].locals->elements){        
+            return NULL;                                       
+        }
+        funcs->elements[i].locals->lenght = total_locals;
+
+        //Copying locals
+        uint32_t ii = 0;       
+        for(uint32_t j = 0; j < code_entry.code.locals.lenght; j++){
+            //outer loop for traversing locals vector
+            for(uint32_t k = 0; k < code_entry.code.locals.elements[j].n; k++){
+                //inner loop for locals number of elements n
+                funcs->elements[i].locals->elements[ii] = code_entry.code.locals.elements[i].t;
+                ii++;
+            }
+        }
+
+        //fucntion body
+        funcs->elements[i].body.instr = code_entry.code.e.instr;
+        funcs->elements[i].body.end = code_entry.code.e.end;
+
+        //cleaning code_entry for next iteration
+        code_entry.size = 0;
+        FREE_MEM(code_entry.code.locals.elements);
+        code_entry.code.locals.lenght = 0;
+        code_entry.code.e.instr = NULL;
+        code_entry.code.e.end = NULL;
 
     }
     
     if(index != buf_end){        
-        //Decode fails
-        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result;
+       return NULL;
     }
-
-    result.value.u32 = code_count;
-    return result; 
-       
     
-}*/
+    return funcs; 
+    
+}
 
 /**
  * @brief function to decode the data section on a binary webassembly module.

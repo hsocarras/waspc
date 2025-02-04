@@ -37,15 +37,13 @@ VecExport * DecodeExportSection(WpModuleState *mod);
 
 uint32_t * DecodeStartSection(WpModuleState *mod);
 
-//WpResult DecodeElementSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+VecElem * DecodeElementSection(WpModuleState *mod);
 
-//WpResult DecodeDataCountSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+uint32_t * DecodeDataCountSection(WpModuleState *mod);
 
-//WpResult DecodeCodeSection(const WasmBinSection *const sec, WpDecodedModule *mod);
+VecFunc * DecodeCodeSection(WpModuleState *mod);
 
 //WpResult DecodeDataSection(const WasmBinSection * const sec, WpDecodedModule *mod);
-
-//WpResult DecodeWpBinModule(const WpBinModule * const bin_mod, WpDecodedModule *mod);
 
 
 
