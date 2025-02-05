@@ -17,7 +17,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
+//#include <stdio.h>
 
 /**
  * @brief Init function for runtime state object
@@ -131,9 +131,7 @@ WpObject * WpRuntimeReadModule(WpRuntimeState *self, const char * mod_name, cons
 }
 
 
-WpObject * WpRuntimeValidateModule(WpRuntimeState *self, const char *mod_name){
-    
-    WpModuleState *mod = (WpModuleState *)HashTableGet(&self->modules, mod_name);    
+WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){ 
     
     if(!mod){
         self->err.id = 11;
@@ -215,6 +213,6 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, const char *mod_name){
     #undef READ_BYTE
     #undef NOT_END
 
-
+    mod->status = WP_MODULE_STATUS_VALIDATED;
     return (WpObject *)mod;
 }

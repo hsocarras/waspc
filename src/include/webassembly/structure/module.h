@@ -200,14 +200,24 @@ typedef enum DataMode {
     WP_WAS_STRUC_MOD_DATA_MODE_ACTIVE,        
 } DataMode;
 
+typedef struct DataModeActive{
+
+    uint32_t memory;
+    Expr offset;
+}DataModeActive;
+
 typedef struct Data{
-    DataMode mode; 
-    uint32_t mem_idx;
-    uint32_t offset_len;
-    const uint8_t * offset;  
-    uint32_t init_len;
-    const uint8_t *init;
+    VecByte init;
+
+    DataMode mode;
+
+    DataModeActive active;
 } Data;
+
+typedef struct VecData{
+    uint32_t length;
+    Data *elements;
+}VecData;
 //#####################################################################################################
 
 
@@ -237,6 +247,7 @@ typedef struct WasModule{
     VecElem elem;
     //Data
     uint32_t data_count;
+    VecData data;
 
 }WasModule;
 

@@ -81,7 +81,7 @@ void WpRuntimeCodeMemInit(WpRuntimeState *self, const uint8_t *start, uint32_t m
 
 WpObject * WpRuntimeReadModule(WpRuntimeState *self, const char * mod_name, const uint8_t *mod_start, uint32_t mod_size);
 
-WpObject * WpRuntimeValidateModule(WpRuntimeState *self, const char *mod_name);
+WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod);
 
 #ifdef __cplusplus
     }

@@ -17,6 +17,7 @@
 #include "utils/leb128.h"
 
 #include <stdint.h>
+//#include <stdio.h>
 
 /**
  * @brief Inner function to read a binary section into a WasmBinSection structure 
@@ -272,11 +273,10 @@ WpError ValidateModule(RuntimeEnv *self, WasmModule *mod){
  */
 const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t section_id, uint8_t *previous_secction, WpModuleState *mod){
 
-    uint32_t aux_u32;                                                    //auxiliary var to store u32 values
+    uint32_t aux_u32;                                               //auxiliary var to store u32 values        
     /**
      * @brief Sections inside a module are encoded in a specific order.
      * this switch case is to validate the order of the sections.
-     * 
      */
     switch(*previous_secction){
         case WP_WSA_BIN_MOD_SEC_ID_CUSTOM:
@@ -452,7 +452,7 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         return index;
     }
 
-    start_at_code_sec:
+    start_at_code_sec:    
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_CODE){
         //Code Section   
         index = ReadBinSection(index, &mod->codesec);
@@ -471,6 +471,7 @@ const uint8_t* ValidateBinSectionById(const uint8_t *index, const uint8_t sectio
         if (!index){                
             return NULL;                                        
         } 
+        VecData *data = DecodeDataSection(mod);
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_DATA;
         return index;    
     }

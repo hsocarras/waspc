@@ -134,11 +134,15 @@ int main(int argc, const char* argv[]) {
     free(load_ptr);
     
     if(result->type == WP_OBJECT_MODULE){
-
-        printf("Buffer Loaded. Total bytes %d \n", bytes_read);   
-        WpObject *result = WpRuntimeValidateModule(&runtime, "main1");
+        WpModuleState *mod = (WpModuleState *)result;
+        printf("Buffer Loaded. Total bytes %d \n", bytes_read); 
+        WpObject *result = WpRuntimeValidateModule(&runtime, mod);
+        if(!result){
+            printf("Error validating module\n");
+            return 3;
+        }
+       
         if(result->type == WP_OBJECT_MODULE){
-            printf("Module validated\n");
             WpModuleState *mod = (WpModuleState *)result;
             printf("Module name: %s\n", mod->name);
             printf("Module status: %d\n", mod->status);

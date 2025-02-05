@@ -1289,7 +1289,7 @@ VecElem * DecodeElementSection(WpModuleState *mod){
 uint32_t * DecodeDataCountSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->datacountsec;
-    uint32_t *data_count= &mod->was.data_count;
+    uint32_t *data_count = &mod->was.data_count;
     const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;         // pointer to end of binary module
     
@@ -1309,9 +1309,8 @@ uint32_t * DecodeDataCountSection(WpModuleState *mod){
 /**
  * @brief function to decode the code section on a binary webassembly module.
  * 
- * @param sec Binary section.
  * @param mod pointer to decoded mod instance. 
- * @return WpResult error or count of code entry decoded if succsess in u32.
+ * @return Pointer to module's funcs otherwise NULL.
  */
 VecFunc * DecodeCodeSection(WpModuleState *mod){
 
@@ -1393,326 +1392,133 @@ VecFunc * DecodeCodeSection(WpModuleState *mod){
 /**
  * @brief function to decode the data section on a binary webassembly module.
  * 
- * @param sec Binary section.
- * @param mod pointer to decoded mod instance.
- * @return WpResult error or edata array's length if succsess in u32.
- *
-WpResult DecodeDataSection(const WasmBinSection * const sec, WpDecodedModule *mod){
-
-    WpResult result;
-    WpResultInit(&result);
-    Data *datas;
+ * @param mod pointer to Module State.
+ * @return Pointer to module's elem if success otherwise NULL.
+ */
+VecData * DecodeDataSection(WpModuleState *mod){
+    
+    WasmBinSection *sec = &mod->datasec;
+    VecData *data = &mod->was.data;
     const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                   // pointer to end of binary module
     const uint8_t *start_pos;
-    uint32_t data_count;                                         // auxiliary variable    
-    
+    uint32_t dec_u32;                                         // auxiliary variable     
+    uint32_t mode_type;  
     uint8_t byte_val;
-    uint32_t mode_type;
-    uint32_t expr_len;
-    uint32_t i;
+    
 
-    //get type count
-    index = DecodeLeb128UInt32(index, &data_count);
+    //get data count
+    index = DecodeLeb128UInt32(index, &dec_u32);
     if (!index){
-        //invalid LEB128 encoded
-        WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result;                                       
-    }
-   
+        return NULL;                                       
+    }   
     //alocating elements on heap
-    datas = ALLOCATE(Data, data_count);
-    if (!datas){        
-        //allocation check
-        WpResultAddError(&result, WP_DIAG_ID_ALLOCATION_FAILURE, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result;                                       
+    data->elements = ALLOCATE(Data, dec_u32);
+    if (!data->elements){        
+        return NULL;                                    
     }
+    data->length = dec_u32;
     
     
     #define READ_BYTE() (*index++)
     #define NOT_END() (index < buf_end)
 
-    for(i = 0; i < data_count; i++){
+    for(uint32_t i = 0; i < data->length; i++){
 
         //get mode        
         index = DecodeLeb128UInt32(index, &mode_type);
         if (!index){
-            //invalid LEB128 encoded
-            WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-            #if WASPC_CONFIG_DEV_FLAG == 1
-            //TODO
-            #endif
-            return result;                                       
+            return NULL;                                      
         }
         
         switch(mode_type) {
             /// 0:u32 𝑒:expr 𝑏*:vec(byte) ⇒ {init 𝑏*, mode active {memory 0, offset 𝑒}}
             case 0:
                 
-                datas[i].mode = WP_WAS_STRUC_MOD_DATA_MODE_ACTIVE;
-                datas[i].mem_idx = 0;
-
+                //decoding e
                 start_pos = index;
                 index = DecodeExpr(index, sec->size);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                if (!index){                    
+                    return NULL;                                       
                 }
-                //TODO calc expr len
-                datas[i].offset_len = expr_len;
-                datas[i].offset = start_pos;
+                data->elements[i].active.offset.end = index;
+                data->elements[i].active.offset.instr = start_pos;
 
-                index = DecodeLeb128UInt32(index, &expr_len);
+                //decoding init
+                index = DecodeLeb128UInt32(index, &dec_u32);
                 if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                    return NULL;                                     
                 }
-                datas[i].init_len = expr_len;
-                datas[i].init = index;
+                data->elements[i].init.lenght = dec_u32;
+                data->elements[i].init.elements = index;
+                index = index + dec_u32;
+                
+                data->elements[i].mode = WP_WAS_STRUC_MOD_DATA_MODE_ACTIVE;
+                data->elements[i].active.memory = 0;
 
                 break;
             /// 1:u32 𝑏*:vec(byte) ⇒ {init 𝑏*, mode passive}
             case 1:
-                datas[i].mode = WP_WAS_STRUC_MOD_DATA_MODE_PASSIVE;
-                datas[i].mem_idx = 0;
 
-                datas[i].offset_len = 0;
-                datas[i].offset = NULL;
-
-                index = DecodeLeb128UInt32(index, &expr_len);
+                //decoding init
+                index = DecodeLeb128UInt32(index, &dec_u32);
                 if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                    return NULL;                                     
                 }
-                datas[i].init_len = expr_len;
-                datas[i].init = index;
+                data->elements[i].init.lenght = dec_u32;
+                data->elements[i].init.elements = index;
+                index = index + dec_u32;
+
+                data->elements[i].mode = WP_WAS_STRUC_MOD_DATA_MODE_PASSIVE;
+                
+                data->elements[i].active.memory = 0;
+                data->elements[i].active.offset.end = NULL;
+                data->elements[i].active.offset.instr = NULL;                
 
                 break;
             /// 2:u32 𝑥:memidx 𝑒:expr 𝑏*:vec(byte) ⇒ {init 𝑏*, mode active {memory 𝑥, offset 𝑒}}
             case 2:
 
-                datas[i].mode = WP_WAS_STRUC_MOD_DATA_MODE_ACTIVE;
-                //get memidx
-                index = DecodeLeb128UInt32(index, &expr_len);
+                
+                //get memidx x
+                index = DecodeLeb128UInt32(index, &dec_u32);
                 if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                    return NULL;                                     
                 }
-                datas[i].mem_idx = expr_len;
-
+                data->elements[i].active.memory = dec_u32;               //𝑥:memidx
+                //decoding e
                 start_pos = index;
                 index = DecodeExpr(index, sec->size);
-                if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_EXPR_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                if (!index){                    
+                    return NULL;                                       
                 }
-                datas[i].offset_len = expr_len;
-                datas[i].offset = start_pos;
-
-                index = DecodeLeb128UInt32(index, &expr_len);
+                data->elements[i].active.offset.end = index;
+                data->elements[i].active.offset.instr = start_pos;
+                //decoding init
+                index = DecodeLeb128UInt32(index, &dec_u32);
                 if (!index){
-                    //invalid LEB128 encoded
-                    WpResultAddError(&result, WP_DIAG_ID_DECODE_LEB128_FAIL, W_DIAG_MOD_LIST_DECODER);
-                    #if WASPC_CONFIG_DEV_FLAG == 1
-                    //TODO
-                    #endif
-                    return result;                                       
+                    return NULL;                                     
                 }
-                datas[i].init_len = expr_len;
-                datas[i].init = index;
+                data->elements[i].init.lenght = dec_u32;
+                data->elements[i].init.elements = index;
+                index = index + dec_u32;
+                
+                data->elements[i].mode = WP_WAS_STRUC_MOD_DATA_MODE_ACTIVE;
 
                 break;           
-            default:                
-                //invalid Data mode
-                WpResultAddError(&result, WP_DIAG_ID_INVALID_DATA_MODE, W_DIAG_MOD_LIST_DECODER);
-                #if WASPC_CONFIG_DEV_FLAG == 1
-                //TODO
-                #endif
-                return result;   
+            default:  
+                return NULL;   
         }  
     }
     
     if(index != buf_end){
-        //Decode fails
-        WpResultAddError(&result, WP_DIAG_ID_ERROR_DECODE_DATA_SECTION, W_DIAG_MOD_LIST_DECODER);
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        //TODO
-        #endif
-        return result;
+        return NULL; 
     }
 
-    mod->datas = datas;
-    result.value.u32 = data_count;
-    return result; 
+    
+    return data; 
     
     #undef READ_BYTE
     #undef NOT_END
-}*/
+}
 
-//TODO conditional compilation for tis function
-/**
- * @brief function for decode complete WasmBinModule object into a WasmModule.
- * 
- * @param bin_mod pointer to source wasm binary module
- * @param mod pointer to target wasm module
- * @return WpResult error or 1 in u32
- *
-WpResult DecodeWpBinModule(const WpBinModule *const bin_mod, WpDecodedModule *mod){
-
-    WpResult result;
-    WpResultInit(&result);
-    
-    // If type sec is present:
-    if(bin_mod->typesec.size > 0){
-        result = DecodeTypeSection(&bin_mod->typesec, mod);      
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        }      
-    }
-    
-    // If import sec is present:
-    if(bin_mod->importsec.size > 0){
-        result = DecodeImportSection(&bin_mod->importsec, mod);
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        } 
-    }
-
-    // If function sec is present:
-    if(bin_mod->functionsec.size > 0){
-        result = DecodeFunctionSection(&bin_mod->functionsec, mod);
-        
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        } 
-    }
-
-    // If table sec is present:
-    if(bin_mod->tablesec.size > 0){
-        result = DecodeTableSection(&bin_mod->tablesec, mod);
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        } 
-    }
-
-    // If mem sec is present:
-    if(bin_mod->memsec.size > 0){
-        result = DecodeMemSection(&bin_mod->memsec, mod);
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        } 
-    }
-
-    // If global sec is present:
-    if(bin_mod->globalsec.size > 0){
-        result = DecodeGlobalSection(&bin_mod->globalsec, mod);
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        } 
-    }
-    
-    // If export sec is present:
-    if(bin_mod->exportsec.size > 0){
-        result = DecodeExportSection(&bin_mod->exportsec, mod);
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        } 
-           
-    }
-
-    // If start sec is present:
-    if(bin_mod->startsec.size > 0){
-        result = DecodeStartSection(&bin_mod->startsec, mod);
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        }         
-    }
-
-    // If element sec is present:
-    if(bin_mod->elemsec.size > 0){
-        result = DecodeElementSection(&bin_mod->elemsec, mod);
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        } 
-    }
-
-    // If data count sec is not empty
-    if(bin_mod->datacountsec.size > 0){
-        result = DecodeDataCountSection(&bin_mod->datasec, mod);
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        } 
-    }
-    
-    // If code sec is present:
-    if(bin_mod->codesec.size > 0){
-       
-        if(mod->func_len > 0){
-            result = DecodeCodeSection(&bin_mod->codesec, mod);
-            
-            if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-                return result;
-            } 
-            if(result.value.u32 != mod->func_len){
-                WpResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
-                #if WASPC_CONFIG_DEV_FLAG == 1
-                //TODO
-                #endif
-                return result; 
-            }
-        }
-        else{
-            WpResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_CODE_SECTION, W_DIAG_MOD_LIST_DECODER);
-            #if WASPC_CONFIG_DEV_FLAG == 1
-            //TODO
-            #endif
-            return result; 
-        }
-    }
-    
-    // If data sec is not empty
-    if(bin_mod->datasec.size > 0){
-        result = DecodeDataSection(&bin_mod->datasec, mod);
-        if(result.result_type == WP_OBJECT_RESULT_TYPE_ERROR){
-            return result;
-        } 
-
-        if(result.value.u32 != mod->data_count){
-            WpResultAddError(&result, WP_DIAG_ID_ASSERT_DECODE_DATA_SECTION, W_DIAG_MOD_LIST_DECODER);
-            #if WASPC_CONFIG_DEV_FLAG == 1
-            //TODO
-            #endif
-            return result;
-        }
-    }
-
-    result.value.u32 = 1;
-    return result;
-
-}*/

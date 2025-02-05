@@ -43,11 +43,7 @@ uint32_t * DecodeDataCountSection(WpModuleState *mod);
 
 VecFunc * DecodeCodeSection(WpModuleState *mod);
 
-//WpResult DecodeDataSection(const WasmBinSection * const sec, WpDecodedModule *mod);
-
-
-
-
+VecData * DecodeDataSection(WpModuleState *mod);
 
 
 #ifdef __cplusplus

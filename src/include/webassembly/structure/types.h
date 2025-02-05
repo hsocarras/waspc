@@ -27,6 +27,11 @@
  */
 typedef uint8_t Byte;
 
+typedef struct VecByte{
+    uint32_t lenght;
+    Byte *elements;
+} VecByte;
+
 /**
  * @brief The types i32 and i64 classify 32 and 64 bit integers, respectively. 
  * Integers are not inherently signed or unsigned,
