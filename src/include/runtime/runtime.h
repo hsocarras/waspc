@@ -17,7 +17,6 @@
 #endif
 
 //wasp includes
-#include "config.h"
 #include "objects/module.h"
 #include "objects/error.h"
 #include "utils/hash_table.h"
@@ -79,9 +78,15 @@ void WpRuntimeInit(WpRuntimeState *self);
  */
 void WpRuntimeCodeMemInit(WpRuntimeState *self, const uint8_t *start, uint32_t mem_size);
 
-WpObject * WpRuntimeReadModule(WpRuntimeState *self, const char * mod_name, const uint8_t *mod_start, uint32_t mod_size);
+void WpRuntimetableInit(WpRuntimeState *self, HtEntry *table, uint32_t number_entries);
+
+WpObject * WpRuntimeReadModule(WpRuntimeState *self, Name mod_name, const uint8_t *mod_start, uint32_t mod_size);
 
 WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod);
+
+WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleState *mod);
+
+WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len);
 
 #ifdef __cplusplus
     }

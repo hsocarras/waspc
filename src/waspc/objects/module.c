@@ -20,10 +20,35 @@ static void WasModuleInit(WasModule *self){
     self->funcs = (VecFunc){0, NULL};
 }
 
+void WpModuleInstanceInit(WpModuleInstance *self){
+    self->type = WP_OBJECT_MODULE_INSTANCE;
+
+    self->types = NULL;
+
+    self->funcaddrs.lenght = 0;
+    self->funcaddrs.elements = NULL;
+    /*
+    self->tableaddrs.lenght = 0;
+    self->tableaddrs.elements = NULL;
+
+    self->memaddrs.lenght = 0;
+    self->memaddrs.elements = NULL;
+
+    self->globaladdrs.lenght = 0;
+    self->globaladdrs.elements = NULL;
+
+    self->elemaddrs.lenght = 0;
+    self->elemaddrs.elements = NULL;
+
+    self->dataaddrs.lenght = 0;
+    self->dataaddrs.elements = NULL;*/
+}
+
 void WpModuleInit(WpModuleState *self){
 
-    self->type = WP_OBJECT_MODULE;
-    self->name = NULL;
+    self->type = WP_OBJECT_MODULE_STATE;
+    self->name.name = NULL;
+    self->name.lenght = 0;
     self->status = WP_MODULE_STATUS_INIT;
 
     ///Binary propertyes///////////////////////////////////////////////////////////////////
@@ -45,5 +70,9 @@ void WpModuleInit(WpModuleState *self){
     ////////////////////////////////////////////////////////////////////////////////////////
 
     WasModuleInit(&self->was);
+
+    WpModuleInstanceInit(&self->instance);
+
+
 }
 

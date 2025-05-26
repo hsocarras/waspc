@@ -27,12 +27,15 @@
  */
 typedef enum {
     WP_OBJECT_ERROR,    
-    WP_OBJECT_MODULE,
+    WP_OBJECT_MODULE_STATE,
+    WP_OBJECT_MODULE_INSTANCE,
+    WP_OBJECT_FUNCTION_INSTANCE,
 }WpObjectType;
 
 typedef struct WpObject{
     WpObjectType type;
 } WpObject;
+
 
 #ifdef __cplusplus
     }

@@ -12,6 +12,7 @@
 //#include "diagnostic/error.h"
 #include "utils/hash_table.h"
 #include "memory/memory.h"
+#include "webassembly/structure/types.h"
 
 #include <string.h>
 #include <assert.h> 
@@ -21,9 +22,10 @@
  * @brief Fowler–Noll–Vo hash function 
  * 
  * @param key Null terminated string.
+ * @param len Length of string.
  * @return uint32_t 
  */
-static uint32_t fnv(const char *key){
+static uint32_t fnv(Name key){
 
     //Constant definition for FNV algoritm
     #define FNV_PRIME_32 16777619
@@ -32,7 +34,7 @@ static uint32_t fnv(const char *key){
     
     uint32_t hash = FNV_OFFSET_BASIC;    
     
-    for(const char *k = key; *k; k++){
+    for(const char *k = key.name; k < (key.name + key.lenght); k++){
         hash ^= (uint32_t)(unsigned char)(*k);
         hash *= FNV_PRIME_32;
     }
@@ -41,35 +43,8 @@ static uint32_t fnv(const char *key){
 }
 
 
-/**
- * @brief 
- * 
- * @param self 
- * @param new_capacity 
- */
-static uint8_t HashTableGrow(HashTable *self, uint32_t new_capacity) {
 
-    //new array
-    HtEntry *old_entries = self->entries;
-    self->entries = GROW_ARRAY(HtEntry, self->entries, new_capacity);
-    
-    if(self->entries){
-        //Init new slots to default values
-        for (int i = self->length; i < new_capacity; i++) {
-            self->entries[i].key = NULL;
-            self->entries[i].value = NULL;
-        }
-        self->capacity = new_capacity;
-        return 1;
-    }
-    else{
-        self->entries = old_entries;
-        return 0;
-    }
-
-}
-
-static uint32_t HashTableSetEntry(HashTable *self, const char *key, void *value){
+static uint32_t HashTableSetEntry(HashTable *self, Name key, void *value){
 
     
     uint32_t hash = fnv(key);
@@ -79,14 +54,15 @@ static uint32_t HashTableSetEntry(HashTable *self, const char *key, void *value)
     // Loop till we find an empty entry.
     while (i < self->capacity) {
 
-        if(self->entries[index].key == NULL){
+        if(self->entries[index].key.name == NULL){
             //empty bucket at index. New entry
-            self->entries[index].key = key;                     //copy key
+            self->entries[index].key.name = key.name;                     //copy key
+            self->entries[index].key.lenght = key.lenght;                 //copy lenght
             self->entries[index].value = value;                 //copy value
             self->length++;                                     //increment length
             return index;
         }
-        else if (strcmp(key, self->entries[index].key) == 0) {
+        else if (strncmp(key.name, self->entries[index].key.name, key.lenght) == 0) {
             // Found key (it already exists), update value.
             self->entries[index].value = value;
             return index;
@@ -108,47 +84,38 @@ static uint32_t HashTableSetEntry(HashTable *self, const char *key, void *value)
 /**
  * @brief Hash Table constructor.
  * 
- * @param self 
- * @param data_type 
- * @param init_capacity 
+ * @param self  
  */
 void HashTableInit(HashTable *self){
     
-    self->length = 0;
-    
-    self->entries = ALLOCATE(HtEntry, HASH_TABLE_GROW_STEP);
-
-    if (self->entries == NULL) {        
-        self->capacity = 0;
-    }
-    else{        
-        self->capacity = HASH_TABLE_GROW_STEP;        
-        //Initialize entries
-        for(int i = 0; i < HASH_TABLE_GROW_STEP; i++){
-            self->entries[i].key = NULL;
-            self->entries[i].value = NULL;
-        }
-    }
-    
+    self->length = 0; 
+    self->capacity = 0;   
+    self->entries = NULL;    
 }
 
 /**
- * @brief Destroy all data in table, not table itself
+ * @brief 
  * 
  * @param self 
+ * @param table 
+ * @param number_entries 
  */
-void HashTableDestroy(HashTable *self){
+void HastTableSetup(HashTable *self, HtEntry *table, uint32_t number_entries){
 
-    // First free allocated keys.
-    for (size_t i = 0; i < self->capacity; i++) {
-        free((void*)self->entries[i].key);
+    assert(table);
+    assert(number_entries);
+
+    //Initialize entries
+    for(int i = 0; i < number_entries; i++){
+        table[i].key.lenght = 0;
+        table[i].key.name = NULL;
+        table[i].value = NULL;
     }
 
-    free(self->entries);
-    self->capacity = 0;
-    self->length = 0;
-    
+    self->capacity = number_entries;
+    self->entries = table;
 }
+
 
 /**
  * @brief 
@@ -157,12 +124,12 @@ void HashTableDestroy(HashTable *self){
  * @param key 
  * @return void* 
  */
-void * HashTableGet(HashTable *self, const char *key){
+void * HashTableGet(HashTable *self, Name key){
 
     //hash table must be initilised first
     assert(self->capacity > 0);
     // key must be valid
-    assert(key);
+    assert(key.name);    
 
     uint32_t hash = fnv(key);
     uint32_t index = hash % self->capacity;  
@@ -171,13 +138,13 @@ void * HashTableGet(HashTable *self, const char *key){
     //Linear probe algoritm
     while(i < self->capacity) {     //used i instead index for start at begining if key is not found between index and final bucket
         
-        if(self->entries[index].key == NULL){
+        if(self->entries[index].key.name == NULL){
             //empty bucket at index. Key not found
             goto next;
         }
         
 
-        if(strcmp(key, self->entries[index].key) == 0){                
+        if(strncmp(key.name, self->entries[index].key.name, key.lenght) == 0){                
                 // Found key, return value.
                 return self->entries[index].value;
         }
@@ -205,47 +172,26 @@ void * HashTableGet(HashTable *self, const char *key){
  * @param value 
  * @return void* vaule if succes otherwise null
  */
-void * HashTableSet(HashTable *self, const char *key, void *value){
+void * HashTableSet(HashTable *self, Name key, void *value){
 
     //hash table must be initialise first
     assert(self->capacity > 0);
     //key diferent than null
-    assert(key);    
+    assert(key.name);     
+       
     uint32_t hash = fnv(key);
     uint32_t index;    
     
-    //Check for enought capacity
-    if (self->length + 1 > (self->capacity * HASH_TABLE_MAX_LOAD)/100) {
-        
-        //check for max capacity allowed
-        if(self->capacity < HASH_TABLE_MAX_CAPACITY){
-            uint32_t new_capacity = self->capacity + HASH_TABLE_GROW_STEP;
-            //if table grow array success 
-            if(HashTableGrow(self, new_capacity)){
-                index = HashTableSetEntry(self, key, value);
-                return value;
-            }
-            else{
-                return NULL;
-            }
-        }
-        //if table can't grow more
-        else{
-            //check if are free entry
-            if(self->length < self->capacity){
-                index = HashTableSetEntry(self, key, value);
-                return value;
-            }
-            else{
-                //table completly full
-                return NULL;
-            }
-        }
-    }
-    else{ //enought space        
-        index = HashTableSetEntry(self, key, value);        
+    //Check for enought capacity   
+    if(self->length < self->capacity){
+        index = HashTableSetEntry(self, key, value);
         return value;
     }
+    else{
+        //table completly full
+        return NULL;
+    }
+        
 }
 
 

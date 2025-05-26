@@ -388,7 +388,7 @@ VecImport * DecodeImportSection(WpModuleState *mod){
         byte_val = READ_BYTE();
         switch (byte_val){
             case 0:                
-                imports->elements[i].type = WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_FUNC;
+                imports->elements[i].type = WP_EXTERNAL_TYPE_FUNC;
                 //decode function index
                 index = DecodeLeb128UInt32(index, &dec_u32);
                 if (!index){
@@ -398,7 +398,7 @@ VecImport * DecodeImportSection(WpModuleState *mod){
                 imports->elements[i].desc.x = dec_u32;
                 break;
             case 1:
-                imports->elements[i].type = WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_TABLE;
+                imports->elements[i].type = WP_EXTERNAL_TYPE_TABLE;
                 //decode table type
                 byte_val = READ_BYTE();     //read reftype
                 if(byte_val != 0x70 || byte_val != 0x6F){
@@ -413,11 +413,11 @@ VecImport * DecodeImportSection(WpModuleState *mod){
                 }
                 break;
             case 2:
-                imports->elements[i].type = WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_MEM;
+                imports->elements[i].type = WP_EXTERNAL_TYPE_MEMORY;
                 index = DecodedLimitsType(index, &imports->elements[i].desc.mt);
                 break;
             case 3:
-                imports->elements[i].type = WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_GLOBAL;
+                imports->elements[i].type = WP_EXTERNAL_TYPE_GLOBAL;
                 //decode global type
                 byte_val = READ_BYTE();
                 if(!ValidateValType(byte_val)){
@@ -747,8 +747,8 @@ VecExport * DecodeExportSection(WpModuleState *mod){
             return NULL;                                      
         }  
 
-        exports->elements[i].nm.lenght = dec_u32;        
-        exports->elements[i].nm.name = index;
+        exports->elements[i].name.lenght = dec_u32;        
+        exports->elements[i].name.name = index;
         //moving index to import desc
         index = index + dec_u32;
 
@@ -756,16 +756,16 @@ VecExport * DecodeExportSection(WpModuleState *mod){
         byte_val = READ_BYTE();
         switch (byte_val){
             case 0:                
-                exports->elements[i].d.type = WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_FUNC;
+                exports->elements[i].type = WP_EXTERNAL_TYPE_GLOBAL;
                 break;
             case 1:
-                exports->elements[i].d.type = WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_TABLE;
+                exports->elements[i].type = WP_EXTERNAL_TYPE_TABLE;
                 break;
             case 2:
-                exports->elements[i].d.type = WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_MEM;
+                exports->elements[i].type = WP_EXTERNAL_TYPE_MEMORY;
                 break;
             case 3:
-                exports->elements[i].d.type = WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_GLOBAL;
+                exports->elements[i].type = WP_EXTERNAL_TYPE_GLOBAL;
                 break;
             default:
                 return NULL;
@@ -776,7 +776,7 @@ VecExport * DecodeExportSection(WpModuleState *mod){
         if (!index){
             return NULL;                                      
         }
-        exports->elements[i].d.x = dec_u32;
+        exports->elements[i].desc.x = dec_u32;
     }
     
     if(index != buf_end){

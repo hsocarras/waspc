@@ -16,16 +16,14 @@
     extern "C" {
 #endif
 
+#include "webassembly/structure/types.h"
+
 #include <stdint.h>
 
-#define HASH_TABLE_MAX_LOAD     85              //in % of capacity
-#define HASH_TABLE_GROW_STEP    32              //TODO come from config
-#define HASH_TABLE_MAX_CAPACITY 10              //TODO come from config. In number of step. Example max capacitty will be 640
 
-
-typedef struct HtEntry {                         ///Entry for hash table    
-    const char *key;                             ///string key
-    void *value;                                 ///any kind value
+typedef struct HtEntry {                            ///Entry for hash table    
+    Name key;                                   ///string key
+    void *value;                                    ///any kind value
 } HtEntry ;
 
 
@@ -39,6 +37,8 @@ typedef struct HashTable{                           ///Implemented as dinamic ar
 /// @param self 
 void HashTableInit(HashTable *self);
 
+void HastTableSetup(HashTable *self, HtEntry *table, uint32_t number_entries);
+
 /// @brief Destructor for a hash table struct
 /// @param self 
 void HasTableDestroy(HashTable *self);
@@ -47,14 +47,14 @@ void HasTableDestroy(HashTable *self);
 /// @param self 
 /// @param key 
 /// @return value or NULL if key not found
-void * HashTableGet(HashTable *self, const char* key);
+void * HashTableGet(HashTable *self, Name key);
 
 /// @brief Set item with given key to value. If item not exist, a new one is created
 /// @param self 
 /// @param key 
 /// @param value 
 /// @return value if success, otherwise NULL
-void * HashTableSet(HashTable *self, const char* key, void *value);
+void * HashTableSet(HashTable *self, const Name key, void *value);
 
 
 #ifdef __cplusplus

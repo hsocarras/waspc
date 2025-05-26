@@ -17,12 +17,16 @@
 
 //wasp includes
 #include "objects/object.h"
+#include "objects/function.h"
+#include "objects/export.h"
 #include "webassembly/binary/module.h"
 #include "webassembly/structure/module.h"
+#include "utils/hash_table.h"
 
 
 
 #include <stdint.h>
+
 
 typedef enum WpModuleStatus{
     WP_MODULE_STATUS_INIT,
@@ -31,6 +35,18 @@ typedef enum WpModuleStatus{
     WP_MODULE_STATUS_INVALID,
     WP_MODULE_STATUS_INSTANTIATED,    
 } WpModuleStatus;
+
+typedef struct WpModuleInstance{
+    /// head for all Waspc object to allow cast
+    WpObjectType type;   
+
+    VecType *types;
+
+    VecFuncAddr funcaddrs;
+
+    VecExportInstance exports;
+
+}WpModuleInstance;
 
 /**
  * @brief Result object for return values for most waspc internal functions.
@@ -41,7 +57,7 @@ typedef struct WpModuleState{
     WpObjectType type;   
 
     /// @brief module's name.
-    const char *name;
+    Name name;
 
     /// @brief module status
     WpModuleStatus status;
@@ -71,7 +87,8 @@ typedef struct WpModuleState{
 
     /// webassembly module
     WasModule was;
-    //instance instance
+    /// @brief 
+    WpModuleInstance instance;
 
     
 
@@ -80,6 +97,8 @@ typedef struct WpModuleState{
 // Methods **************************************************************************************************
 
 void WpModuleInit(WpModuleState *self);
+
+void WpModuleInstanceInit(WpModuleInstance *self);
 
 
 #ifdef __cplusplus

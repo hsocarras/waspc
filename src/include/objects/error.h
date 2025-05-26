@@ -17,7 +17,6 @@
 #endif
 
 //wasp includes
-#include "config.h"
 #include "objects/object.h"
 
 #include <stdint.h>

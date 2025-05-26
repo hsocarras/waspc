@@ -26,9 +26,9 @@ void WpErrorInit(WpError *self){
 
     self->id = 0;
     
-    //#if WASPC_CONFIG_DEV_FLAG == 1    
+    #if WASPC_CONFIG_DEV_FLAG == 1   
     strcpy_s(self->file, 64, "none"); 
     strcpy_s(self->func, 32, "nan");    
-    //#endif
+    #endif
     
 }

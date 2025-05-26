@@ -30,18 +30,13 @@ typedef struct VecFuncType{
 } VecFuncType;
 
 // Import //////////////////////////////////////////////////////////////////////////////////////////////
-typedef enum ImportDescType {
-    WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_FUNC,
-    WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_TABLE,
-    WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_MEM,
-    WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_GLOBAL,
-} ImportDescType;
+
 
 typedef struct Import{
     
-    Name module;                   ///pointer to module name in binary file
+    Name module;                    ///pointer to module name in binary file
     Name name;                      ///pointer to import name in binary file                          
-    ImportDescType type;
+    ExternalType type;              ///type clasifiying imports
 
     union desc{
         uint32_t x;
@@ -114,22 +109,18 @@ typedef struct VecGlobal{
 //#####################################################################################################
 
 // Export //////////////////////////////////////////////////////////////////////////////////////////////
-typedef enum ExportDescType {
-    WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_FUNC,
-    WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_TABLE,
-    WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_MEM,
-    WP_WAS_STRUC_MOD_EXPORT_DESC_TYPE_GLOBAL,
-} ExportDescType;
-
-typedef struct ExportDesc {
-    ExportDescType type;
-    uint32_t x;               //index defined at 2.5.1 Indices   
-} ExportDesc;
-
 typedef struct Export{    
     
-    Name nm;
-    ExportDesc d;
+    Name name;
+    ExternalType type;
+    union module
+    {
+        uint32_t func;
+        uint32_t table;
+        uint32_t mem;
+        uint32_t global;
+        uint32_t x; //any index of obove
+    } desc;
 
 } Export;
 

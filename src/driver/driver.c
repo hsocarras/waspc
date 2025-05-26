@@ -17,7 +17,7 @@
 #include "webassembly/binary/module.h"
 #include "webassembly/structure/module.h"
 #include "utils/hash_table.h"
-#include "webassembly/execution/runtime/instances.h"
+#include "utils/names.h"
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //Standars Includes
@@ -129,11 +129,15 @@ int main(int argc, const char* argv[]) {
     }
     uint32_t bytes_read;
     bytes_read = fread(load_ptr, 1, len, wasm);
-    WpObject *result = WpRuntimeReadModule(&runtime, "main1", load_ptr, len);
+    Name mod_name;
+    char name[5] = "main1";
+    mod_name.name = name;
+    mod_name.lenght = 5;
+    WpObject *result = WpRuntimeReadModule(&runtime, mod_name, load_ptr, len);
     fclose(wasm);
     free(load_ptr);
     
-    if(result->type == WP_OBJECT_MODULE){
+    if(result->type == WP_OBJECT_MODULE_STATE){
         WpModuleState *mod = (WpModuleState *)result;
         printf("Buffer Loaded. Total bytes %d \n", bytes_read); 
         WpObject *result = WpRuntimeValidateModule(&runtime, mod);
@@ -142,13 +146,52 @@ int main(int argc, const char* argv[]) {
             return 3;
         }
        
-        if(result->type == WP_OBJECT_MODULE){
+        if(result->type == WP_OBJECT_MODULE_STATE){
             WpModuleState *mod = (WpModuleState *)result;
-            printf("Module name: %s\n", mod->name);
+            printf("Module name: %s\n", WasNameToString(mod->name));
             printf("Module status: %d\n", mod->status);
             printf("Module version: %d\n", mod->version);      
-            printf("Module types count: %d\n", mod->was.types.lenght);          
-            return 0;
+            printf("Module types count: %d\n", mod->was.types.lenght);   
+
+            WpObject *result = WpRuntimeInstanciateModule(&runtime, mod, NULL, 0);    
+            if(result->type == WP_OBJECT_MODULE_STATE){
+                mod = (WpModuleState *)result;
+
+                printf("Module instance created\n");
+                WpObject *result = WpRuntimeInvocateProgram(&runtime, mod);                
+                if(result->type == WP_OBJECT_ERROR){
+                    printf("Error invoking module\n");        
+                    WpError *err = (WpError *)result;        
+                    ReportError(err);
+                    return 3;
+                }
+                else{
+                    if(result->type == WP_OBJECT_FUNCTION_INSTANCE){
+                        printf("Module invoked\n");
+                        WpFunctionInstance *func = (WpFunctionInstance *)result;
+                        const uint8_t *code = func->code->body.instr;
+                        while(*code != 0x0b){
+                            printf("Code: %x\n", *code);
+                            code++;
+                        }
+                    }
+                    else{
+                        assert(0);
+                        return 3;
+                    }
+                    return 0;
+                }
+            }
+            else if(result->type == WP_OBJECT_ERROR){
+                printf("Error instanciating module\n");        
+                WpError *err = (WpError *)result;        
+                ReportError(err);
+                return 3;
+            }
+            else{
+                assert(0);
+                return 3;
+            }
         }
         else if(result->type == WP_OBJECT_ERROR){
             printf("Error validating module\n");        

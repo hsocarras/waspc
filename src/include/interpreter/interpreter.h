@@ -16,10 +16,7 @@
     extern "C" {
 #endif
 
-#include "vm/frame.h"
-#include "vm/values.h"
-#include "object/result.h"
-#include "runtime/store.h"
+
 #include "webassembly/execution/runtime/values.h"
 #include "webassembly/execution/runtime/instances.h"
 
@@ -37,55 +34,55 @@
  * @brief Struct for Virtual machine object
  * 
  */
-typedef struct VM{
+typedef struct WpInterpreterState{
     
-    const uint8_t * byte_code;
-    const uint8_t * ip;
+    //const uint8_t * byte_code;
+    //const uint8_t * ip;
 
-    VmValue value_stack[VM_VALUE_STACK_SIZE];       //value stack implemented with array of byte instead value struct for memory optimization    
-    VmValue *value_stack_top;                       //pointer to stack's top
-    VmValue *value_stack_end;                       //pointer to last element of stack for avoid stack overflow
+    //VmValue value_stack[VM_VALUE_STACK_SIZE];       //value stack implemented with     
+    //VmValue *value_stack_top;                       //pointer to stack's top
+    //VmValue *value_stack_end;                       //pointer to last element of stack for avoid stack overflow
 
-    ActivationFrame frames[VM_CALL_STACK_SIZE];
-    uint32_t call_index;
+    //ActivationFrame frames[VM_CALL_STACK_SIZE];
+    //uint32_t call_index;
 
-    Store *store;
-    ModuleInst mod;
+    //Store *store;
+    //ModuleInst mod;
     
-}VM;
+} WpInterpreterState;
 
 /// @brief constructor for vm struct
 /// @param  pointer to vm.
-void VmInit(VM *);
+//void VmInit(VM *);
 
-void VmFree(VM *);
+//void VmFree(VM *);
 
-Val VmExecuteExpresion(VM *self, const uint8_t * exp);
+//Val VmExecuteExpresion(VM *self, const uint8_t * exp);
 
 /// @brief wraper to call VmEvalFrame function. Perform some nit steps.
 /// @param  pointer to vm instance.
 /// @param  code to execute.
 /// @return 
-WpResult VmExecuteFrame(VM *, const uint8_t *);
+//WpResult VmExecuteFrame(VM *, const uint8_t *);
 
 /// @brief Main evaluaction loop
 /// @param  
 /// @return 
-WpResult VmEvalFrame (VM *);
+//WpResult VmEvalFrame (VM *);
 
 /// @brief function to push a value into value stack
 /// @param  vm Virtual machine instance.
 /// @param  val Value to push.
 /// @return bytes pushed into stack.
-WpResult VmPushValue(VM *vm, VmValue val);
+//WpResult VmPushValue(VM *vm, VmValue val);
 
 /// @brief function to pop a value from stack
 /// @param  vm Virtual machine instance.
 /// @param  val_type Type value to push
 /// @return 
-VmValue VmPopValue(VM *vm);
+//VmValue VmPopValue(VM *vm);
 
-WpResult InstantiateModule(VM *self, const uint8_t * const buf, const uint32_t size);
+//WpResult InstantiateModule(VM *self, const uint8_t * const buf, const uint32_t size);
 
 #ifdef __cplusplus
     }
