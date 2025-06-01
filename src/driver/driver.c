@@ -133,88 +133,66 @@ int main(int argc, const char* argv[]) {
     char name[5] = "main1";
     mod_name.name = name;
     mod_name.lenght = 5;
+    // Read module from file into runtime memory ///////////////////////////////////////////////////////////////////////////////
     WpObject *result = WpRuntimeReadModule(&runtime, mod_name, load_ptr, len);
     fclose(wasm);
     free(load_ptr);
     
-    if(result->type == WP_OBJECT_MODULE_STATE){
-        WpModuleState *mod = (WpModuleState *)result;
-        printf("Buffer Loaded. Total bytes %d \n", bytes_read); 
-        WpObject *result = WpRuntimeValidateModule(&runtime, mod);
-        if(!result){
-            printf("Error validating module\n");
-            return 3;
-        }
-       
-        if(result->type == WP_OBJECT_MODULE_STATE){
-            WpModuleState *mod = (WpModuleState *)result;
-            printf("Module name: %s\n", WasNameToString(mod->name));
-            printf("Module status: %d\n", mod->status);
-            printf("Module version: %d\n", mod->version);      
-            printf("Module types count: %d\n", mod->was.types.lenght);   
-
-            WpObject *result = WpRuntimeInstanciateModule(&runtime, mod, NULL, 0);    
-            if(result->type == WP_OBJECT_MODULE_STATE){
-                mod = (WpModuleState *)result;
-
-                printf("Module instance created\n");
-                WpObject *result = WpRuntimeInvocateProgram(&runtime, mod);                
-                if(result->type == WP_OBJECT_ERROR){
-                    printf("Error invoking module\n");        
-                    WpError *err = (WpError *)result;        
-                    ReportError(err);
-                    return 3;
-                }
-                else{
-                    if(result->type == WP_OBJECT_FUNCTION_INSTANCE){
-                        printf("Module invoked\n");
-                        WpFunctionInstance *func = (WpFunctionInstance *)result;
-                        const uint8_t *code = func->code->body.instr;
-                        while(*code != 0x0b){
-                            printf("Code: %x\n", *code);
-                            code++;
-                        }
-                    }
-                    else{
-                        assert(0);
-                        return 3;
-                    }
-                    return 0;
-                }
-            }
-            else if(result->type == WP_OBJECT_ERROR){
-                printf("Error instanciating module\n");        
-                WpError *err = (WpError *)result;        
-                ReportError(err);
-                return 3;
-            }
-            else{
-                assert(0);
-                return 3;
-            }
-        }
-        else if(result->type == WP_OBJECT_ERROR){
-            printf("Error validating module\n");        
-            WpError *err = (WpError *)result;        
-            ReportError(err);
-            return 3;
-        }
-        else{
-            assert(0);
-            return 3;
-        }
-    }
-    else if(result->type == WP_OBJECT_ERROR){
+    // Check if the module was read successfully
+    if(result->type == WP_OBJECT_ERROR){
         printf("Error loading file content\n");        
         WpError *err = (WpError *)result;        
         ReportError(err);
         return 3;
-    }
-    else{
-        assert(0);
+    }    
+    assert(result->type == WP_OBJECT_MODULE_STATE);
+    
+    // Read ok, now validate the module //////////////////////////////////////////////////////////////////////////////////////
+    WpModuleState *mod = (WpModuleState *)result;
+    // validate the module    
+    result = WpRuntimeValidateModule(&runtime, mod);
+    if(result->type == WP_OBJECT_ERROR){
+        printf("Error validating module\n");        
+        WpError *err = (WpError *)result;        
+        ReportError(err);
         return 3;
+    }   
+    assert(result->type == WP_OBJECT_MODULE_STATE);
+    
+    // Module valid.
+    mod = (WpModuleState *)result;
+    printf("Module name: %s\n", WasNameToString(mod->name));
+    printf("Module status: %d\n", mod->status);
+    printf("Module version: %d\n", mod->version);      
+    printf("Module types count: %d\n", mod->was.types.lenght);   
 
-    }  
+    // Now we can instanciate the module////////////////////////////////////////////////////////////////////////////////
+    printf("Instanciating module\n");
+    // Create a module instance
+    // Note: For now we are not using external values, so we pass NULL and 0
+    result = WpRuntimeInstanciateModule(&runtime, mod, NULL, 0);
+    if(result->type == WP_OBJECT_ERROR){
+                printf("Error instanciating module\n");        
+                WpError *err = (WpError *)result;        
+                ReportError(err);
+                return 3;
+    }
+    assert(result->type == WP_OBJECT_MODULE_INSTANCE);
+
+    // Module instance created, now we can invoke the module   ////////////////////////////////////////////////////////// 
+    WpModuleInstance *instance = (WpModuleInstance *)result;
+
+    printf("Module instance created\n");
+    result = WpRuntimeInvocateProgram(&runtime, instance);                
+    if(result->type == WP_OBJECT_ERROR){
+        printf("Error invoking module\n");        
+        WpError *err = (WpError *)result;        
+        ReportError(err);
+        return 3;
+    }
+                
+    return 0;
+     
     
 }
 

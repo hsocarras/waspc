@@ -392,7 +392,7 @@ WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, 
     //11
     WpObject *result = WpRuntimeAllocateModule(self, mod, externv, extern_len);
 
-    return (WpObject *)mod;
+    return (WpObject *)&mod->instance;
 
 }
 
@@ -405,25 +405,17 @@ WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, 
  * an error object is returned.
  *
  * @param self Pointer to the runtime state.
- * @param mod Pointer to the instantiated module state.
+ * @param mod Pointer to the instantiated module.
  * @return WpObject* Returns the result of the main function invocation on success,
  *                   or an error object on failure.
  */
-WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleState *mod){
+WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_instance){
 
     Name main_func = {5, "main"};
 
-    //1-module must be instanciated
-    if(mod->status != WP_MODULE_STATUS_INSTANTIATED){
-        self->err.id = 31;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeInvocateProgram");
-        #endif
-        return (WpObject *)&self->err;
-    }
-
+    
     //2-If the module does not have a main function, then: Return
+    /*
     for(uint32_t i = 0; i < mod->was.exports.lenght; i++){
         if(strncmp(mod->instance.exports.elements[i].name.name, main_func.name, 5) == 0){
 
@@ -442,7 +434,7 @@ WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleState *mod){
 
             return WpFunctionInstanceInvoke(self, main);
         }
-    }
+    }*/
 
     //3-If the main function is not found, then: Return Error    
     self->err.id = 32;

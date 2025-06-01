@@ -84,7 +84,7 @@ WpObject * WpRuntimeReadModule(WpRuntimeState *self, Name mod_name, const uint8_
 
 WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod);
 
-WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleState *mod);
+WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_instance);
 
 WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len);
 
