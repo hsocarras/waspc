@@ -16,18 +16,18 @@
     extern "C" {
 #endif
 
-#include "vm/values.h"
-#include "webassembly/execution/runtime/instances.h"
+#include "webassembly/execution/runtime/values.h"
 
 #include <stdint.h>
 
 
 
-typedef struct ActivationFrame{
-
-    uint32_t arity;                     //number of return values
-    VmValue *locals;                   //array to pointers to locals inside stack
-    FuncInst *func;
+typedef struct ActivationFrame {
+    uint32_t arity;                     // Number of return values
+    Value *locals;                      // Pointer to array of local variables (including parameters)
+    void *module;                       // Pointer to the module instance (ModuleInst *)
+    void *func;                         // Pointer to the function instance (FuncInst *)
+    uint32_t locals_count;              // Total number of locals (params + locals)
 } ActivationFrame;
 
 

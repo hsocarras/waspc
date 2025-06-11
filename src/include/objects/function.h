@@ -22,7 +22,7 @@
 #include "webassembly/structure/module.h"
 
 // Forward declaration of ModuleInstance
-struct ModuleInstance;
+struct WpModuleInstance;
 
 #include <stdint.h>
 
@@ -33,7 +33,7 @@ typedef struct WpFunctionInstance {
     ///arity
     FuncType *arity;
     /// @brief module instance that function belong to
-    struct ModuleInstance *module;
+    struct WpModuleInstance *module;
     /// @brief webassembly function.
     Func *code;
 
@@ -45,6 +45,7 @@ typedef struct  VecFunctionInstace {
 }VecFunctionInstace;
 
 typedef WpFunctionInstance * funcaddr;
+
 typedef struct VecFuncAddr{
     funcaddr *elements;
     uint32_t lenght;

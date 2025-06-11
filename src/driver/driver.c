@@ -38,6 +38,8 @@ static uint8_t in[INPUT_SIZE];
 static uint8_t out[OUTPUT_SIZE];
 static uint8_t mark[MARK_SIZE];
 static uint8_t work_code_mem[CODE_MEMORY_SIZE];         //See tia portal code memory
+// Initialize the hash table for modules
+HtEntry table[10]; // Allocate memory for the hash table
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 void ReportError(WpError *err);  //function prototype for diagnostic
@@ -98,7 +100,7 @@ int main(int argc, const char* argv[]) {
     WpRuntimeState runtime;    
     WpRuntimeInit(&runtime);
     WpRuntimeCodeMemInit(&runtime, work_code_mem, CODE_MEMORY_SIZE);    
-    
+    WpRuntimetableInit(&runtime, table, 10);  // Initialize the hash table with 10 capacity
     // Opening file in reading mode/////////////////////////////////////////////////////////////////////////
     FILE *wasm;   
     errno_t error_code;                             //Declaring a variable of type errno_t to store the return value of fopen_s
@@ -130,9 +132,9 @@ int main(int argc, const char* argv[]) {
     uint32_t bytes_read;
     bytes_read = fread(load_ptr, 1, len, wasm);
     Name mod_name;
-    char name[5] = "main1";
+    char name[6] = "main1";
     mod_name.name = name;
-    mod_name.lenght = 5;
+    mod_name.lenght = 6;
     // Read module from file into runtime memory ///////////////////////////////////////////////////////////////////////////////
     WpObject *result = WpRuntimeReadModule(&runtime, mod_name, load_ptr, len);
     fclose(wasm);

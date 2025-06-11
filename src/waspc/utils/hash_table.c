@@ -43,7 +43,19 @@ static uint32_t fnv(Name key){
 }
 
 
-
+/**
+ * @brief Inserts or updates an entry in the hash table using linear probing.
+ *
+ * This static function computes the hash for the given key and attempts to insert the key-value pair
+ * into the hash table. If the key already exists, its value is updated. If an empty slot is found,
+ * the new entry is inserted. Linear probing is used to resolve collisions.
+ * The caller must ensure that the hash table has been initialized and has sufficient capacity
+ *
+ * @param self Pointer to the hash table.
+ * @param key The key to insert or update.
+ * @param value Pointer to the value to associate with the key.
+ * @return uint32_t The index in the table where the entry was inserted or updated.
+ */
 static uint32_t HashTableSetEntry(HashTable *self, Name key, void *value){
 
     
@@ -94,11 +106,15 @@ void HashTableInit(HashTable *self){
 }
 
 /**
- * @brief 
- * 
- * @param self 
- * @param table 
- * @param number_entries 
+ * @brief Initializes the hash table with a given entries array and capacity.
+ *
+ * This function sets up the hash table to use the provided array of entries and sets the table's capacity.
+ * It also initializes all entries in the array to empty (key.name = NULL, key.lenght = 0, value = NULL).
+ * The caller is responsible for allocating the entries array before calling this function.
+ *
+ * @param self Pointer to the hash table to initialize.
+ * @param table Pointer to the pre-allocated array of hash table entries.
+ * @param number_entries Number of entries (capacity) in the table.
  */
 void HastTableSetup(HashTable *self, HtEntry *table, uint32_t number_entries){
 
@@ -118,11 +134,15 @@ void HastTableSetup(HashTable *self, HtEntry *table, uint32_t number_entries){
 
 
 /**
- * @brief 
- * 
- * @param self 
- * @param key 
- * @return void* 
+ * @brief Retrieves the value associated with a given key from the hash table.
+ *
+ * This function searches for the specified key using linear probing. If the key is found,
+ * it returns the associated value. If the key is not found, it returns NULL.
+ * The hash table must be initialized before calling this function.
+ *
+ * @param self Pointer to the hash table.
+ * @param key The key to search for.
+ * @return void* Pointer to the value associated with the key, or NULL if the key is not found.
  */
 void * HashTableGet(HashTable *self, Name key){
 
@@ -165,14 +185,18 @@ void * HashTableGet(HashTable *self, Name key){
 }
 
 /**
- * @brief Function to set entry into table
- * 
- * @param self 
- * @param key 
- * @param value 
- * @return void* vaule if succes otherwise null
+ * @brief Inserts or updates an entry in the hash table.
+ *
+ * This function inserts a key-value pair into the hash table. If the key already exists,
+ * its value is updated. If the table is full, the function returns NULL and does not insert the entry.
+ * The hash table must be initialized and have sufficient capacity before calling this function.
+ *
+ * @param self Pointer to the hash table.
+ * @param key The key to insert or update.
+ * @param value Pointer to the value to associate with the key.
+ * @return HtEntry * The entry pointer if the operation was successful, or NULL if the table is full.
  */
-void * HashTableSet(HashTable *self, Name key, void *value){
+HtEntry * HashTableSet(HashTable *self, Name key, void *value){
 
     //hash table must be initialise first
     assert(self->capacity > 0);
@@ -185,7 +209,7 @@ void * HashTableSet(HashTable *self, Name key, void *value){
     //Check for enought capacity   
     if(self->length < self->capacity){
         index = HashTableSetEntry(self, key, value);
-        return value;
+        return &self->entries[index];  //return pointer to entry
     }
     else{
         //table completly full

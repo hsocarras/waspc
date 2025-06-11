@@ -7,4 +7,5 @@ include_directories(BEFORE
 # It is set to ON by default
 if (BUILD_TESTING)
     add_subdirectory(utils)
+    add_subdirectory(runtime)
 endif()

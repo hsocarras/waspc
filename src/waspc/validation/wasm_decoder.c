@@ -380,7 +380,7 @@ VecImport * DecodeImportSection(WpModuleState *mod){
         }
         
         imports->elements[i].name.lenght = dec_u32;
-        imports->elements[i].name.name = index;
+        imports->elements[i].name.name = (const char *)index;
 
         //moving index to import desc
         index = index + dec_u32;               
@@ -748,7 +748,7 @@ VecExport * DecodeExportSection(WpModuleState *mod){
         }  
 
         exports->elements[i].name.lenght = dec_u32;        
-        exports->elements[i].name.name = index;
+        exports->elements[i].name.name = (const char *)index;
         //moving index to import desc
         index = index + dec_u32;
 

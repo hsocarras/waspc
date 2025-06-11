@@ -30,6 +30,7 @@ typedef enum {
     WP_OBJECT_MODULE_STATE,
     WP_OBJECT_MODULE_INSTANCE,
     WP_OBJECT_FUNCTION_INSTANCE,
+    WP_OBJECT_EXPORT_INSTANCE,
 }WpObjectType;
 
 typedef struct WpObject{

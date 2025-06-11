@@ -22,7 +22,7 @@
 
 
 typedef struct HtEntry {                            ///Entry for hash table    
-    Name key;                                   ///string key
+    Name key;                                       ///string key
     void *value;                                    ///any kind value
 } HtEntry ;
 
@@ -54,7 +54,7 @@ void * HashTableGet(HashTable *self, Name key);
 /// @param key 
 /// @param value 
 /// @return value if success, otherwise NULL
-void * HashTableSet(HashTable *self, const Name key, void *value);
+HtEntry * HashTableSet(HashTable *self, const Name key, void *value);
 
 
 #ifdef __cplusplus

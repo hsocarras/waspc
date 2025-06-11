@@ -16,9 +16,8 @@
     extern "C" {
 #endif
 
-
 #include "webassembly/execution/runtime/values.h"
-#include "webassembly/execution/runtime/instances.h"
+#include "interpreter/frame.h"
 
 #include <stdint.h>
 
@@ -37,17 +36,16 @@
 typedef struct WpInterpreterState{
     
     //const uint8_t * byte_code;
-    //const uint8_t * ip;
+    const uint8_t * ip;                                 ///instruction pointer to the current instruction
 
-    //VmValue value_stack[VM_VALUE_STACK_SIZE];       //value stack implemented with     
-    //VmValue *value_stack_top;                       //pointer to stack's top
-    //VmValue *value_stack_end;                       //pointer to last element of stack for avoid stack overflow
+    Value value_stack[VM_VALUE_STACK_SIZE];       //value stack implemented with     
+    Value *value_stack_top;                       //pointer to stack's top
+    Value *value_stack_end;                       //pointer to last element of stack for avoid stack overflow
 
-    //ActivationFrame frames[VM_CALL_STACK_SIZE];
-    //uint32_t call_index;
+    ActivationFrame frames[VM_CALL_STACK_SIZE];
+    uint32_t call_index;
 
-    //Store *store;
-    //ModuleInst mod;
+   
     
 } WpInterpreterState;
 

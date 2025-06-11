@@ -1,4 +1,19 @@
-// Must include the gtest header to use the testing library
+/**
+ * @file test_leb128.cc
+ * @brief Unit tests for LEB128 decoding functions in WASPC.
+ *
+ * This file contains GoogleTest-based unit tests for verifying the correct decoding of
+ * signed and unsigned 32-bit integers from LEB128-encoded byte sequences using
+ * DecodeLeb128Int32 and DecodeLeb128UInt32.
+ *
+ * Each test checks that the decoding functions correctly interpret the encoded values,
+ * return the expected number of bytes consumed, and produce the correct integer result.
+ *
+ * @author Hector E. Socarras (hsocarras1987@gmail.com)
+ * @date 2025-06-08
+ */
+
+
 #include <utils/leb128.h>
 
 #include <gtest/gtest.h>
@@ -7,12 +22,7 @@
 
 
 
-// All tests must live within TEST* blocks
-// Inside of the TEST block is a standard C++ scope
-// TestTopic defines a topic of our test, e.g. NameOfFunctionTest
-// TrivialEquality represents the name of this particular test
-// It should be descriptive and readable to the user
-// TEST is a macro, i.e., preprocessor replaces it with some code
+
 TEST(WASPC_UTILS_LEB128, Decoding_32_Integer) {
   
     uint8_t number1[6] = {0x21, 0x36, 0xCD, 0x04, 0xAA, 0xDF};     //encoded i32 589 at index 2. 2 Bytes

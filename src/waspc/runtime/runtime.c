@@ -14,16 +14,13 @@
 #include "objects/export.h"
 #include "validation/wasm_validator.h"
 #include "webassembly/execution/runtime/values.h"
+#include "runtime/alloc.h"
 
 
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 //#include <stdio.h>
-
-static WpObject * WpFunctionInstanceInvoke(WpRuntimeState *self, funcaddr main){
-    return (WpObject *)main;
-}
 
 /**
  * @brief Allocates and initializes a module instance in the runtime.
@@ -44,9 +41,10 @@ static WpObject * WpRuntimeAllocateModule(WpRuntimeState *self, WpModuleState *m
     //step 2 For each function func𝑖 in module.funcs, do:
     //    a. Let funcaddr𝑖 be the function address resulting from allocating func𝑖 
     mod->instance.funcaddrs.lenght = 0;
+    mod->instance.funcaddrs.elements = (funcaddr *)malloc(sizeof(funcaddr) * mod->was.funcs.lenght);
     for(uint32_t i = 0; i < mod->was.funcs.lenght; i++){
         mod->instance.funcaddrs.lenght ++;
-        //mod->instance.funcaddrs.elements[i] = WpFunctionInstanceAllocate(mod->was.funcs.elements[i], &mod->instance);
+        mod->instance.funcaddrs.elements[i] = WpAllocFunction(mod->was.funcs.elements[i], &mod->instance);
     }
 
     //step 18
@@ -118,7 +116,7 @@ void WpRuntimeCodeMemInit(WpRuntimeState *self, const uint8_t *start, uint32_t m
 
     // Init code memory
     self->code_mem_start = start;
-    self->code_mem_ptr = start;
+    self->code_mem_ptr = (uint8_t *)start;
     self->code_mem_size = mem_size;
 }
 
@@ -184,9 +182,9 @@ WpObject * WpRuntimeReadModule(WpRuntimeState *self, Name mod_name, const uint8_
     
     //register module object
     assert(mod_name.name);    
-    WpModuleState *curent_mod = (WpModuleState *)HashTableSet(&self->modules, mod_name, mod);
+    HtEntry *curent_entry = HashTableSet(&self->modules, mod_name, mod);
     
-    if(!curent_mod){
+    if(!curent_entry){
         self->err.id = 4;
         #if WASPC_CONFIG_DEV_FLAG == 1
         strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
@@ -196,13 +194,14 @@ WpObject * WpRuntimeReadModule(WpRuntimeState *self, Name mod_name, const uint8_
     }
 
     //copy module name
-    memcpy(curent_mod->name.name, mod_name.name, mod_name.lenght);
-    curent_mod->name.lenght = mod_name.lenght;   
-    curent_mod->status = WP_MODULE_STATUS_READ;
-    curent_mod->buf = mod_start_address;
-    curent_mod->bufsize = mod_size;
+    
+    mod->name = curent_entry->key;  //copy name from hash table entry
+    //set module properties  
+    mod->status = WP_MODULE_STATUS_READ;
+    mod->buf = mod_start_address;
+    mod->bufsize = mod_size;
 
-    return (WpObject *)curent_mod;
+    return (WpObject *)mod;
 
 }
 
@@ -400,9 +399,9 @@ WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, 
  * @brief Invokes the main function of an instantiated WebAssembly module.
  *
  * This function searches for the "main" export in the given module and, if found and valid,
- * invokes it using the runtime. The module must be in the instantiated state. If the main
+ * invokes it with no argument. The module must be in the instantiated state. If the main
  * function is missing or not a function export, or if the module is not instantiated,
- * an error object is returned.
+ * an error object is returned. Is a shorcut for calling WpFuncInstanceInvoke with the main function address.
  *
  * @param self Pointer to the runtime state.
  * @param mod Pointer to the instantiated module.
@@ -415,12 +414,12 @@ WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_in
 
     
     //2-If the module does not have a main function, then: Return
-    /*
-    for(uint32_t i = 0; i < mod->was.exports.lenght; i++){
-        if(strncmp(mod->instance.exports.elements[i].name.name, main_func.name, 5) == 0){
+    
+    for(uint32_t i = 0; i < m_instance->exports.lenght; i++){
+        if(strncmp(m_instance->exports.elements[i].name.name, main_func.name, 5) == 0){
 
             //3-If the main function is not valid, then: Fail
-            if(mod->instance.exports.elements[i].export_type != WP_EXTERNAL_TYPE_FUNC){
+            if(m_instance->exports.elements[i].export_type != WP_EXTERNAL_TYPE_FUNC){
                 self->err.id = 32;
                 #if WASPC_CONFIG_DEV_FLAG == 1
                 strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
@@ -430,11 +429,11 @@ WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_in
             }
 
             //4-Invoke the main function
-           funcaddr main = mod->instance.exports.elements[i].value.func;
+           funcaddr main = m_instance->exports.elements[i].value.func;
 
-            return WpFunctionInstanceInvoke(self, main);
+            return WpFuncInstanceInvoke(self, main, NULL, 0);
         }
-    }*/
+    }
 
     //3-If the main function is not found, then: Return Error    
     self->err.id = 32;
@@ -447,9 +446,72 @@ WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_in
 
 }
 
-/** Later will replace InvocateProgram 
-WpObject * WpRuntimeRunTask(WpRuntimeState *self, WpModuleState *mod){
+/**
+ * @brief Invokes a WebAssembly function instance according to the WebAssembly specification.
+ *
+ * This function sets up a new activation frame, initializes local variables (parameters + locals)
+ * using the provided argument values, and executes the function body. It manages the operand stack
+ * and handles the function's return value(s). If an error occurs during invocation, an error object is returned.
+ *
+ * @param self Pointer to the runtime state.
+ * @param func Pointer to the function instance to invoke.
+ * @param args Pointer to an array of argument values to pass to the function (parameters).
+ * @param argc Number of argument values in the args array.
+ * @return WpObject* Returns the result of the function invocation on success,
+ *                   or an error object on failure.
+ */
+WpObject * WpFuncInstanceInvoke(WpRuntimeState *self, funcaddr func, Value *args, uint32_t argc) {
+    
+    if (!func) {
+        self->err.id = 40;
+        #if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64, "runtime/runtime.c");
+        strcpy_s(self->err.func, 32, "WpFuncInstanceInvoke");
+        #endif
+        return (WpObject *)&self->err;
+    }
 
-    return (WpModuleInstance *)&mod->instance;
+    // 1. Allocate and initialize a new activation frame
+    ActivationFrame frame;
+    WpFunctionInstance *f_inst = (WpFunctionInstance *)func;
+    //frame.arity = f_inst->arity ? *(f_inst->arity) : 0;
+    frame.module = f_inst->module;
+    frame.func = f_inst;
+    //frame.locals_count = f_inst->code->locals_count;
 
-}*/
+    // 2. Allocate and initialize locals (params + locals)
+    frame.locals = (Value *)malloc(sizeof(Value) * frame.locals_count);
+    if (!frame.locals) {
+        self->err.id = 41;
+        #if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64, "runtime/runtime.c");
+        strcpy_s(self->err.func, 32, "WpFuncInstanceInvoke");
+        #endif
+        return (WpObject *)&self->err;
+    }
+
+    // Copy arguments (parameters) to locals
+    uint32_t param_count = argc;
+    if (param_count > frame.locals_count) param_count = frame.locals_count;
+    for (uint32_t i = 0; i < param_count; i++) {
+        frame.locals[i] = args[i];
+    }
+    // Initialize remaining locals to zero
+    for (uint32_t i = param_count; i < frame.locals_count; i++) {
+        frame.locals[i] = (Value){0};
+    }
+
+    // 3. Push the frame to the call stack (not shown, depends on your runtime)
+    // push_activation_frame(self, &frame);
+
+    // 4. Execute the function body (interpreter or JIT)
+    WpObject *result;// = WpExecuteFunctionBody(self, &frame);
+
+    // 5. Pop the frame from the call stack (not shown)
+    // pop_activation_frame(self);
+
+    // 6. Free locals
+    free(frame.locals);
+
+    return result;
+}
