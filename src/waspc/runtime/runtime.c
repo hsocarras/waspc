@@ -41,14 +41,14 @@ static WpObject * WpRuntimeAllocateModule(WpRuntimeState *self, WpModuleState *m
     //step 2 For each function func𝑖 in module.funcs, do:
     //    a. Let funcaddr𝑖 be the function address resulting from allocating func𝑖 
     mod->instance.funcaddrs.lenght = 0;
-    mod->instance.funcaddrs.elements = (funcaddr *)malloc(sizeof(funcaddr) * mod->was.funcs.lenght);
-    for(uint32_t i = 0; i < mod->was.funcs.lenght; i++){
+    mod->instance.funcaddrs.elements = (funcaddr *)malloc(sizeof(funcaddr) * mod->was->funcs.lenght);
+    for(uint32_t i = 0; i < mod->was->funcs.lenght; i++){
         mod->instance.funcaddrs.lenght ++;
-        mod->instance.funcaddrs.elements[i] = WpAllocFunction(mod->was.funcs.elements[i], &mod->instance);
+        mod->instance.funcaddrs.elements[i] = WpAllocFunction(mod->was->funcs.elements[i], &mod->instance);
     }
 
     //step 18
-    mod->instance.exports.elements = (WpExportInstance *)malloc(sizeof(WpExportInstance) * mod->was.exports.lenght);
+    mod->instance.exports.elements = (WpExportInstance *)malloc(sizeof(WpExportInstance) * mod->was->exports.lenght);
     if(!mod->instance.exports.elements){
         self->err.id = 3;
         #if WASPC_CONFIG_DEV_FLAG == 1
@@ -57,13 +57,13 @@ static WpObject * WpRuntimeAllocateModule(WpRuntimeState *self, WpModuleState *m
         #endif
         return (WpObject *)&self->err;
     }
-    for(uint32_t i = 0; i < mod->was.exports.lenght; i++){
+    for(uint32_t i = 0; i < mod->was->exports.lenght; i++){
        
         //WpExportInstanceInit(export_instance);
-        mod->instance.exports.elements[i].name.name = mod->was.exports.elements[i].name.name;
-        mod->instance.exports.elements[i].name.lenght = mod->was.exports.elements[i].name.lenght;
-        mod->instance.exports.elements[i].export_type = mod->was.exports.elements[i].type;
-        switch (mod->was.exports.elements[i].type)
+        mod->instance.exports.elements[i].name.name = mod->was->exports.elements[i].name.name;
+        mod->instance.exports.elements[i].name.lenght = mod->was->exports.elements[i].name.lenght;
+        mod->instance.exports.elements[i].export_type = mod->was->exports.elements[i].type;
+        switch (mod->was->exports.elements[i].type)
         {
         case WP_EXTERNAL_TYPE_FUNC:
             mod->instance.exports.elements[i].value.func = mod->instance.funcaddrs.elements[i];
@@ -277,6 +277,17 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){
     index = index + 4;    
     mod->version = decoded_u32;
     ///////////////////////////////////////////////////////////////////////////////////////////////
+    // allocate memory for decoded module
+    mod->was = (WasModule *)malloc(sizeof(WasModule));
+    if(!mod->was){
+        self->err.id = 6;
+        mod->status = WP_MODULE_STATUS_INVALID;
+        #if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
+        strcpy_s(self->err.func, 32,"WpRuntimeValidateModule");
+        #endif
+        return (WpObject *)&self->err;    
+    }
 
     //Traversing the binary file 
     while(NOT_END()){
@@ -291,11 +302,10 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){
             strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
             strcpy_s(self->err.func, 32,"WpRuntimeValidateModule");
             #endif
+            free(mod->was); // Free allocated memory for the module
             return (WpObject *)&self->err;                                                             
         }        
-    }
-    
-   
+    }  
 
     #undef READ_BYTE
     #undef NOT_END
@@ -343,7 +353,7 @@ WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, 
     }
 
     //3 -If the number 𝑚 of imports is not equal to the number 𝑛 of provided external values, then: Fail
-    if(mod->was.imports.lenght != extern_len){
+    if(mod->was->imports.lenght != extern_len){
         self->err.id = 24;
         #if WASPC_CONFIG_DEV_FLAG == 1
         strcpy_s(self->err.file, 64,"runtime/runtime.c"); 

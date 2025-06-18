@@ -224,7 +224,7 @@ static const uint8_t * DecodeCode(const uint8_t * code, Code *code_entry){
 VecFuncType * DecodeTypeSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->typesec;
-    VecFuncType *types = &mod->was.types;                     // pounter to inner types section
+    VecFuncType *types = &mod->was->types;                     // pounter to inner types section
     const uint8_t *index = sec->content;                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;          // pointer to end of binary module
     uint32_t length;                                            // auxiliary variable
@@ -335,7 +335,7 @@ VecFuncType * DecodeTypeSection(WpModuleState *mod){
 VecImport * DecodeImportSection(WpModuleState *mod){
     
     WasmBinSection *sec = &mod->typesec;
-    VecImport *imports = &mod->was.imports;
+    VecImport *imports = &mod->was->imports;
     const uint8_t *index = sec->content;                                // pointer to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                  // pointer to end of binary module
     uint32_t imports_count;
@@ -457,7 +457,7 @@ VecImport * DecodeImportSection(WpModuleState *mod){
 VecFunc * DecodeFunctionSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->functionsec;
-    VecFunc *funcs = &mod->was.funcs;                                          // pounter to inner function section    
+    VecFunc *funcs = &mod->was->funcs;                                          // pounter to inner function section    
     const uint8_t *index = sec->content;                                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                          // pointer to end of binary module
     uint32_t func_count;                                                        // auxiliary variable    
@@ -492,11 +492,11 @@ VecFunc * DecodeFunctionSection(WpModuleState *mod){
         }
                
         //Init values
-        if(dec_u32 >= mod->was.types.lenght){
+        if(dec_u32 >= mod->was->types.lenght){
             //invalid type index
             return NULL; 
         }
-        funcs->elements[i].type = &mod->was.types.elements[dec_u32];        //getting address of type
+        funcs->elements[i].type = &mod->was->types.elements[dec_u32];        //getting address of type
 
     }
     
@@ -520,7 +520,7 @@ VecTable * DecodeTableSection(WpModuleState *mod){
 
     
     WasmBinSection *sec = &mod->tablesec;
-    VecTable *tables = &mod->was.tables;
+    VecTable *tables = &mod->was->tables;
     const uint8_t *index = sec->content;                                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                          // pointer to end of binary module
     uint32_t table_count;                                                       // auxiliary variable
@@ -586,7 +586,7 @@ VecTable * DecodeTableSection(WpModuleState *mod){
 VecMem * DecodeMemSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->memsec;
-    VecMem *mems = &mod->was.mems;
+    VecMem *mems = &mod->was->mems;
     const uint8_t *index = sec->content;                                        // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                      // pointer to end of binary module
     uint32_t mem_count;                                                            // auxiliary variable    
@@ -643,7 +643,7 @@ VecMem * DecodeMemSection(WpModuleState *mod){
 VecGlobal * DecodeGlobalSection(WpModuleState *mod){
     
     WasmBinSection *sec = &mod->globalsec;
-    VecGlobal *globals = &mod->was.globals;
+    VecGlobal *globals = &mod->was->globals;
     const uint8_t *index = sec->content;                                    // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                      // pointer to end of binary module
     uint32_t global_count;                                            
@@ -716,7 +716,7 @@ VecGlobal * DecodeGlobalSection(WpModuleState *mod){
 VecExport * DecodeExportSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->exportsec;
-    VecExport *exports = &mod->was.exports;
+    VecExport *exports = &mod->was->exports;
     const uint8_t *index = sec->content;                                // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                 // pointer to end of binary module
     uint32_t export_count;
@@ -799,7 +799,7 @@ VecExport * DecodeExportSection(WpModuleState *mod){
 uint32_t * DecodeStartSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->startsec;
-    uint32_t *start = &mod->was.start;
+    uint32_t *start = &mod->was->start;
     const uint8_t *index = sec->content;                      // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                 // pointer to end of binary module    
   
@@ -827,7 +827,7 @@ uint32_t * DecodeStartSection(WpModuleState *mod){
 VecElem * DecodeElementSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->elemsec;
-    VecElem *elem = &mod->was.elem;
+    VecElem *elem = &mod->was->elem;
     const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                   // pointer to end of binary module
     const uint8_t * start_pos;
@@ -1289,7 +1289,7 @@ VecElem * DecodeElementSection(WpModuleState *mod){
 uint32_t * DecodeDataCountSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->datacountsec;
-    uint32_t *data_count = &mod->was.data_count;
+    uint32_t *data_count = &mod->was->data_count;
     const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;         // pointer to end of binary module
     
@@ -1316,7 +1316,7 @@ VecFunc * DecodeCodeSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->codesec;
     Code code_entry;    
-    VecFunc *funcs = &mod->was.funcs; 
+    VecFunc *funcs = &mod->was->funcs; 
     const uint8_t *index = sec->content;                                // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                  // pointer to end of binary module    
     uint32_t code_count; 
@@ -1398,7 +1398,7 @@ VecFunc * DecodeCodeSection(WpModuleState *mod){
 VecData * DecodeDataSection(WpModuleState *mod){
     
     WasmBinSection *sec = &mod->datasec;
-    VecData *data = &mod->was.data;
+    VecData *data = &mod->was->data;
     const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
     const uint8_t *buf_end = sec->content + sec->size;                   // pointer to end of binary module
     const uint8_t *start_pos;

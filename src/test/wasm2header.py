@@ -31,9 +31,9 @@ wasm_h_template = '''\
 #ifndef WASPC_TEST_%s_H
 #define WASPC_TEST_%s_H
 
-#include <stdint>
+#include <stdint.h>
 
-uint_8 *%s = {%s};
+uint8_t %s[] = {%s};
 
 #endif
 '''

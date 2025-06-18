@@ -85,9 +85,12 @@ typedef struct WpModuleState{
     WasmBinSection codesec;             /// encoded code section
     WasmBinSection datasec;             /// encoded data section 
 
-    /// webassembly module
-    WasModule was;
-    /// @brief 
+    /// Temporary decoded webassembly module    
+    /// This is a pointer to the decoded module that will be used to instanciate the module.    
+    WasModule *was;
+
+    /// @brief Instance of the module
+    /// This is the instance of the module that will be used to execute the module.
     WpModuleInstance instance;
 
     

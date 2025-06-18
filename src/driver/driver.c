@@ -166,7 +166,7 @@ int main(int argc, const char* argv[]) {
     printf("Module name: %s\n", WasNameToString(mod->name));
     printf("Module status: %d\n", mod->status);
     printf("Module version: %d\n", mod->version);      
-    printf("Module types count: %d\n", mod->was.types.lenght);   
+    printf("Module types count: %d\n", mod->was->types.lenght);   
 
     // Now we can instanciate the module////////////////////////////////////////////////////////////////////////////////
     printf("Instanciating module\n");

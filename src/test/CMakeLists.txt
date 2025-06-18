@@ -8,4 +8,5 @@ include_directories(BEFORE
 if (BUILD_TESTING)
     add_subdirectory(utils)
     add_subdirectory(runtime)
+    add_subdirectory(validation)
 endif()
