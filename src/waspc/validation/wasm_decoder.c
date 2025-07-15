@@ -17,6 +17,7 @@
 #include "webassembly/binary/instructions.h"
 
 #include <stdint.h>
+//#include <stdio.h>
 
 /**
  * @brief  Function to decode expr rule
@@ -135,7 +136,7 @@ static const uint8_t * DecodeCodeFunc(const uint8_t *code, Code *code_entry){
     if (!func->locals.elements){        
         return NULL;                                      
     }
-
+    
     #define READ_BYTE() (*index++)
     #define NOT_END() (index < buf_end)
 
@@ -148,15 +149,16 @@ static const uint8_t * DecodeCodeFunc(const uint8_t *code, Code *code_entry){
             return NULL;                                     
         }
         func->locals.elements[i].n = dec_u32;
+        
         //get type
-        byte_val = READ_BYTE();
-        if(!ValidateValType(byte_val)){
-            func->locals.elements[i].t = byte_val;       //calc totals of local for field local_types_len        
+        byte_val = READ_BYTE();  
+        if(ValidateValType(byte_val)){
+            func->locals.elements[i].t = byte_val;             
         }        
-        else{
+        else{            
             return NULL;
         }
-
+        
 
     }
 
@@ -166,9 +168,10 @@ static const uint8_t * DecodeCodeFunc(const uint8_t *code, Code *code_entry){
     if (!index){
         return NULL;                                      
     }
-    func->e.end = index;
+    
+    func->e.end = index-1; //Last byte is 0x0B opcode
      //Last byte code must be END
-    if(*index-1 != OPCODE_END){
+    if(*(index-1) != OPCODE_END){
         //Decode fails instruction must be end with 0x0B        
         return NULL;        
     }
@@ -493,10 +496,14 @@ VecFunc * DecodeFunctionSection(WpModuleState *mod){
                
         //Init values
         if(dec_u32 >= mod->was->types.lenght){
-            //invalid type index
+            //invalid type index 
             return NULL; 
         }
-        funcs->elements[i].type = &mod->was->types.elements[dec_u32];        //getting address of type
+        funcs->elements[i].type_index = dec_u32;        //getting address of type
+        funcs->elements[i].locals.lenght = 0;           //init locals lenght
+        funcs->elements[i].locals.elements = NULL;       //init locals vector
+        funcs->elements[i].body.instr = NULL;           //init body instr
+        funcs->elements[i].body.end = NULL;             //init body end
 
     }
     
@@ -645,9 +652,9 @@ VecGlobal * DecodeGlobalSection(WpModuleState *mod){
     WasmBinSection *sec = &mod->globalsec;
     VecGlobal *globals = &mod->was->globals;
     const uint8_t *index = sec->content;                                    // pointer to byte to traverse the binary file
-    const uint8_t *buf_end = sec->content + sec->size;                      // pointer to end of binary module
-    uint32_t global_count;                                            
-    uint32_t dec_u32;                                                       // auxiliary variable
+    const uint8_t *buf_end = sec->content + sec->size;                      // pointer to next section's first byte
+    uint32_t global_count;                                                  // auxiliary variable for global count
+    uint32_t dec_u32;                                                       // auxiliary variable for decode leb128 values
     uint8_t byte_val;
     ValType encoded_type;
         
@@ -694,7 +701,7 @@ VecGlobal * DecodeGlobalSection(WpModuleState *mod){
         if (!index){            
             return NULL;                                    
         }        
-        globals->elements[i].e.end = index;
+        globals->elements[i].e.end = index - 1; // last byte must be OPCODE_END
     }
     
     if(index != buf_end){
@@ -756,7 +763,7 @@ VecExport * DecodeExportSection(WpModuleState *mod){
         byte_val = READ_BYTE();
         switch (byte_val){
             case 0:                
-                exports->elements[i].type = WP_EXTERNAL_TYPE_GLOBAL;
+                exports->elements[i].type = WP_EXTERNAL_TYPE_FUNC;
                 break;
             case 1:
                 exports->elements[i].type = WP_EXTERNAL_TYPE_TABLE;
@@ -1331,7 +1338,7 @@ VecFunc * DecodeCodeSection(WpModuleState *mod){
     if (!index){
         return NULL;                                      
     }
-    
+    /// check if code count is equal to funcs length
     if(code_count != funcs->lenght){
         return NULL;
     }    
@@ -1343,7 +1350,7 @@ VecFunc * DecodeCodeSection(WpModuleState *mod){
         if (!index){
             return NULL;                                      
         }
-
+        
         //traversing locals to get total
         uint32_t total_locals = 0;
         for(uint32_t j = 0; j < code_entry.code.locals.lenght; j++){
@@ -1351,11 +1358,11 @@ VecFunc * DecodeCodeSection(WpModuleState *mod){
         } 
 
         //allocating memory for locals   
-        funcs->elements[i].locals->elements = ALLOCATE(ValType, total_locals);
-        if (!funcs->elements[i].locals->elements){        
-            return NULL;                                       
+        funcs->elements[i].locals.elements = ALLOCATE(Locals, total_locals);
+        if (!funcs->elements[i].locals.elements){        
+            //return NULL;                                       
         }
-        funcs->elements[i].locals->lenght = total_locals;
+        funcs->elements[i].locals.lenght = total_locals;
 
         //Copying locals
         uint32_t ii = 0;       
@@ -1363,7 +1370,8 @@ VecFunc * DecodeCodeSection(WpModuleState *mod){
             //outer loop for traversing locals vector
             for(uint32_t k = 0; k < code_entry.code.locals.elements[j].n; k++){
                 //inner loop for locals number of elements n
-                funcs->elements[i].locals->elements[ii] = code_entry.code.locals.elements[i].t;
+                funcs->elements[i].locals.elements[ii].n = code_entry.code.locals.elements[i].n;
+                funcs->elements[i].locals.elements[ii].t = code_entry.code.locals.elements[i].t;
                 ii++;
             }
         }
@@ -1382,7 +1390,7 @@ VecFunc * DecodeCodeSection(WpModuleState *mod){
     }
     
     if(index != buf_end){        
-       return NULL;
+       //return NULL;
     }
     
     return funcs; 

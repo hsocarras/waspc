@@ -32,7 +32,7 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_READ_MODULE) {
     len = ftell(wasm);
     // Positioning cursor at begining
     rewind(wasm);     
-
+    
     //Reading file into runtime code memory
     uint8_t *load_ptr = (uint8_t *)malloc(len);              //Declaring a variable to store the wasm file    
     if (!load_ptr) {
@@ -43,8 +43,8 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_READ_MODULE) {
     Name mod_name;
     char name[6] = "main1";
     mod_name.name = name;
-    mod_name.lenght = 6;
-
+    mod_name.lenght = 5;
+    
     // Case 1 table module capacity 0
     WpError *result = (WpError *)WpRuntimeReadModule(&runtime, mod_name, load_ptr, len); 
     // Check if the result is not null
@@ -52,7 +52,7 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_READ_MODULE) {
     // Check if the result is an error object
     ASSERT_EQ(result->type, WP_OBJECT_ERROR) << "WpRuntimeReadModule did not return a WpModule object";
     ASSERT_EQ(result->id, 1) << "WpRuntimeReadModule did not return a WpModule object";
-
+    
     // Case 2 table module capacity 0
     WpRuntimeInit(&runtime);
     WpRuntimeCodeMemInit(&runtime, work_code_mem, 65536);
@@ -61,6 +61,7 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_READ_MODULE) {
     ASSERT_NE(result2, nullptr) << "WpRuntimeReadModule returned null";
     ASSERT_EQ(result2->type, WP_OBJECT_MODULE_STATE) << "WpRuntimeReadModule did not return a WpModuleState object";
     WpModuleState *module_state = (WpModuleState *)result2;
+    
     // Check if the module name matches
     ASSERT_EQ(module_state->name.lenght, mod_name.lenght) << "Module name length does not match";
     ASSERT_EQ(strncmp(module_state->name.name, mod_name.name, mod_name.lenght), 0) << "Module name does not match";
@@ -72,7 +73,7 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_READ_MODULE) {
     ASSERT_NE(module_state->buf, nullptr) << "Module buffer is null";
     // Check if the module buffer contains the correct data
     ASSERT_EQ(memcmp(module_state->buf, load_ptr, len), 0) << "Module buffer does not contain the correct data";
-
+    
     fclose(wasm);
     free(load_ptr);
    

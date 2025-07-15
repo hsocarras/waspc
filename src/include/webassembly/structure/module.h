@@ -17,6 +17,7 @@
 #endif
 
 #include "webassembly/structure/types.h"
+#include "webassembly/binary/module.h"
 
 #include <stdint.h>
 
@@ -66,10 +67,10 @@ typedef struct ExtLocal{
     } ExtLocal;                  
 
 typedef struct Func{
-    //type index
-    FuncType * type;               
+    /// type index
+    uint32_t type_index;                 
     //array of locals variables
-    VecValType *locals;                  
+    VecLocals locals;                  
     //function body
     Expr body;
 } Func;
@@ -161,28 +162,6 @@ typedef struct VecElem{
     Elem *elements;                         
 } VecElem;
 //#####################################################################################################
-
-// Code //////////////////////////////////////////////////////////////////////////////////////////////
-
-typedef struct Locals{
-    uint32_t n;                             //number of local variables
-    ValType t;                              //local variable type
-} Locals;
-
-typedef struct VecLocals{
-    uint32_t lenght;
-    Locals *elements;
-} VecLocals;
-
-typedef struct CodeFunc{    
-    VecLocals locals;
-    Expr e;
-} CodeFunc;
-
-typedef struct Code{
-    uint32_t size;
-    CodeFunc code;
-} Code;
 
 // Data //////////////////////////////////////////////////////////////////////////////////////////////
 

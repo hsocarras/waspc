@@ -151,7 +151,7 @@ WpObject * WpRuntimeReadModule(WpRuntimeState *self, Name mod_name, const uint8_
         #endif
         return (WpObject *)&self->err;
     }
-
+    
     //check that are enought memory.
     uint32_t memory_usage = self->code_mem_ptr - self->code_mem_start;
     uint32_t memory_left = self->code_mem_size - memory_usage;

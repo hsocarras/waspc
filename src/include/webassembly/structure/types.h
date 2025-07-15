@@ -186,8 +186,8 @@ typedef enum ExternalType{
 // External //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef struct Expr{
-    const uint8_t *end;
-    const uint8_t *instr;
+    const uint8_t *end;         /// Pointer to the end of the expression 0x0B opcode
+    const uint8_t *instr;       /// Pointer to the start of the instructions
 } Expr;
 
 typedef struct VecExpr{

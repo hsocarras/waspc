@@ -55,12 +55,12 @@ void WpValidatorStateInit(WpValidatorState *self){
  * @return uint8_t 0-non valid, 1-valid.
  */
 uint8_t ValidateValType(uint8_t val_type){
-
+    
     if(val_type >= 0x60 && val_type <= 0x7F){
-        if(val_type == 0x60 || val_type == 0x6F || val_type == 0x70 ){
+        if(val_type == 0x60 || val_type == 0x6F || val_type == 0x70 ){            
             return 1;
         }
-        if(val_type >= 0x7B && val_type <= 0x7F){
+        if(val_type >= 0x7B && val_type <= 0x7F){            
             return 1;
         }
     }

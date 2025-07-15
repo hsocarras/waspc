@@ -29,7 +29,7 @@ WpFunctionInstance * WpAllocFunction(Func f, WpModuleInstance *mod_inst){
         return NULL;
     }
     f_instance->type = WP_OBJECT_FUNCTION_INSTANCE;
-    f_instance->arity = &f.type;
+    //f_instance->arity = &f.type_index;
     f_instance->module = mod_inst;
     f_instance->code= &f;
 
