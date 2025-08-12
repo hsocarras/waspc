@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 
-const char *test1_wasm = "C:\\wasm\\test1.wasm";
+//const char *test1_wasm = "C:\\wasm\\test1.wasm";
 
 namespace waspc {
     namespace test {

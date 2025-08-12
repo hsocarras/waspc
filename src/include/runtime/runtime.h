@@ -130,6 +130,8 @@ WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_in
 
 WpObject * WpFuncInstanceInvoke(WpRuntimeState *self, funcaddr func, Value *args, uint32_t argc);
 
+void WpRuntimeValidatorInit(WpRuntimeState *self, uint32_t val_stack_size, uint32_t ctr_stack_size);
+
 #ifdef __cplusplus
     }
 #endif

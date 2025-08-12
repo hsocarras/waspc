@@ -128,6 +128,33 @@ void WpRuntimetableInit(WpRuntimeState *self, HtEntry *table, uint32_t number_en
 }
 
 
+void WpRuntimeValidatorInit(WpRuntimeState *self, uint32_t val_stack_size, uint32_t ctr_stack_size){
+
+    self->validator.val_stack = (ValType *)malloc(sizeof(ValType) * val_stack_size);
+    if(!self->validator.val_stack){
+        self->err.id = 6;
+        #if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
+        strcpy_s(self->err.func, 32,"WpRuntimeValidatorInit");
+        #endif
+        return;
+    }
+    self->validator.stk_ptr = self->validator.val_stack;
+    self->validator.val_stack_size = val_stack_size;
+
+    self->validator.ctrl_stack = (ValCtrlFrame *)malloc(sizeof(ValCtrlFrame) * ctr_stack_size);
+    if(!self->validator.ctrl_stack){    
+        self->err.id = 7;
+        #if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
+        strcpy_s(self->err.func, 32,"WpRuntimeValidatorInit");
+        #endif
+        return;
+    }
+    self->validator.ctr_stack_idx = 0;
+    self->validator.ctr_stack_size = ctr_stack_size;
+}
+
 /**
  * @brief Function to get the binary module into the runtime memory
  * 
@@ -294,7 +321,7 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){
         //Seccion
         section_id = READ_BYTE();        
         //
-        index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
+        index = ValidateBinSectionById(&self->validator, index, section_id, &last_loaded_section, mod);
         if (!index){  
             self->err.id = 16;
             mod->status = WP_MODULE_STATUS_INVALID;

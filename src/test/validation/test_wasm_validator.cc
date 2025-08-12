@@ -2,46 +2,13 @@
 #include "config_test.h"
 #include "utils/names.h"
 #include "utils/hash_table.h"
+#include "objects/module.h"
+#include "../wasm/test1.h"
+
 
 #include <stdlib.h>
 
 using namespace waspc::test::validation;
-const char *test1_wasm = "C:\\wasm\\test1.wasm";
- 
-WpRuntimeState runtime;
-HtEntry table[20]; // Allocate memory for the hash table
-
-static WpObject * GetModuleState(const char *path, Name name) {
-    // Initialize the runtime state
-    WpRuntimeInit(&runtime);
-    WpRuntimeCodeMemInit(&runtime, work_code_mem, 65536); 
-    // Initialize the hash table for modules
-    WpRuntimetableInit(&runtime, table, 10);  // Initialize the hash table with 10 capacity
-    // Opening file in reading mode/////////////////////////////////////////////////////////////////////////
-    FILE *wasm;   
-    errno_t error_code;                             //Declaring a variable of type errno_t to store the return value of fopen_s
-    error_code = fopen_s(&wasm, path, "rb");
-    if (error_code != 0) {
-        return nullptr; // Return null if file opening fails
-    }
-
-    // Positioning cursor at file end
-    fseek( wasm , 0L , SEEK_END);
-    // Getting file's size
-    int32_t len;
-    len = ftell(wasm);
-    // Positioning cursor at begining
-    rewind(wasm); 
-    //Reading file into runtime code memory
-    uint8_t *load_ptr = (uint8_t *)malloc(len);              //Declaring a variable to store the wasm file    
-    if (!load_ptr) {
-        return nullptr; // Return null if memory allocation fails
-    }
-    uint32_t bytes_read;
-    bytes_read = fread(load_ptr, 1, len, wasm);
-    // READ module from file into runtime memory
-    return WpRuntimeReadModule(&runtime, name, load_ptr, len);  
-}
 
 TEST(WASPC_VALIDATION_VALIDATOR, VALIDATE_SECTION_BY_ID) {    
     
@@ -50,92 +17,85 @@ TEST(WASPC_VALIDATION_VALIDATOR, VALIDATE_SECTION_BY_ID) {
     mod_name.name = name;
     mod_name.lenght = 6;
 
-    // READ module from file into runtime memory
-    WpObject *result = GetModuleState(test1_wasm, mod_name);     
-    ASSERT_NE(result, nullptr) << "WpRuntimeReadModule returned null";
-    ASSERT_EQ(result->type, WP_OBJECT_MODULE_STATE) << "WpRuntimeReadModule did not return a WpModuleState object";
-    WpModuleState *mod = (WpModuleState *)result;
-    // allocate memory for decoded module
-    mod->was = (WasModule *)malloc(sizeof(WasModule));
+    // Setup runtime and module state for this test only
+    WpRuntimeState runtime;
+    WpRuntimeInit(&runtime);
+    WpRuntimeCodeMemInit(&runtime, work_code_mem, 65536);
+    WpRuntimeValidatorInit(&runtime, 256, 24); // Initialize the validator with a stack size of 65536
 
-    const uint8_t *index = mod->buf; 
+
+    WpModuleState *mod = (WpModuleState *)malloc(sizeof(WpModuleState));
+    ASSERT_NE(mod, nullptr) << "Failed to allocate WpModuleState";
+    WpModuleInit(mod); // Initialize the module state
+    ASSERT_NE(mod->was, nullptr) << "WasModule should be initialized by WpModuleInit";
+
+    mod->buf = (const uint8_t *)test1; // Set the buffer to the test WASM file
+    mod->bufsize = sizeof(test1); // Set the buffer size to the size of the test WASM file
+    mod->name.lenght = mod_name.lenght; // Set the module name
+    mod->name.name = mod_name.name; // Set the module name
+
+    const uint8_t *index = mod->buf;
+    const uint8_t *buf_end = mod->buf + mod->bufsize;
     uint8_t section_id;
     uint8_t last_loaded_section = 0; // Variable to keep track of section order.
     
     #define READ_BYTE() (*index++)
-    #define NOT_END() (index < buf_end)
 
     index = index + 8; // Skip the magic number and version (4 bytes each)
+    //TYPE SECTION///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     section_id = READ_BYTE();
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
+    ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_TYPE) << "Expected section ID to be TYPE";
+    index = ValidateBinSectionById(&runtime.validator, index, section_id, &last_loaded_section, mod);
     ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;
     // Check if the section was processed correctly   
     ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_TYPE) << "Last loaded section should be TYPE";
-
+    
+    //FUNCTION SECTION/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     section_id = READ_BYTE();
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
+    ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_FUNCTION) << "Expected section ID to be FUNCTION";
+    index = ValidateBinSectionById(&runtime.validator, index, section_id, &last_loaded_section, mod);
     ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;
+    ASSERT_NE(mod->status, WP_MODULE_STATUS_INVALID) << "Module status should not be invalid after function section validation";
+    ASSERT_NE(mod->status, WP_MODULE_STATUS_ERROR) << "Module status should not be Error after function section validation";
     // Check if the section was processed correctly 
     ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_FUNCTION) << "Last loaded section should be FUNCTION";
-    /*
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
-    ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;
-    // Check if the section was processed correctly 
-    ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_TABLE) << "Last loaded section should be TABLE";
-
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
-    ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;
-    // Check if the section was processed correctly
-    ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_MEMORY) << "Last loaded section should be MEMORY";
-    */
+    
+    //GLOBAL SECTION///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     section_id = READ_BYTE();
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
+    ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_GLOBAL) << "Expected section ID to be GLOBAL";
+    index = ValidateBinSectionById(&runtime.validator, index, section_id, &last_loaded_section, mod);
     ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;
     // Check if the section was processed correctly     
     ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_GLOBAL) << "Last loaded section should be GLOBAL";
+    ASSERT_EQ(mod->was->globals.lenght, 1) << "Expected 1 global in the global section";
+    ASSERT_NE(mod->was->globals.elements, nullptr) << "Globals elements should not be null";
+    ASSERT_EQ(mod->was->globals.elements[0].gt.t, WAS_I32) << "Expected global variable to be of type I32";
+    ASSERT_EQ(mod->was->globals.elements[0].gt.m, 0) << "Expected global variable to be not mutable";
+    ASSERT_NE(mod->status, WP_MODULE_STATUS_INVALID) << "Module status should not be invalid after global section validation";
+    ASSERT_NE(mod->status, WP_MODULE_STATUS_ERROR) << "Module status should not be Error after global section validation";
 
+    //EXPORT SECTION///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     section_id = READ_BYTE();
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
+    ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_EXPORT) << "Expected section ID to be EXPORT";
+    index = ValidateBinSectionById(&runtime.validator, index, section_id, &last_loaded_section, mod);
     ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;
     // Check if the section was processed correctly
     ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_EXPORT) << "Last loaded section should be EXPORT"; 
-    
-    /*
+
+    //CODE SECTION////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     section_id = READ_BYTE();
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
-    ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;
-    // Check if the section was processed correctly
-    ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_START) << "Last loaded section should be START";   
-    
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
-    ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;
-    // Check if the section was processed correctly
-    ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_ELEMENT) << "Last loaded section should be ELEMENT";
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
-    ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;    
-    // Check if the section was processed correctly
-    ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_DATA_COUNT) << "Last loaded section should be DATA_COUNT";
-    */
-    section_id = READ_BYTE();
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
+    ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_CODE) << "Expected section ID to be CODE";
+    index = ValidateBinSectionById(&runtime.validator, index, section_id, &last_loaded_section, mod);
     ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;    
     // Check if the section was processed correctly
     ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_CODE) << "Last loaded section should be CODE";
-
-    /*
-    section_id = READ_BYTE();
-    index = ValidateBinSectionById(index, section_id, &last_loaded_section, mod);
-    ASSERT_NE(index, nullptr) << "ValidateBinSectionById returned null for section ID: " << (int)section_id;    
-    // Check if the section was processed correctly
-    ASSERT_EQ(last_loaded_section, WP_WSA_BIN_MOD_SEC_ID_DATA) << "Last loaded section should be DATA";
-    */
    
+
+
     // Clean up
-    free(mod->was); // Free the allocated memory for the decoded module
+    free(mod->was);
+    free(mod);
 
     #undef READ_BYTE
-    #undef NOT_END
    
 }
-
-

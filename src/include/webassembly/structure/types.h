@@ -111,7 +111,7 @@ typedef struct  VecRef
 //2.3.4 y 5.3.4
 typedef enum ValType {
     
-
+    UNKNOW,
     WAS_FUNCT_TYPE = 0x60,
     WAS_NULL_REF_TYPE,
     WAS_EXTERN_REF_TYPE = 0x6F,

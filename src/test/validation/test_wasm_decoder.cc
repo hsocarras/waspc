@@ -315,6 +315,8 @@ TEST(WASPC_VALIDATION_DECODER, DECODE_CODE_SECTION_1){
     index = ReadBinSection(index, &mod.exportsec);
     ASSERT_NE(index, nullptr) << "Failed to read export section";
     
+    // Decode the code section
+    std::cout << "current index00: " << (void*)index << std::endl;
     section_id = READ_BYTE(); // Read the next section ID index 0x26
     ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_CODE) << "Expected section ID to be CODE";
     index = ReadBinSection(index, &mod.codesec);    
@@ -337,6 +339,24 @@ TEST(WASPC_VALIDATION_DECODER, DECODE_CODE_SECTION_1){
     ASSERT_EQ(funcs->elements[0].body.instr[1], 0x0C) << "Expected first function body instruction to be 0 (0x00)";
     ASSERT_EQ(funcs->elements[0].body.instr[2], 0x41) << "Expected first function body instruction to be end (0x0B)"; 
     ASSERT_EQ(*funcs->elements[0].body.end, 0x0B) << "Expected final instruction of the function body to be end (0x0B)"; // Check if the last instruction is end
+
+    /*Final custom section
+    uint32_t aux_u32;
+    if(NOT_END()) {
+        std::cout << "current index0: " << (void*)index << std::endl;
+        section_id = READ_BYTE(); // Read the next section ID index 0x2A
+        ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_CUSTOM) << "Expected section ID to be CUSTOM";
+        index = DecodeLeb128UInt32(index, &aux_u32);
+        ASSERT_NE(index, nullptr) << "Failed to read custom section";
+        std::cout << "current index: " << (void*)index << std::endl;
+        std::cout << "offset: " << aux_u32 << std::endl;
+        index = index + aux_u32;
+        std::cout << "code start address: " << (void*)mod.buf << std::endl;
+        std::cout << "code end address: " << (void*)buf_end << std::endl;
+        std::cout << "current address: " << (void*)index << std::endl;
+        ASSERT_FALSE(NOT_END()) << "Expected no more sections after the custom section";    
+    }*/
+
     // Clean up
     free(mod.was); // Free the allocated memory for the decoded module
     #undef READ_BYTE

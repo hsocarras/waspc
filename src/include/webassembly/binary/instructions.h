@@ -18,8 +18,8 @@
 
     /// Enum with webassembly op codes
     typedef enum {
-        //OPCODE_UNREACHABLE = 0x00,
-        //OPCODE_NOP = 0x01,                  /// No operation
+        OPCODE_UNREACHABLE = 0x00,
+        OPCODE_NOP = 0x01,                  /// No operation
         
         OPCODE_END = 0X0B,
         OPCODE_RETURN = 0x0F,               /// return instruction
