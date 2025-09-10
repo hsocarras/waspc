@@ -25,19 +25,23 @@
 
 typedef struct Context{
 
-    // type  
-    uint32_t type_len;    
+    // types  
+    uint32_t functypes_count;               /// number of function types in the module
+    const uint8_t *types;                         /// pointer to the types section
     
+    //locals
+    VecValType locals;
+    
+    VecValType return_types;  /// return types of the function
 
 } Context;
 
 typedef struct ValCtrlFrame{
-    OpCode op;                      
-    ValType *start_types;
+    const uint8_t *ip;                    /// pointer to the opcode used whren return from call other frame
+    ValType *start_types;               /// pointer to the start types in the value stack (means slot 0 for local get)
     uint32_t start_types_len;           /// length of the start types
-    ValType *end_types;
-    uint32_t end_types_len;             /// length of the end types
-    ValType *val_stack;                /// pointer to the value stack
+    ValType *end_types;                 /// pointer to the end types in the value stack (return types)
+    uint32_t end_types_len;             /// length of the end types    
     uint8_t unreachable;               /// unreachable flag
 }ValCtrlFrame;
 
@@ -65,23 +69,13 @@ typedef struct WpValidatorState{
  */
 void WpValidatorStateInit(WpValidatorState *self);
 
-uint8_t ValidateValType(uint8_t val_type);
-
-/**
- * @brief Function to validate magic number of a wasm binary file.
- */
-uint8_t ValidateMagic(const uint8_t *buf);
-
-/**
- * @brief Function to validate wasm binary version number
- */
-uint8_t ValidateVersion(const uint8_t *buf, uint32_t *version_number);
-
 /**
  * @brief Function to validate binaries modules.
  * This function iterates throug binary file one section at time, checks the order and validate it.
  */
 const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *index, const uint8_t section_id, uint8_t *previous_secction, WpModuleState *mod);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 uint8_t WpValPushValType(WpValidatorState *self, ValType val_type);
 
@@ -92,6 +86,41 @@ ValCtrlFrame WpValPopCtrlFrame(WpValidatorState *self);
 uint8_t WpValPushCtrlFrame(WpValidatorState *self, ValCtrlFrame frame);
 
 uint32_t WpValEvalOpcode(WpValidatorState *self, OpCode opcode);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * @brief Function to validate magic number of a wasm binary file.
+ */
+uint8_t ValidateMagicBuf(const uint8_t *buf);
+
+/**
+ * @brief Function to validate wasm binary version number
+ */
+uint8_t ValidateVersionBuf(const uint8_t *buf, uint32_t *version_number);
+
+uint8_t ValidateLimitsTypeBuf(const uint8_t *buf, uint32_t k);
+
+uint8_t ValidateTableTypeBuf(const uint8_t *buf);
+
+uint8_t ValidateGlobalTypeBuf(const uint8_t *buf);
+
+uint8_t ValidateValType(uint8_t val_type);
+
+uint8_t ValidateFuncTypeBuf(const uint8_t *buf);
+
+uint8_t ValidateImportBuf(const uint8_t *buf, uint32_t functiontype_count);
+
+uint8_t ValidateExportBuf(const uint8_t *buf, uint32_t functiontype_count, uint32_t table_count, uint32_t memory_count, uint32_t global_count);
+
+uint8_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_t table_count);
+
+uint8_t ValidateConstantExprBuf(const uint8_t *buf, uint32_t max_len);
+
+uint8_t ValidateCodeBuf(const uint8_t *buf);
+
+uint8_t ValidateDataBuf(const uint8_t *buf, uint32_t memory_count);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef __cplusplus
     }

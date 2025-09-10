@@ -11,12 +11,10 @@
 
 
 #include "validation/wasm_decoder.h"
-#include "validation/wasm_validator.h"
-#include "memory/memory.h"
 #include "utils/leb128.h"
 #include "webassembly/binary/instructions.h"
 
-#include <stdint.h>
+#include <assert.h>
 //#include <stdio.h>
 
 /**
@@ -26,8 +24,16 @@
  * @param buf segment for a binary web asembly module
  * @param max_len max len to traverse the buffer
  * @return const uint8_t* pointer to next byte after expr
+ * @example
+ *  uint8_t binary_module[] = {0x41, 0x01, 0x0B, 0x20, 0x00, 0x0B}; // Example binary module segment
+    const uint8_t *result = SkipExprBuf(binary_module, sizeof(binary_module));
+    if (result) {
+        printf("Next byte after expr: 0x%02X\n", *result);
+    } else {
+        printf("Failed to decode expr or reached max length without finding END.\n");
+    }
  */  
-static const uint8_t * DecodeExpr(const uint8_t *const buf, const uint32_t max_len){
+const uint8_t * SkipExprBuf(const uint8_t *const buf, const uint32_t max_len){
 
     const uint8_t *index = buf; 
     const uint8_t *buf_end = buf + max_len; 
@@ -59,8 +65,8 @@ static const uint8_t * DecodeExpr(const uint8_t *const buf, const uint32_t max_l
  * @param buf  Binary encoded wasm module
  * @param lim Limit type value
  * @return const uint8_t* return pointer to next byte after encoded limit.
- */
-static const uint8_t * DecodedLimitsType(const uint8_t *const buf, Limits *lim){
+ *
+static const uint8_t * SkipLimitTypeBuf(const uint8_t *const buf, Limits *lim){
 
     const uint8_t *index = buf; 
     uint32_t dec_u32;                                                        
@@ -104,8 +110,37 @@ static const uint8_t * DecodedLimitsType(const uint8_t *const buf, Limits *lim){
 
     #undef READ_BYTE
 
-}
+}*/
 
+const uint8_t * SkipLimitTypeBuf(const uint8_t *const buf){
+    const uint8_t *index = buf;
+    uint32_t aux;
+    switch (*index)
+    {
+    case 0:
+        index++;
+        index = DecodeLeb128UInt32(index, &aux);
+        if(!index){
+            return NULL;
+        }
+        break;   
+    case 1:
+        index++;
+        index = DecodeLeb128UInt32(index, &aux);
+        if(!index){
+            return NULL;
+        }
+        index = DecodeLeb128UInt32(index, &aux);
+        if(!index){
+            return NULL;
+        }
+    default:
+        return NULL;
+        break;
+    }
+
+    return index;
+}
 /**
  * @brief function to func rule on code section
  *              func ::= (𝑡*)*:vec(locals) 𝑒:expr ⇒ concat((𝑡*)*), 𝑒 (if |concat((𝑡*)*)| < 232)
@@ -113,7 +148,7 @@ static const uint8_t * DecodedLimitsType(const uint8_t *const buf, Limits *lim){
  * @param code pointer to binary code segment
  * @param code_entry Pointer to a Code structure.
  * @return const uint8_t* pointer to next Code segment, otherwise NULL.
- */
+ *
 static const uint8_t * DecodeCodeFunc(const uint8_t *code, Code *code_entry){
     
     
@@ -164,7 +199,7 @@ static const uint8_t * DecodeCodeFunc(const uint8_t *code, Code *code_entry){
 
     //decode expression
     func->e.instr = index;
-    index = DecodeExpr(index, buf_end - index);
+    index = SkipExprBuf(index, buf_end - index);
     if (!index){
         return NULL;                                      
     }
@@ -182,7 +217,7 @@ static const uint8_t * DecodeCodeFunc(const uint8_t *code, Code *code_entry){
 
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 /**
  * @brief function to decode a code entry inside code section
@@ -191,7 +226,7 @@ static const uint8_t * DecodeCodeFunc(const uint8_t *code, Code *code_entry){
  *              code ::= size:u32 code:func  
  * @param code_entry Pointer to a Code structure.
  * @return const uint8_t* pointer to next Code segment, otherwise NULL.
- */
+ *
 static const uint8_t * DecodeCode(const uint8_t * code, Code *code_entry){
         
     const uint8_t *index = code;           // pointer to end of binary module      
@@ -216,14 +251,14 @@ static const uint8_t * DecodeCode(const uint8_t * code, Code *code_entry){
     //pointter to next byte for next code segment    
     return index;   
     
-}
+}*/
 
 /**
  * @brief Decode Type Section
  * 
  * @param mod pointer to Module State.
  * @return Pointer to module's type if success otherwise NULL.
- */
+ *
 VecFuncType * DecodeTypeSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->typesec;
@@ -327,6 +362,90 @@ VecFuncType * DecodeTypeSection(WpModuleState *mod){
     
     #undef READ_BYTE
     #undef NOT_END
+}*/
+
+/**
+ * @brief function to get a function type by index
+ * @param typesec. Pointer to the WasmBinSection containing the type section.
+ * @param type_index index of the function type to get
+ * @return uint8_t* pointer to the function type (0x60) or NULL if not found
+ * 
+ * @example
+ *  WasmBinSection type_section = { .size = ..., .content = ... };
+    uint32_t func_type_index = 2; // Example index
+    const uint8_t *func_type_ptr = GetFuncTypeByIndex(type_section, func_type_index);
+    if (func_type_ptr) {
+        printf("Function type found at address: %p\n", func_type_ptr);
+    } else {
+        printf("Function type not found for index %u\n", func_type_index);
+    }
+ */
+const uint8_t * GetFuncTypeByIndex(WasmBinSection typesec, uint32_t type_index){    
+     
+    assert(typesec.content != NULL);                                    // Check if typesec content is not NULL
+
+    const uint8_t *index = typesec.content;                        // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + typesec.size;                      // pointer to end of section
+    uint32_t length;                                                    // auxiliary variable    
+    uint32_t dec_u32;                                                   // auxiliary variable to decode leb128 values
+    ValType encoded_type;
+
+    
+    //get vector length
+    index = DecodeLeb128UInt32(index, &length);
+    if (!index){        
+        return NULL;                                       
+    }  
+    
+   // Check if type_index is valid
+    if (type_index >= length) {
+        return NULL; // Invalid type index
+    }
+    
+    //TODO maybe is good idea make something similar to string internals (Crafting interpreter's book)
+    // for function signature.
+    
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < length; i++){
+
+        //get functype (0x60)
+        encoded_type = READ_BYTE();
+        if (encoded_type != WAS_FUNCT_TYPE){
+            return NULL;                                    
+        }
+
+        if(i == type_index){
+            return index-1; // Return pointer to the start of the function type 0x60
+        }        
+        
+        //get parameters count        
+        index = DecodeLeb128UInt32(index, &dec_u32);
+        if (!index){
+            return NULL;                                      
+        }
+        
+        index += dec_u32; // Skip over the parameter types 
+                
+        //getting result count
+        index = DecodeLeb128UInt32(index, &dec_u32);
+        if (!index){
+            return NULL;                                    
+        }        
+        index += dec_u32; // Skip over the result types       
+
+        if(index > buf_end){
+            return NULL; // If index exceeds buffer end, return NULL
+        }
+        
+    }
+    
+        
+    return NULL; // If we reach here, type_index was not found
+    
+    #undef READ_BYTE
+    #undef NOT_END
 }
 
 /**
@@ -334,7 +453,7 @@ VecFuncType * DecodeTypeSection(WpModuleState *mod){
  *
  * @param mod pointer to Module State.
  * @return Pointer to module's import if success otherwise NULL.
- */
+ *
 VecImport * DecodeImportSection(WpModuleState *mod){
     
     WasmBinSection *sec = &mod->typesec;
@@ -409,7 +528,7 @@ VecImport * DecodeImportSection(WpModuleState *mod){
                     return NULL; 
                 }
                 imports->elements[i].desc.tt.et = byte_val;
-                index = DecodedLimitsType(index, &imports->elements[i].desc.tt.lim);
+                index = SkipLimitTypeBuf(index, &imports->elements[i].desc.tt.lim);
                 if(!index){
                     //invalid limit type
                     return NULL; 
@@ -417,7 +536,7 @@ VecImport * DecodeImportSection(WpModuleState *mod){
                 break;
             case 2:
                 imports->elements[i].type = WP_EXTERNAL_TYPE_MEMORY;
-                index = DecodedLimitsType(index, &imports->elements[i].desc.mt);
+                index = SkipLimitTypeBuf(index, &imports->elements[i].desc.mt);
                 break;
             case 3:
                 imports->elements[i].type = WP_EXTERNAL_TYPE_GLOBAL;
@@ -449,14 +568,105 @@ VecImport * DecodeImportSection(WpModuleState *mod){
     return imports;        
     #undef READ_BYTE
     #undef NOT_END
+}*/
+
+/**
+ * @brief function to get an import by index
+ * @param importsec. Pointer to the WasmBinSection containing the import section.
+ * @param import_index index of the import to get
+ * @return uint8_t* pointer to the import or NULL if not found
+ */
+const uint8_t * GetImportByIndex(WasmBinSection importsec, uint32_t import_index){
+
+    assert(importsec.content != NULL);                                    // Check if importsec content is not NULL
+
+    const uint8_t *index = importsec.content;                        // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + importsec.size;                      // pointer to end of section
+    uint32_t length;                                                    // auxiliary variable    
+    uint32_t dec_u32;                                                   // auxiliary variable to decode leb128 values
+    uint8_t encoded_type;
+
+    
+    //get vector length
+    index = DecodeLeb128UInt32(index, &length);
+    if (!index){        
+        return NULL;                                       
+    }  
+    
+   // Check if import_index is valid
+    if (import_index >= length) {
+        return NULL; // Invalid import index
+    }
+    
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < length; i++){
+
+        
+        if(i == import_index){
+            return index; // Return pointer to the start of the import type 0x02
+        }        
+        
+        //get module name's vector
+        index = DecodeLeb128UInt32(index, &dec_u32);
+        if (!index){
+            return NULL;                                      
+        }        
+        index += dec_u32; // Skip over the module name vector
+        
+        //get name's vector
+        index = DecodeLeb128UInt32(index, &dec_u32);
+        if (!index){
+            return NULL;                                    
+        }        
+        index += dec_u32; // Skip over the name vector
+
+        encoded_type = READ_BYTE(); // Read the type byte
+        switch (encoded_type) {
+            case 0: 
+                index = DecodeLeb128UInt32(index, &dec_u32); // Function index
+                if (!index) {
+                    return NULL;
+                }
+                index += dec_u32; // Skip over the function index
+                break;
+            case 1:
+                index++; // Skip reftype byte
+                index = SkipLimitTypeBuf(index); // Table limits
+                if (!index) {
+                    return NULL;
+                }
+                break;
+            case 2:
+                index = SkipLimitTypeBuf(index); // Memory limits
+                if (!index) {
+                    return NULL;
+                }
+                break;
+            case 3:
+                encoded_type = READ_BYTE(); // Global type
+                
+                index++; // Skip mutability byte
+                break;
+            default:
+                return NULL; // Invalid import type}
+        }
+
+        if(index > buf_end){
+            return NULL; // If index exceeds buffer end, return NULL
+        }        
+    }
+    return NULL;  //never reach this line
 }
+
 
 /**
  * @brief function to decode the function section in a binary webassembly module.
  * 
  * @param mod pointer to Module State.
  * @return Pointer to module's func if success otherwise NULL.
- */
+ *
 VecFunc * DecodeFunctionSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->functionsec;
@@ -515,14 +725,70 @@ VecFunc * DecodeFunctionSection(WpModuleState *mod){
         
     #undef READ_BYTE
     #undef NOT_END
+}*/
+
+
+/**
+ * @brief function to get a function by index
+ * @param functionsec. Pointer to the WasmBinSection containing the function section.
+ * @param function_index index of the function to get
+ * @return uint8_t* pointer to the function type index or NULL if not found
+ */ 
+const uint8_t * GetFunctionByIndex(WasmBinSection functionsec, uint32_t function_index){
+    
+    assert(functionsec.content != NULL);
+
+    const uint8_t *index = functionsec.content;                                        // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + functionsec.size;                          // pointer to end of binary module
+    uint32_t length;                                                        // auxiliary variable    
+    uint32_t dec_u32;                                                           // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
+    ValType encoded_type;
+    
+
+    //get functions count
+    index = DecodeLeb128UInt32(index, &length);
+    if (!index){
+        return NULL;                                       
+    }   
+    // Check if import_index is valid
+    if (function_index >= length) {
+        return NULL; // Invalid function index
+    }
+    
+      
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < length; i++){        
+        
+        if(function_index == i){
+            return index;
+        }
+        //get index        
+        index = DecodeLeb128UInt32(index, &dec_u32);
+        if (!index){
+            return NULL;                                     
+        }
+        if(index > buf_end){
+            return NULL; // If index exceeds buffer end, return NULL
+        }
+    }
+    
+    return NULL;    //never reach this line
+
+    #undef READ_BYTE
+    #undef NOT_END
+
 }
+
 
 /**
  * @brief function to decode the table section in a binary webassembly module.
  * 
  * @param mod pointer to Module State.
  * @return Pointer to module's table if success otherwise NULL.
- */
+ *
 VecTable * DecodeTableSection(WpModuleState *mod){
 
     
@@ -568,7 +834,7 @@ VecTable * DecodeTableSection(WpModuleState *mod){
             return NULL; 
         }
         
-        index = DecodedLimitsType(index, &tables->elements[i].lim);
+        index = SkipLimitTypeBuf(index, &tables->elements[i].lim);
         if(index == NULL){   
             return NULL;  
         }   
@@ -582,14 +848,73 @@ VecTable * DecodeTableSection(WpModuleState *mod){
     
     #undef READ_BYTE
     #undef NOT_END
+}*/
+
+
+/**
+ * @brief function to get a table by index
+ * @param tablesec. Pointer to the WasmBinSection containing the table section.
+ * @param table_index index of the table to get
+ * @return uint8_t* pointer to the table type (0x70 or 0x6F) or NULL if not found
+ */ 
+const uint8_t * GetTableByIndex(WasmBinSection tablesec, uint32_t table_index){
+
+    assert(tablesec.content != NULL);                                    // Check if tablesec content is not NULL
+    const uint8_t *index = tablesec.content;                                        // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + tablesec.size;                          // pointer to end of binary module
+    uint32_t length;                                                       // auxiliary variable    
+    uint32_t dec_u32;                                                           // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
+    Limits lim;
+
+    //get table count
+    index = DecodeLeb128UInt32(index, &length);
+    if (!index){        
+        return NULL;                                       
+    }
+    // Check if table_index is valid
+    if (table_index >= length) {
+        return NULL; // Invalid table index
+    }      
+    
+
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < length; i++){        
+        
+        //get reference type       0x6F->external, 0x70->function ref
+        byte_val = READ_BYTE();
+        if(i == table_index){
+            if(byte_val != 0x6F && byte_val != 0x70){
+                return NULL; // Invalid reference type
+            }
+            return index-1; // Return pointer to the start of the table type 0x70 or 0x6F
+        }        
+        
+        index = SkipLimitTypeBuf(index);
+        if(index == NULL){   
+            return NULL;  
+        }   
+
+        if(index >= buf_end){
+            return NULL; 
+        }
+    }
+
+    return NULL; // If we reach here, table_index was not found
+    
+    #undef READ_BYTE
+    #undef NOT_END
 }
+
 
 /**
  * @brief function to decode the mem section in a binary webassembly module.
  * 
  * @param mod pointer to Module State.
  * @return Pointer to module's mem if success otherwise NULL.
- */
+ *
 VecMem * DecodeMemSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->memsec;
@@ -622,7 +947,7 @@ VecMem * DecodeMemSection(WpModuleState *mod){
     for(uint32_t i = 0; i < mem_count; i++){       
         
         
-        index = DecodedLimitsType(index, &mems->elements[i]);
+        index = SkipLimitTypeBuf(index, &mems->elements[i]);
 
         if(index == NULL){             
             return NULL;  
@@ -639,6 +964,61 @@ VecMem * DecodeMemSection(WpModuleState *mod){
     
     #undef READ_BYTE
     #undef NOT_END
+}*/
+
+/**
+ * @brief function to get a memory by index
+ * @param memsec. Pointer to the WasmBinSection containing the memory section.
+ * @param mem_index index of the memory to get
+ * @return uint8_t* pointer to the memory type or NULL if not found
+ */
+const uint8_t * GetMemByIndex(WasmBinSection memsec, uint32_t mem_index){
+
+    assert(memsec.content != NULL);                                         // Check if memsec content is not NULL
+    const uint8_t *index = memsec.content;                                  // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + memsec.size;                           // pointer to end of binary module
+    uint32_t length;                                                        // auxiliary variable    
+    uint32_t dec_u32;                                                       // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
+    
+       
+    Limits lim;
+
+    //get mem count
+    index = DecodeLeb128UInt32(index, &length);
+    if (!index){        
+        return NULL;                                       
+    }
+    // Check if mem_index is valid
+    if (mem_index >= length) {
+        return NULL; // Invalid memory index
+    }      
+    
+
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < length; i++){        
+        
+        if(i == mem_index){
+            return index; // Return pointer to the start of the memory type
+        }
+
+        index = SkipLimitTypeBuf(index);
+        if(index == NULL){   
+            return NULL;  
+        }   
+
+        if(index >= buf_end){
+            return NULL; 
+        }
+        
+    }
+
+    return NULL; // If we reach here, mem_index was not found
+    
+    #undef READ_BYTE
+    #undef NOT_END
 }
 
 /**
@@ -646,7 +1026,7 @@ VecMem * DecodeMemSection(WpModuleState *mod){
  * 
  * @param mod pointer to Module State.
  * @return Pointer to module's global if success otherwise NULL.
- */
+ *
 VecGlobal * DecodeGlobalSection(WpModuleState *mod){
     
     WasmBinSection *sec = &mod->globalsec;
@@ -697,7 +1077,7 @@ VecGlobal * DecodeGlobalSection(WpModuleState *mod){
         
 
         globals->elements[i].e.instr = index;
-        index = DecodeExpr(index, buf_end-index);        
+        index = SkipExprBuf(index, buf_end-index);        
         if (!index){            
             return NULL;                                    
         }        
@@ -712,6 +1092,64 @@ VecGlobal * DecodeGlobalSection(WpModuleState *mod){
     
     #undef READ_BYTE
     #undef NOT_END
+}*/
+
+/**
+ * @brief function to get a global by index
+ * @param globalsec. Pointer to the WasmBinSection containing the global section.
+ * @param global_index index of the global to get
+ * @return uint8_t* pointer to the global type or NULL if not found
+ */
+const uint8_t * GetGlobalByIndex(WasmBinSection globalsec, uint32_t global_index){
+
+    assert(globalsec.content != NULL);                                  // Check if globalsec content is not NULL
+
+    const uint8_t *index = globalsec.content;                           // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + globalsec.size;                    // pointer to end of section
+    uint32_t length;                                                    // auxiliary variable    
+    uint32_t dec_u32;                                                   // auxiliary variable to decode leb128 values
+    ValType encoded_type;
+
+    
+    //get vector length
+    index = DecodeLeb128UInt32(index, &length);
+    if (!index){        
+        return NULL;                                       
+    }  
+    
+   // Check if global_index is valid
+    if (global_index >= length) {
+        return NULL; // Invalid global index
+    }
+    
+      
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < length; i++){
+
+        //get type        
+        encoded_type = READ_BYTE();       
+
+        if(i == global_index){
+            return index-1; // Return pointer to the start of the global type
+        }  
+       
+        index++; // Skip mutable byte
+        
+        index = SkipExprBuf(index, buf_end - index); // Skip over the expression
+
+        if(index > buf_end){
+            return NULL; // If index exceeds buffer end, return NULL
+        }
+        
+    }
+    
+        
+    return NULL; // If we reach here, global_index was not found
+    
+    #undef READ_BYTE
+    #undef NOT_END
 }
 
 /**
@@ -719,7 +1157,7 @@ VecGlobal * DecodeGlobalSection(WpModuleState *mod){
  * 
  * @param mod pointer to Module State.
  * @return Pointer to module's export if success otherwise NULL.
- */
+ *
 VecExport * DecodeExportSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->exportsec;
@@ -795,6 +1233,60 @@ VecExport * DecodeExportSection(WpModuleState *mod){
     
     #undef READ_BYTE
     #undef NOT_END
+}*/
+
+/**
+ * @brief function to get an export by index
+ * @param exportsec. Pointer to the WasmBinSection containing the export section.
+ * @param export_index index of the export to get
+ * @return uint8_t* pointer to the export or NULL if not found
+ */
+const uint8_t * GetExportByIndex(WasmBinSection exportsec, uint32_t export_index){
+
+    assert(exportsec.content != NULL);                                  // Check if exportsec content is not NULL
+
+    const uint8_t *index = exportsec.content;                           // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + exportsec.size;                    // pointer to end of section
+    uint32_t length;                                                    // auxiliary variable    
+    uint32_t dec_u32;  
+    
+    //get vector length
+    index = DecodeLeb128UInt32(index, &length);
+    if (!index){        
+        return NULL;                                       
+    }  
+    
+   // Check if export_index is valid
+    if (export_index >= length) {
+        return NULL; // Invalid export index
+    }    
+      
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < length; i++){
+
+        if(i == export_index){
+            return index; // Return pointer to the start of the export type
+        }        
+        
+        //get name's vector
+        index = DecodeLeb128UInt32(index, &dec_u32);
+        if (!index){
+            return NULL;                                      
+        }  
+        index += dec_u32; // Skip over the name vector
+
+        index++; // skip export description type byte
+
+        if(index > buf_end){
+            return NULL; // If index exceeds buffer end, return NULL
+        }
+        
+    }
+    return NULL; // If we reach here, export_index was not found
+    #undef READ_BYTE
+    #undef NOT_END
 }
 
 /**
@@ -802,7 +1294,7 @@ VecExport * DecodeExportSection(WpModuleState *mod){
  * 
  * @param mod pointer to Module State.
  * @return Pointer to module's start if success otherwise NULL.
- */
+ *
 uint32_t * DecodeStartSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->startsec;
@@ -823,14 +1315,15 @@ uint32_t * DecodeStartSection(WpModuleState *mod){
     
     return start;     
     
-}
+}*/
+
 
 /**
  * @brief function to decode the element section on a binary webassembly module.
  * 
  * @param mod pointer to Module State.
  * @return Pointer to module's elem if success otherwise NULL.
- */
+ *
 VecElem * DecodeElementSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->elemsec;
@@ -877,7 +1370,7 @@ VecElem * DecodeElementSection(WpModuleState *mod){
 
                 //decoding e
                 start_pos = index;
-                index = DecodeExpr(index, sec->size);
+                index = SkipExprBuf(index, sec->size);
                 if (!index){                    
                     return NULL;                                       
                 }
@@ -984,7 +1477,7 @@ VecElem * DecodeElementSection(WpModuleState *mod){
                 
                 //decoding e
                 start_pos = index;
-                index = DecodeExpr(index, sec->size);
+                index = SkipExprBuf(index, sec->size);
                 if (!index){                    
                     return NULL;                                       
                 }
@@ -1093,7 +1586,7 @@ VecElem * DecodeElementSection(WpModuleState *mod){
 
                 //decoding e
                 start_pos = index;
-                index = DecodeExpr(index, sec->size);
+                index = SkipExprBuf(index, sec->size);
                 if (!index){                    
                     return NULL;                                       
                 }
@@ -1115,7 +1608,7 @@ VecElem * DecodeElementSection(WpModuleState *mod){
                 for (uint32_t ii = 0; ii < dec_u32; ii++)
                 {   
                     start_pos = index;
-                    index = DecodeExpr(index, sec->size);
+                    index = SkipExprBuf(index, sec->size);
                     if (!index){                    
                         return NULL;                                       
                     }                    
@@ -1157,7 +1650,7 @@ VecElem * DecodeElementSection(WpModuleState *mod){
                 for (uint32_t ii = 0; ii < dec_u32; ii++)
                 {   
                     start_pos = index;
-                    index = DecodeExpr(index, sec->size);
+                    index = SkipExprBuf(index, sec->size);
                     if (!index){                    
                         return NULL;                                       
                     }                    
@@ -1185,7 +1678,7 @@ VecElem * DecodeElementSection(WpModuleState *mod){
 
                 //decoding e
                 start_pos = index;
-                index = DecodeExpr(index, sec->size);
+                index = SkipExprBuf(index, sec->size);
                 if (!index){                    
                     return NULL;                                       
                 }
@@ -1215,7 +1708,7 @@ VecElem * DecodeElementSection(WpModuleState *mod){
                 for (uint32_t ii = 0; ii < dec_u32; ii++)
                 {   
                     start_pos = index;
-                    index = DecodeExpr(index, sec->size);
+                    index = SkipExprBuf(index, sec->size);
                     if (!index){                    
                         return NULL;                                       
                     }                    
@@ -1254,7 +1747,7 @@ VecElem * DecodeElementSection(WpModuleState *mod){
                 for (uint32_t ii = 0; ii < dec_u32; ii++)
                 {   
                     start_pos = index;
-                    index = DecodeExpr(index, sec->size);
+                    index = SkipExprBuf(index, sec->size);
                     if (!index){                    
                         return NULL;                                       
                     }                    
@@ -1285,40 +1778,211 @@ VecElem * DecodeElementSection(WpModuleState *mod){
     
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
 /**
- * @brief function to decode the data count section on a binary webassembly module.
- * 
- * @param mod pointer to Module State.
- * @return Pointer to module's data_counts otherwise NULL.
+ * @brief function to get an element by index
+ * @param elemsec. Pointer to the WasmBinSection containing the element section.
+ * @param elem_index index of the element to get
+ * @return uint8_t* pointer to the element or NULL if not found
  */
-uint32_t * DecodeDataCountSection(WpModuleState *mod){
+const uint8_t * GetElementByIndex(WasmBinSection elemsec, uint32_t elem_index){
 
-    WasmBinSection *sec = &mod->datacountsec;
-    uint32_t *data_count = &mod->was->data_count;
-    const uint8_t *index = sec->content;                       // pointer to byte to traverse the binary file
-    const uint8_t *buf_end = sec->content + sec->size;         // pointer to end of binary module
+    assert(elemsec.content != NULL);                                  // Check if elemsec content is not NULL
+
+    const uint8_t *index = elemsec.content;                           // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + elemsec.size;                    // pointer to end of section
+    uint32_t length;                                                    // auxiliary variable    
+    uint32_t vec_len;                                                   // auxiliary variable to decode leb128 values
+    uint32_t dec_u32;                                                   // auxiliary variable to decode leb128 values
+    uint8_t byte_val;
     
-    //get type count
-    index = DecodeLeb128UInt32(index, data_count);
-    if (!index){
-       return NULL;                                      
-    }   
+    //get vector length
+    index = DecodeLeb128UInt32(index, &length);
+    if (!index){        
+        return NULL;                                       
+    }  
     
-    if(index != buf_end){
-       return NULL;
+   // Check if elem_index is valid
+    if (elem_index >= length) {
+        return NULL; // Invalid element index
     }
+    
+      
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
 
-    return data_count;
+    for(uint32_t i = 0; i < length; i++){
+
+        if(i == elem_index){
+            return index; // Return pointer to the start of the element type
+        }        
+        
+        //get type        
+        index = DecodeLeb128UInt32(index, &dec_u32);
+        if (!index){
+            return NULL;                                      
+        }
+        
+        switch(dec_u32) {
+            case 0: //0:u32 𝑒:expr 𝑦*:vec(funcidx)
+                index = SkipExprBuf(index, buf_end-index);
+                if (!index){                    
+                    return NULL;                                       
+                }
+                //get vector y*
+                index = DecodeLeb128UInt32(index, &vec_len);        
+                if (!index){
+                    return NULL;                                      
+                }
+                for(uint32_t ii = 0; i < vec_len; ii++){
+                    index = DecodeLeb128UInt32(index, &dec_u32);
+                    if (!index){
+                        return NULL;                                      
+                    }
+                }
+                break;
+            case 1: //1:u32 et : elemkind 𝑦*:vec(funcidx)
+                byte_val = READ_BYTE();     //read elemnt kind
+                if(byte_val != 0){
+                    //invalid elemkind
+                    return NULL; 
+                }
+                //get vector y*
+                index = DecodeLeb128UInt32(index, &vec_len);        
+                if (!index){
+                    return NULL;                                      
+                }
+                for(uint32_t ii = 0; i < vec_len; ii++){
+                    index = DecodeLeb128UInt32(index, &dec_u32);
+                    if (!index){
+                        return NULL;                                      
+                    }
+                }
+                break;
+            case 2: //2:u32 𝑥:tableidx 𝑒:expr et : elemkind 𝑦*:vec(funcidx)
+                index = DecodeLeb128UInt32(index, &dec_u32); // Skip table index and expression
+                if (!index){
+                    return NULL;                                      
+                }
+                //get expresion
+                index = SkipExprBuf(index, buf_end-index);
+                if (!index){                    
+                    return NULL;                                       
+                }
+                //get element kind
+                index++; // Skip over the element kind byte
+                //get vector y*
+                index = DecodeLeb128UInt32(index, &vec_len);        
+                if (!index){
+                    return NULL;                                      
+                }
+                for(uint32_t ii = 0; i < vec_len; ii++){
+                    index = DecodeLeb128UInt32(index, &dec_u32);
+                    if (!index){
+                        return NULL;                                      
+                    }
+                }
+                break;
+            case 3: //3:u32 et : elemkind 𝑦*:vec(funcidx)
+                index++; // Skip over the element kind byte
+                //get vector y*
+                index = DecodeLeb128UInt32(index, &vec_len);        
+                if (!index){
+                    return NULL;                                      
+                }
+                for(uint32_t ii = 0; i < vec_len; ii++){
+                    index = DecodeLeb128UInt32(index, &dec_u32);
+                    if (!index){
+                        return NULL;                                      
+                    }
+                }
+                break;
+            case 4: //4:u32 𝑒:expr el*:vec(expr)    
+                index = SkipExprBuf(index, buf_end-index);
+                if (!index){                    
+                    return NULL;                                       
+                }
+                //get vector el
+                index = DecodeLeb128UInt32(index, &vec_len);        
+                if (!index){
+                    return NULL;                                      
+                }
+                for(uint32_t ii = 0; i < vec_len; ii++){
+                    index = SkipExprBuf(index, buf_end-index);
+                    if (!index){                    
+                        return NULL;                                       
+                    }
+                }
+                break;
+            case 5: //5:u32 et : reftype el*:vec(expr)
+                index++; // Skip over the reference type byte
+                //get el vector
+                index = DecodeLeb128UInt32(index, &vec_len);        
+                if (!index){
+                    return NULL;                                      
+                }
+                for(uint32_t ii = 0; i < vec_len; ii++){
+                    index = SkipExprBuf(index, buf_end-index);
+                    if (!index){                    
+                        return NULL;                                       
+                    }
+                }
+                break;
+            case 6: //6:u32 𝑥:tableidx 𝑒:expr et : reftype el*:vec(expr)
+                index = DecodeLeb128UInt32(index, &dec_u32);    // Skip table index and expression
+                //get expresion
+                index = SkipExprBuf(index, buf_end-index);
+                if (!index){                    
+                    return NULL;                                       
+                }
+                index++; // Skip over the reference type
+                //get el
+                index = DecodeLeb128UInt32(index, &vec_len);        
+                if (!index){
+                    return NULL;                                      
+                }
+                for(uint32_t ii = 0; i < vec_len; ii++){
+                    index = SkipExprBuf(index, buf_end-index);
+                    if (!index){                    
+                        return NULL;                                       
+                    }
+                }
+                break;
+            case 7: //7:u32 et : reftype el*:vec(expr)
+                index++; // Skip over the reference type byte
+                //get el
+                index = DecodeLeb128UInt32(index, &vec_len);        
+                if (!index){
+                    return NULL;                                      
+                }
+                for(uint32_t ii = 0; i < vec_len; ii++){
+                    index = SkipExprBuf(index, buf_end-index);
+                    if (!index){                    
+                        return NULL;                                       
+                    }
+                }
+                break;
+            default:
+                return NULL;
+        }
+        
+        if(index >= buf_end){
+            return NULL;
+        }
+    }
+    return NULL;
+    #undef READ_BYTE
+    #undef NOT_END
 }
+
 
 /**
  * @brief function to decode the code section on a binary webassembly module.
  * 
  * @param mod pointer to decoded mod instance. 
  * @return Pointer to module's funcs otherwise NULL.
- */
+ *
 VecFunc * DecodeCodeSection(WpModuleState *mod){
 
     WasmBinSection *sec = &mod->codesec;
@@ -1395,14 +2059,69 @@ VecFunc * DecodeCodeSection(WpModuleState *mod){
     
     return funcs; 
     
+}*/
+
+/**
+ * @brief function to get a code by index
+ * @param codesec. Pointer to the WasmBinSection containing the code section.
+ * @param code_index index of the code to get
+ * @return uint8_t* pointer to the code or NULL if not found
+ */
+const uint8_t * GetCodeByIndex(WasmBinSection codesec, uint32_t code_index){
+
+    assert(codesec.content != NULL);                                  // Check if codesec content is not NULL
+
+    const uint8_t *index = codesec.content;                           // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + codesec.size;                    // pointer to end of section
+    uint32_t length;                                                  // auxiliary variable    
+    uint32_t dec_u32;                                                // auxiliary variable to decode leb128 values
+    
+    //get vector length
+    index = DecodeLeb128UInt32(index, &length);
+    if (!index){        
+        return NULL;                                       
+    }  
+    
+   // Check if code_index is valid
+    if (code_index >= length) {
+        return NULL; // Invalid element index
+    }
+    
+      
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < length; i++){
+
+        if(i == code_index){
+            return (uint8_t *)index; // Return pointer to the start of the element type
+        }        
+        
+        //get size of code        
+        index = DecodeLeb128UInt32(index, &dec_u32);
+        if (!index){
+            return NULL;                                      
+        }
+        
+        index = index + dec_u32; // Move index forward by the size of the code
+        
+        if(index >= buf_end){
+            return NULL;
+        }
+    }
+
+    return NULL;
+    #undef READ_BYTE
+    #undef NOT_END
 }
+
 
 /**
  * @brief function to decode the data section on a binary webassembly module.
  * 
  * @param mod pointer to Module State.
  * @return Pointer to module's elem if success otherwise NULL.
- */
+ *
 VecData * DecodeDataSection(WpModuleState *mod){
     
     WasmBinSection *sec = &mod->datasec;
@@ -1445,7 +2164,7 @@ VecData * DecodeDataSection(WpModuleState *mod){
                 
                 //decoding e
                 start_pos = index;
-                index = DecodeExpr(index, sec->size);
+                index = SkipExprBuf(index, sec->size);
                 if (!index){                    
                     return NULL;                                       
                 }
@@ -1496,7 +2215,7 @@ VecData * DecodeDataSection(WpModuleState *mod){
                 data->elements[i].active.memory = dec_u32;               //𝑥:memidx
                 //decoding e
                 start_pos = index;
-                index = DecodeExpr(index, sec->size);
+                index = SkipExprBuf(index, sec->size);
                 if (!index){                    
                     return NULL;                                       
                 }
@@ -1528,5 +2247,95 @@ VecData * DecodeDataSection(WpModuleState *mod){
     
     #undef READ_BYTE
     #undef NOT_END
-}
+}*/
 
+/**
+ * @brief function to get a data by index
+ * @param datasec. Pointer to the WasmBinSection containing the data section.
+ * @param data_index index of the data to get
+ * @return uint8_t* pointer to the data or NULL if not found
+ */
+const uint8_t * GetDataByIndex(WasmBinSection datasec, uint32_t data_index){
+
+    assert(datasec.content != NULL);                                  // Check if datasec content is not NULL
+
+    const uint8_t *index = datasec.content;                           // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + datasec.size;                    // pointer to end of section
+    uint32_t length;                                                  // auxiliary variable    
+    uint32_t dec_u32;                                                // auxiliary variable to decode leb128 values
+    
+    //get vector length
+    index = DecodeLeb128UInt32(index, &length);
+    if (!index){        
+        return NULL;                                       
+    }  
+    
+   // Check if data_index is valid
+    if (data_index >= length) {
+        return NULL; // Invalid element index
+    }
+    
+      
+    #define READ_BYTE() (*index++)
+    #define NOT_END() (index < buf_end)
+
+    for(uint32_t i = 0; i < length; i++){
+
+        if(i == data_index){
+            return (uint8_t *)index; // Return pointer to the start of the element type
+        }        
+        
+        //get mode        
+        index = DecodeLeb128UInt32(index, &dec_u32);
+        if (!index){
+            return NULL;                                      
+        }
+        
+        switch(dec_u32) {
+            case 0: //0:u32 𝑒:expr 𝑏*:vec(byte)
+                index = SkipExprBuf(index, buf_end-index);
+                if (!index){                    
+                    return NULL;                                       
+                }
+                //get vector b*
+                index = DecodeLeb128UInt32(index, &dec_u32);        
+                if (!index){
+                    return NULL;                                      
+                }
+                index = index + dec_u32;
+                break;
+            case 1: //1:u32 𝑏*:vec(byte)
+                //get vector b*
+                index = DecodeLeb128UInt32(index, &dec_u32);        
+                if (!index){
+                    return NULL;                                      
+                }
+                index = index + dec_u32;
+                break;
+            case 2: //2:u32 𝑥:memidx 𝑒:expr 𝑏*:vec(byte)
+                index = DecodeLeb128UInt32(index, &dec_u32); // Skip
+                if (!index){
+                    return NULL;                                      
+                }
+                //get expresion
+                index = SkipExprBuf(index, buf_end-index);
+                if (!index){                    
+                    return NULL;                                       
+                }
+                //get vector b*
+                index = DecodeLeb128UInt32(index, &dec_u32);
+                if (!index){
+                    return NULL;                                      
+                }
+                index = index + dec_u32;
+                break;
+        }
+
+        if(index >= buf_end){
+            return NULL;
+        }
+    }
+    return NULL;
+    #undef READ_BYTE
+    #undef NOT_END
+}

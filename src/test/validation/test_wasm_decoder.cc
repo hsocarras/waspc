@@ -3,10 +3,12 @@
 #include "utils/names.h"
 #include "utils/hash_table.h"
 #include "utils/leb128.h"
-#include "../wasm/test1.h"
 #include "validation/wasm_decoder.h"
 #include "webassembly/structure/types.h"
 #include "objects/module.h"
+
+//Webassembly samples
+extern uint8_t test1[62];
 
 #include <stdlib.h>
 
@@ -32,19 +34,19 @@ static const uint8_t * ReadBinSection(const uint8_t *index, WasmBinSection *sec)
  * @param mod Pointer to the module state
  * @return VecFuncType* Pointer to the decoded function types
  */
-TEST(WASPC_VALIDATION_DECODER, DECODE_TYPE_SECTION_1) {    
+TEST(WASPC_VALIDATION_DECODER, GET_FUNCTYPE_1) {    
     
     WpModuleState mod;
     WpModuleInit(&mod); // Initialize the module state
     ASSERT_EQ(mod.status, WP_MODULE_STATUS_INIT) << "Module status should be INIT";
-    ASSERT_NE(mod.was, nullptr) << "Failed to allocate memory for WasModule";
-    ASSERT_EQ(mod.was->types.elements, nullptr) << "Expected 0 type in init state"; // Check if types are initialized to nullptr
-    ASSERT_EQ(mod.was->types.lenght, 0) << "Expected 0 type in init state"; // Check if types length is initialized to 0
+    
     
     mod.buf = (const uint8_t *)test1; // Set the buffer to the test WASM file
     mod.bufsize = sizeof(test1); // Set the buffer size to the size of the test WASM file
     const uint8_t *buf_end = mod.buf + mod.bufsize; // Pointer to the end of the buffer
     const uint8_t *index = mod.buf; 
+    const uint8_t *functiontype_index;
+    uint32_t functiontype_count;
     uint8_t section_id;
 
     index = index + 8; // Skip the magic number and version (8 bytes)
@@ -58,16 +60,18 @@ TEST(WASPC_VALIDATION_DECODER, DECODE_TYPE_SECTION_1) {
     // Decode the type section  
     index = ReadBinSection(index, &mod.typesec);
     ASSERT_NE(index, nullptr) << "Failed to read type section";
-    VecFuncType *types = DecodeTypeSection(&mod);
-    ASSERT_NE(types, nullptr) << "Failed to decode type section";
-    ASSERT_EQ(types->lenght, 1) << "Expected 1 type in the type section";   
-    ASSERT_NE(types->elements, nullptr) << "Types elements should not be null";
-    ASSERT_EQ(types->elements[0].params.lenght, 1) << "Expected 1 parameters in the first type";
-    ASSERT_EQ(types->elements[0].results.lenght, 1) << "Expected 1 result in the first type";
-    ASSERT_EQ(types->elements[0].params.val_types[0], WAS_I32) << "Expected first parameter to be I32";
-    ASSERT_EQ(types->elements[0].results.val_types[0], WAS_I32) << "Expected result to be I32";
-    // Clean up
-    free(mod.was); // Free the allocated memory for the decoded module
+    ASSERT_EQ(mod.typesec.content - mod.buf, 10) << "Expected function type section to start at byte 11 0x0A";
+    ASSERT_EQ(mod.typesec.size, 6) << "Expected type section size to be 6 bytes";
+
+    functiontype_index = mod.typesec.content;
+    functiontype_index = DecodeLeb128UInt32(functiontype_index, &functiontype_count);
+    ASSERT_NE(functiontype_index, nullptr) << "Failed to read function type count";
+    ASSERT_EQ(functiontype_count, 1) << "Expected 1 function type in the type section";
+
+    functiontype_index = GetFuncTypeByIndex(mod.typesec, 0);
+    ASSERT_NE(functiontype_index, nullptr) << "Failed to read function type at index 0";
+    ASSERT_EQ(*functiontype_index, 0x60) << "Expected function type to be 0x60 (function type)";    
+    ASSERT_EQ(functiontype_index - mod.buf, 0x0B) << "Expected function type 0 to start at 0x0b index"; 
 
     #undef READ_BYTE
     #undef NOT_END
@@ -84,22 +88,20 @@ TEST(WASPC_VALIDATION_DECODER, DECODE_INPORT_SECTION_1){
  * This test checks if the function section is decoded correctly
  * and if the function types are correctly assigned.
  */
-TEST(WASPC_VALIDATION_DECODER, DECODE_FUNCTION_SECTION_1){
+TEST(WASPC_VALIDATION_DECODER, GET_FUNCTION_1){
     
     WpModuleState mod;
     WpModuleInit(&mod); // Initialize the module state
     ASSERT_EQ(mod.status, WP_MODULE_STATUS_INIT) << "Module status should be INIT";
-    ASSERT_NE(mod.was, nullptr) << "Failed to allocate memory for WasModule";
-    ASSERT_EQ(mod.was->funcs.lenght, 0) << "Expected 0 function in init state";
-    ASSERT_EQ(mod.was->funcs.elements, nullptr) << "Expected 0 function in init state";
+   
 
     mod.buf = (const uint8_t *)test1; // Set the buffer to the test WASM file
-    mod.bufsize = sizeof(test1); // Set the buffer size to the size of the test WASM file
-    mod.was->funcs.elements = nullptr; // Initialize the funcs vector to nullptr
-    mod.was->funcs.lenght = 0; // Initialize the length of the funcs vector to 0
-
+    mod.bufsize = sizeof(test1); // Set the buffer size to the size of the test WASM file    
     const uint8_t *buf_end = mod.buf + mod.bufsize; // Pointer to the end of the buffer
     const uint8_t *index = mod.buf; 
+    const uint8_t *functiontype_index;
+    uint32_t functype_count;
+    uint32_t typeidx;
     uint8_t section_id;
 
     index = index + 8; // Skip the magic number and version (8 bytes)
@@ -108,29 +110,32 @@ TEST(WASPC_VALIDATION_DECODER, DECODE_FUNCTION_SECTION_1){
     #define READ_BYTE() (*index++)
     #define NOT_END() (index < buf_end)
 
-    section_id = READ_BYTE(); // Read the section ID index 0x08
+    section_id = READ_BYTE(); // Read the section ID index at index 0x08
     ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_TYPE) << "Expected section ID to be TYPE";    
     index = ReadBinSection(index, &mod.typesec);
     ASSERT_NE(index, nullptr) << "Failed to read type section";    
-    VecFuncType *types = DecodeTypeSection(&mod);
+    
 
-    section_id = READ_BYTE(); // Read the next section ID 0x10
+    section_id = READ_BYTE(); // Read the next section ID 0x03 at index 0x10
     ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_FUNCTION) << "Expected section ID to be FUNCTION";
     // Decode the function section      
     index = ReadBinSection(index, &mod.functionsec);
     ASSERT_NE(index, nullptr) << "Failed to read function section";
+    ASSERT_EQ(mod.functionsec.content - mod.buf, 0x12) << "Expected function section start at byte 18";
+    ASSERT_EQ(mod.functionsec.size, 2) << "Expected function section size to be 2 bytes";
+
+    functiontype_index = DecodeLeb128UInt32(mod.functionsec.content, &functype_count);    
+    ASSERT_NE(functiontype_index, nullptr) << "Failed to read function type count";
+    ASSERT_EQ(functype_count, 1) << "Expected 1 function in the function section";
+
+    functiontype_index = GetFunctionByIndex(mod.functionsec, 0);
+    ASSERT_NE(functiontype_index, nullptr) << "Failed to read function at index 0";
+    functiontype_index = DecodeLeb128UInt32(functiontype_index, &typeidx);
+    ASSERT_NE(functiontype_index, nullptr) << "Failed to read function type index";
+    ASSERT_EQ(typeidx, 0) << "Expected function type index to be 0";
     
-    VecFunc *funcs = DecodeFunctionSection(&mod);
-    ASSERT_NE(funcs, nullptr) << "Failed to decode function section";   
-    ASSERT_EQ(funcs->lenght, 1) << "Expected 1 function in the function section";
-    ASSERT_NE(funcs->elements, nullptr) << "Function elements should not be null";  
-    ASSERT_EQ(funcs->elements[0].type_index, 0) << "Expected first function type index to be 0";
-    ASSERT_EQ(funcs->elements[0].locals.lenght, 0) << "Expected first function do not have  local variables yrt";
-    ASSERT_EQ(funcs->elements[0].locals.elements, nullptr) << "Expected first function locals to be null";
-    ASSERT_EQ(funcs->elements[0].body.instr, nullptr) << "Expected first function body instructions to be null";
-    ASSERT_EQ(funcs->elements[0].body.end, nullptr) << "Expected first function body end to be null";
-    // Clean up
-    free(mod.was); // Free the allocated memory for the decoded module
+    
+    
     #undef READ_BYTE
     #undef NOT_END
     
@@ -154,18 +159,12 @@ TEST(WASPC_VALIDATION_DECODER, DECODE_MEMORY_SECTION_1){
  * This test assumes that the global section is present in the WASM file.
  * The global section is expected to contain one global variable of type I32.
  */
-TEST(WASPC_VALIDATION_DECODER, DECODE_GLOBAL_SECTION_1){
+TEST(WASPC_VALIDATION_DECODER, GET_GLOBAL_1){
     WpModuleState mod;
     WpModuleInit(&mod); // Initialize the module state
 
     mod.buf = (const uint8_t *)test1; // Set the buffer to the test WASM file
     mod.bufsize = sizeof(test1); // Set the buffer size to the size of the test WASM file
-    
-    
-    ASSERT_NE(mod.was, nullptr) << "Failed to allocate memory for WasModule";
-    mod.was->funcs.elements = nullptr; // Initialize the funcs vector to nullptr
-    mod.was->funcs.lenght = 0; // Initialize the length of the funcs vector to 0
-
     const uint8_t *buf_end = mod.buf + mod.bufsize; // Pointer to the end of the buffer
     const uint8_t *index = mod.buf; 
     uint8_t section_id;
@@ -176,51 +175,42 @@ TEST(WASPC_VALIDATION_DECODER, DECODE_GLOBAL_SECTION_1){
     #define READ_BYTE() (*index++)
     #define NOT_END() (index < buf_end)
 
+    //functype section
     section_id = READ_BYTE(); // Read the section ID index 0x08
-    ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_TYPE) << "Expected section ID to be TYPE";
-    
+    ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_TYPE) << "Expected section ID to be TYPE";    
     index = ReadBinSection(index, &mod.typesec);
     ASSERT_NE(index, nullptr) << "Failed to read type section";
     
+    //function section
     section_id = READ_BYTE(); // Read the next section ID 0x10
     ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_FUNCTION) << "Expected section ID to be FUNCTION";
-    // Decode the function section      
     index = ReadBinSection(index, &mod.functionsec);
     ASSERT_NE(index, nullptr) << "Failed to read function section";
 
+    //global section
     section_id = READ_BYTE(); // Read the next section ID index 0x14
     ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_GLOBAL) << "Expected section ID to be GLOBAL";
-    // Decode the global section ID to be GLOBAL";
     index = ReadBinSection(index, &mod.globalsec);  
     ASSERT_NE(index, nullptr) << "Failed to read global section";
-    VecGlobal *globals = DecodeGlobalSection(&mod);
-    ASSERT_NE(globals, nullptr) << "Failed to decode global section";
-    ASSERT_EQ(globals->lenght, 1) << "Expected 1 global variable in the global section";
-    ASSERT_NE(globals->elements, nullptr) << "Global elements should not be null";
-    ASSERT_EQ(globals->elements[0].gt.t, WAS_I32) << "Expected first global value type to be I32";
-    ASSERT_EQ(globals->elements[0].gt.m, 0) << "Expected first global mutability to be constant";
-    ASSERT_EQ(*globals->elements[0].e.instr, 0x41) << "Expected first global expression instructions to be 0x41 (I32.const)";
-    ASSERT_EQ(*globals->elements[0].e.end, 0x0B) << "Expected first global expression end to be 0x0B (end of expression)";
-    // Clean up
-    free(mod.was); // Free the allocated memory for the decoded module
+    ASSERT_EQ(mod.globalsec.content - mod.buf, 0x16) << "Expected global section to start at byte 22";
+    ASSERT_EQ(mod.globalsec.size, 6) << "Expected global section size to be 7 bytes";
+
+    const uint8_t *global_index = GetGlobalByIndex(mod.globalsec, 0);
+    ASSERT_NE(global_index, nullptr) << "Failed to read global at index 0";
+    ASSERT_EQ(*global_index, 0x7F) << "Expected global type to be I32 (0x7F)";
+
     #undef READ_BYTE
     #undef NOT_END
 }
 
 
-TEST(WASPC_VALIDATION_DECODER, DECODE_EXPORT_SECTION_1){
+TEST(WASPC_VALIDATION_DECODER, GET_EXPORT_SECTION_1){
 
     WpModuleState mod;
     WpModuleInit(&mod); // Initialize the module state
 
     mod.buf = (const uint8_t *)test1; // Set the buffer to the test WASM file
     mod.bufsize = sizeof(test1); // Set the buffer size to the size of the test WASM file
-  
-   
-    ASSERT_NE(mod.was, nullptr) << "Failed to allocate memory for WasModule";
-    mod.was->funcs.elements = nullptr; // Initialize the funcs vector to nullptr
-    mod.was->funcs.lenght = 0; // Initialize the length of the funcs vector to 0
-
     const uint8_t *buf_end = mod.buf + mod.bufsize; // Pointer to the end of the buffer
     const uint8_t *index = mod.buf; 
     uint8_t section_id;
@@ -246,40 +236,35 @@ TEST(WASPC_VALIDATION_DECODER, DECODE_EXPORT_SECTION_1){
     index = ReadBinSection(index, &mod.globalsec);
     ASSERT_NE(index, nullptr) << "Failed to read global section";
 
-    //Decode Export section ID to be EXPORT
+    //Get Export section ID to be EXPORT
     section_id = READ_BYTE(); // Read the next section ID index 0x1C
     ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_EXPORT) << "Expected section ID to be EXPORT";
     index = ReadBinSection(index, &mod.exportsec);
-    ASSERT_NE(index, nullptr) << "Failed to read export section";
-    VecExport *exports = DecodeExportSection(&mod);
-    ASSERT_NE(exports, nullptr) << "Failed to decode export section";   
-    ASSERT_EQ(exports->lenght, 1) << "Expected 1 export in the export section";
-    ASSERT_NE(exports->elements, nullptr) << "Export elements should not be null";
-    ASSERT_EQ(exports->elements[0].name.lenght, 4) << "Expected first export name length to be 4";
-    ASSERT_STREQ(exports->elements[0].name.name, "main") << "Expected first export name to be 'main'";
-    ASSERT_EQ(exports->elements[0].type, WP_EXTERNAL_TYPE_FUNC) << "Expected first export type to be function";
-    ASSERT_EQ(exports->elements[0].desc.func, 0) << "Expected first export function index to be 0";   
+    ASSERT_NE(index, nullptr) << "Failed to read export section";   
+    ASSERT_EQ(mod.exportsec.content - mod.buf, 0x1E) << "Expected export section to start at byte 28";
+    ASSERT_EQ(mod.exportsec.size, 8) << "Expected export section size to be 8 bytes";
+
+    const uint8_t *export_index = GetExportByIndex(mod.exportsec, 0);
+    ASSERT_NE(export_index, nullptr) << "Failed to read export at index 0";
+    uint32_t name_len;
+    export_index = DecodeLeb128UInt32(export_index, &name_len);
+    ASSERT_NE(export_index, nullptr) << "Failed to read export name length";
+    ASSERT_EQ(name_len, 4) << "Expected export name length to be 4";
+    ASSERT_EQ(export_index - mod.buf, 0x20) << "Expected export name to start at byte 32";
+    ASSERT_EQ(strncmp((const char *)export_index, "main", 4), 0) << "Expected export name to be 'main'";
     
-    // Clean up
-    free(mod.was); // Free the allocated memory for the decoded module
+    
     #undef READ_BYTE
     #undef NOT_END
 }
 
-TEST(WASPC_VALIDATION_DECODER, DECODE_CODE_SECTION_1){
+TEST(WASPC_VALIDATION_DECODER, GET_CODE_1){
 
     WpModuleState mod;
     WpModuleInit(&mod); // Initialize the module state
     ASSERT_EQ(mod.status, WP_MODULE_STATUS_INIT) << "Module status should be INIT";
-    ASSERT_NE(mod.was, nullptr) << "Failed to allocate memory for WasModule";
-    ASSERT_EQ(mod.was->funcs.lenght, 0) << "Expected 0 function in init state";
-    ASSERT_EQ(mod.was->funcs.elements, nullptr) << "Expected 0 function in init state";
-
     mod.buf = (const uint8_t *)test1; // Set the buffer to the test WASM file
     mod.bufsize = sizeof(test1); // Set the buffer size to the size of the test WASM file
-    mod.was->funcs.elements = nullptr; // Initialize the funcs vector to nullptr
-    mod.was->funcs.lenght = 0; // Initialize the length of the funcs vector to 0
-
     const uint8_t *buf_end = mod.buf + mod.bufsize; // Pointer to the end of the buffer
     const uint8_t *index = mod.buf; 
     uint8_t section_id;
@@ -294,15 +279,11 @@ TEST(WASPC_VALIDATION_DECODER, DECODE_CODE_SECTION_1){
     ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_TYPE) << "Expected section ID to be TYPE";    
     index = ReadBinSection(index, &mod.typesec);
     ASSERT_NE(index, nullptr) << "Failed to read type section";
-    VecFuncType *types = DecodeTypeSection(&mod);
     
     section_id = READ_BYTE(); // Read the next section ID 0x10
     ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_FUNCTION) << "Expected section ID to be FUNCTION";
     index = ReadBinSection(index, &mod.functionsec);
-    ASSERT_NE(index, nullptr) << "Failed to read function section";
-    VecFunc *funcs = DecodeFunctionSection(&mod);
-    ASSERT_NE(funcs, nullptr) << "Failed to decode code section";
-    ASSERT_EQ(funcs->lenght, 1) << "Expected 1 function in the code section";
+    ASSERT_NE(index, nullptr) << "Failed to read function section";    
 
     section_id = READ_BYTE(); // Read the next section ID index 0x14
     ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_GLOBAL) << "Failed to read global section";
@@ -315,50 +296,22 @@ TEST(WASPC_VALIDATION_DECODER, DECODE_CODE_SECTION_1){
     index = ReadBinSection(index, &mod.exportsec);
     ASSERT_NE(index, nullptr) << "Failed to read export section";
     
-    // Decode the code section
-    std::cout << "current index00: " << (void*)index << std::endl;
+    // Decode the code section    
     section_id = READ_BYTE(); // Read the next section ID index 0x26
     ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_CODE) << "Expected section ID to be CODE";
     index = ReadBinSection(index, &mod.codesec);    
     ASSERT_NE(index, nullptr) << "Failed to read code section";
-    funcs = DecodeCodeSection(&mod);  
-    ASSERT_EQ(funcs->lenght, 1) << "Expected 1 function in the code section";
-    ASSERT_NE(funcs->elements, nullptr) << "Function elements should not be null";
-    //Checks locals  
-    ASSERT_EQ(funcs->elements[0].locals.lenght, 1) << "Expected first function to have no local variables"; //0x2A
-    ASSERT_NE(funcs->elements[0].locals.elements, nullptr) << "Expected first function locals to be null"; 
-    ASSERT_EQ(funcs->elements[0].locals.elements[0].n, 1) << "Expected first function locals to have 1 local variable";
-    ASSERT_EQ(funcs->elements[0].locals.elements[0].t, WAS_I32) << "Expected first function local variable type to be I32";       
-    // Check if the function body is correctly decoded
-    ASSERT_NE(funcs->elements[0].body.instr, nullptr) << "Expected first function body instructions to be not null";    
-    ASSERT_NE(funcs->elements[0].body.end, nullptr) << "Expected final function body instructions to be not null"; 
-    ASSERT_EQ(*funcs->elements[0].body.end, 0x0B) << "Expected final instruction of the function body to be end (0x0B)";    
-    uint32_t body_size = funcs->elements[0].body.end - (funcs->elements[0].body.instr-1); // Calculate the size of the function body
-    ASSERT_EQ(body_size, 19) << "Expected first function body size to be 19"; 
-    ASSERT_EQ(funcs->elements[0].body.instr[0], 0x41) << "Expected first function body instruction to be I32.const (0x41)";
-    ASSERT_EQ(funcs->elements[0].body.instr[1], 0x0C) << "Expected first function body instruction to be 0 (0x00)";
-    ASSERT_EQ(funcs->elements[0].body.instr[2], 0x41) << "Expected first function body instruction to be end (0x0B)"; 
-    ASSERT_EQ(*funcs->elements[0].body.end, 0x0B) << "Expected final instruction of the function body to be end (0x0B)"; // Check if the last instruction is end
+    ASSERT_EQ(mod.codesec.content - mod.buf, 0x28) << "Expected code section to start at byte 40";
+    ASSERT_EQ(mod.codesec.size, 22) << "Expected code section size to be 22 bytes";
 
-    /*Final custom section
-    uint32_t aux_u32;
-    if(NOT_END()) {
-        std::cout << "current index0: " << (void*)index << std::endl;
-        section_id = READ_BYTE(); // Read the next section ID index 0x2A
-        ASSERT_EQ(section_id, WP_WSA_BIN_MOD_SEC_ID_CUSTOM) << "Expected section ID to be CUSTOM";
-        index = DecodeLeb128UInt32(index, &aux_u32);
-        ASSERT_NE(index, nullptr) << "Failed to read custom section";
-        std::cout << "current index: " << (void*)index << std::endl;
-        std::cout << "offset: " << aux_u32 << std::endl;
-        index = index + aux_u32;
-        std::cout << "code start address: " << (void*)mod.buf << std::endl;
-        std::cout << "code end address: " << (void*)buf_end << std::endl;
-        std::cout << "current address: " << (void*)index << std::endl;
-        ASSERT_FALSE(NOT_END()) << "Expected no more sections after the custom section";    
-    }*/
-
-    // Clean up
-    free(mod.was); // Free the allocated memory for the decoded module
+    const uint8_t *code_index = GetCodeByIndex(mod.codesec, 0);
+    ASSERT_NE(code_index, nullptr) << "Failed to read code at index 0";
+    uint32_t code_size;
+    code_index = DecodeLeb128UInt32(code_index, &code_size);
+    ASSERT_NE(code_index, nullptr) << "Failed to read code size";
+    ASSERT_EQ(code_size, 20) << "Expected code size to be 20 bytes";
+    ASSERT_EQ(code_index - mod.buf, 0x2A) << "Expected code to start at byte 42";
+    
     #undef READ_BYTE
     #undef NOT_END
 }

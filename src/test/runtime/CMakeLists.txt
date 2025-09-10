@@ -23,8 +23,8 @@
 #   - Add new test source files to the add_executable() command as needed.
 #   - Run 'ctest' or use your IDE's test explorer to execute the tests.
 
-add_executable(truntime test_WpRuntime.cc)
-target_link_libraries(truntime PRIVATE GTest::gtest_main waspc)
+add_executable(truntime test_WpRuntime.cc )
+target_link_libraries(truntime PRIVATE GTest::gtest_main waspc samples)
 
 include(GoogleTest)
 

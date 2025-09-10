@@ -22,67 +22,7 @@
 #include <stdlib.h>
 //#include <stdio.h>
 
-/**
- * @brief Allocates and initializes a module instance in the runtime.
- *
- * This static function sets up the internal structures for a module instance,
- * including allocating function addresses for each function in the module and
- * creating export instances for all module exports. It links the exports to the
- * corresponding function, table, memory, or global instances as appropriate.
- *
- * @param self Pointer to the runtime state.
- * @param mod Pointer to the module state to allocate and instantiate.
- * @param externv Array of external values to satisfy the module's imports.
- * @param extern_len Number of external values in the array.
- * @return WpObject* Returns a pointer to the initialized module instance.
- */
-static WpObject * WpRuntimeAllocateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len){
 
-    //step 2 For each function func𝑖 in module.funcs, do:
-    //    a. Let funcaddr𝑖 be the function address resulting from allocating func𝑖 
-    mod->instance.funcaddrs.lenght = 0;
-    mod->instance.funcaddrs.elements = (funcaddr *)malloc(sizeof(funcaddr) * mod->was->funcs.lenght);
-    for(uint32_t i = 0; i < mod->was->funcs.lenght; i++){
-        mod->instance.funcaddrs.lenght ++;
-        mod->instance.funcaddrs.elements[i] = WpAllocFunction(mod->was->funcs.elements[i], &mod->instance);
-    }
-
-    //step 18
-    mod->instance.exports.elements = (WpExportInstance *)malloc(sizeof(WpExportInstance) * mod->was->exports.lenght);
-    if(!mod->instance.exports.elements){
-        self->err.id = 3;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeLoadModule");
-        #endif
-        return (WpObject *)&self->err;
-    }
-    for(uint32_t i = 0; i < mod->was->exports.lenght; i++){
-       
-        //WpExportInstanceInit(export_instance);
-        mod->instance.exports.elements[i].name.name = mod->was->exports.elements[i].name.name;
-        mod->instance.exports.elements[i].name.lenght = mod->was->exports.elements[i].name.lenght;
-        mod->instance.exports.elements[i].export_type = mod->was->exports.elements[i].type;
-        switch (mod->was->exports.elements[i].type)
-        {
-        case WP_EXTERNAL_TYPE_FUNC:
-            mod->instance.exports.elements[i].value.func = mod->instance.funcaddrs.elements[i];
-            break;
-        case WP_EXTERNAL_TYPE_TABLE:
-            break;
-        case WP_EXTERNAL_TYPE_MEMORY:
-            break;
-        case WP_EXTERNAL_TYPE_GLOBAL:
-            break;
-        default:
-            break;
-        }        
-    }
-    
-
-    return (WpObject *)&mod->instance;
-
-}
 /**
  * @brief Init function for runtime state object
  * 
@@ -279,7 +219,7 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){
     }
 
     // Check magic number /////////////////////////////////////////////////////////////////////////    
-    if (!ValidateMagic(index)){
+    if (!ValidateMagicBuf(index)){
         self->err.id = 13;
         mod->status = WP_MODULE_STATUS_INVALID;
         #if WASPC_CONFIG_DEV_FLAG == 1
@@ -292,7 +232,7 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     // Check version number /////////////////////////////////////////////////////////////////////////    
-    if (!ValidateVersion(index, &decoded_u32)){
+    if (!ValidateVersionBuf(index, &decoded_u32)){
         self->err.id = 14;
         mod->status = WP_MODULE_STATUS_INVALID;
         #if WASPC_CONFIG_DEV_FLAG == 1
@@ -304,18 +244,7 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){
     index = index + 4;    
     mod->version = decoded_u32;
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    // allocate memory for decoded module
-    mod->was = (WasModule *)malloc(sizeof(WasModule));
-    if(!mod->was){
-        self->err.id = 6;
-        mod->status = WP_MODULE_STATUS_INVALID;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeValidateModule");
-        #endif
-        return (WpObject *)&self->err;    
-    }
-
+    
     //Traversing the binary file 
     while(NOT_END()){
         //Seccion
@@ -328,8 +257,7 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){
             #if WASPC_CONFIG_DEV_FLAG == 1
             strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
             strcpy_s(self->err.func, 32,"WpRuntimeValidateModule");
-            #endif
-            free(mod->was); // Free allocated memory for the module
+            #endif            
             return (WpObject *)&self->err;                                                             
         }        
     }  
@@ -339,6 +267,75 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){
 
     mod->status = WP_MODULE_STATUS_VALIDATED;
     return (WpObject *)mod;
+}
+
+/**
+ * @brief Allocates and initializes a module instance in the runtime.
+ *
+ * This static function sets up the internal structures for a module instance,
+ * including allocating function addresses for each function in the module and
+ * creating export instances for all module exports. It links the exports to the
+ * corresponding function, table, memory, or global instances as appropriate.
+ *
+ * @param self Pointer to the runtime state.
+ * @param mod Pointer to the module state to allocate and instantiate.
+ * @param externv Array of external values to satisfy the module's imports.
+ * @param extern_len Number of external values in the array.
+ * @return WpObject* Returns a pointer to the initialized module instance.
+ */
+static WpObject * WpRuntimeAllocateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len){
+
+    self->err.id = 3;
+    #if WASPC_CONFIG_DEV_FLAG == 1
+    strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
+    strcpy_s(self->err.func, 32,"WpRuntimeLoadModule");
+    #endif
+    return (WpObject *)&self->err;
+    /*
+    //step 2 For each function func𝑖 in module.funcs, do:
+    //    a. Let funcaddr𝑖 be the function address resulting from allocating func𝑖 
+    mod->instance.funcaddrs.lenght = 0;
+    mod->instance.funcaddrs.elements = (funcaddr *)malloc(sizeof(funcaddr) * mod->was->funcs.lenght);
+    for(uint32_t i = 0; i < mod->was->funcs.lenght; i++){
+        mod->instance.funcaddrs.lenght ++;
+        mod->instance.funcaddrs.elements[i] = WpAllocFunction(mod->was->funcs.elements[i], &mod->instance);
+    }
+
+    //step 18
+    mod->instance.exports.elements = (WpExportInstance *)malloc(sizeof(WpExportInstance) * mod->was->exports.lenght);
+    if(!mod->instance.exports.elements){
+        self->err.id = 3;
+        #if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
+        strcpy_s(self->err.func, 32,"WpRuntimeLoadModule");
+        #endif
+        return (WpObject *)&self->err;
+    }
+    for(uint32_t i = 0; i < mod->was->exports.lenght; i++){
+       
+        //WpExportInstanceInit(export_instance);
+        mod->instance.exports.elements[i].name.name = mod->was->exports.elements[i].name.name;
+        mod->instance.exports.elements[i].name.lenght = mod->was->exports.elements[i].name.lenght;
+        mod->instance.exports.elements[i].export_type = mod->was->exports.elements[i].type;
+        switch (mod->was->exports.elements[i].type)
+        {
+        case WP_EXTERNAL_TYPE_FUNC:
+            mod->instance.exports.elements[i].value.func = mod->instance.funcaddrs.elements[i];
+            break;
+        case WP_EXTERNAL_TYPE_TABLE:
+            break;
+        case WP_EXTERNAL_TYPE_MEMORY:
+            break;
+        case WP_EXTERNAL_TYPE_GLOBAL:
+            break;
+        default:
+            break;
+        }        
+    }
+    
+
+    return (WpObject *)&mod->instance;
+    */
 }
 
 /**
@@ -358,7 +355,13 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){
  *                   or an error object on failure.
  */
 WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len){
-
+    self->err.id = 21;
+        #if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
+        strcpy_s(self->err.func, 32,"WpRuntimeInstanciateModule");
+        #endif
+        return (WpObject *)&self->err;
+    /*    
     if(!mod){
         self->err.id = 21;
         #if WASPC_CONFIG_DEV_FLAG == 1
@@ -429,7 +432,7 @@ WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, 
     WpObject *result = WpRuntimeAllocateModule(self, mod, externv, extern_len);
 
     return (WpObject *)&mod->instance;
-
+    */
 }
 
 /**
@@ -499,6 +502,13 @@ WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_in
  */
 WpObject * WpFuncInstanceInvoke(WpRuntimeState *self, funcaddr func, Value *args, uint32_t argc) {
     
+    self->err.id = 40;
+        #if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64, "runtime/runtime.c");
+        strcpy_s(self->err.func, 32, "WpFuncInstanceInvoke");
+        #endif
+        return (WpObject *)&self->err;
+    /*    
     if (!func) {
         self->err.id = 40;
         #if WASPC_CONFIG_DEV_FLAG == 1
@@ -550,5 +560,5 @@ WpObject * WpFuncInstanceInvoke(WpRuntimeState *self, funcaddr func, Value *args
     // 6. Free locals
     free(frame.locals);
 
-    return result;
+    return result;*/
 }

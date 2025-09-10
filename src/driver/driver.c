@@ -165,8 +165,7 @@ int main(int argc, const char* argv[]) {
     mod = (WpModuleState *)result;
     printf("Module name: %s\n", WasNameToString(mod->name));
     printf("Module status: %d\n", mod->status);
-    printf("Module version: %d\n", mod->version);      
-    printf("Module types count: %d\n", mod->was->types.lenght);   
+    printf("Module version: %d\n", mod->version);     
 
     // Now we can instanciate the module////////////////////////////////////////////////////////////////////////////////
     printf("Instanciating module\n");

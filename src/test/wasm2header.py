@@ -44,7 +44,7 @@ def make_h(infile, out_folder):
    
     name_ext = os.path.basename(infile)
     name = os.path.splitext(name_ext)[0]
-    out_file_h = out_folder + '/' + name +'.h'
+    out_file_h = out_folder + '/' + name +'.txt'
 
     with open(infile, 'rb') as wasm:
         buff = wasm.read()

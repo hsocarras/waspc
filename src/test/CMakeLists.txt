@@ -6,6 +6,7 @@ include_directories(BEFORE
 # BUILD_TESTING variable is created by include(CTest)
 # It is set to ON by default
 if (BUILD_TESTING)
+    add_subdirectory(wasm)
     add_subdirectory(utils)
     add_subdirectory(runtime)
     add_subdirectory(validation)

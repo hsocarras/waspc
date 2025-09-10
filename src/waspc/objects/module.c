@@ -12,30 +12,6 @@
 #include "objects/module.h"
 #include <stdlib.h>
 
-static void WasModuleInit(WasModule *self){
-    
-    self->types = (VecFuncType){0, NULL};
-
-    self->imports = (VecImport){0, NULL};
-
-    self->funcs = (VecFunc){0, NULL};
-
-    self->globals = (VecGlobal){0, NULL};
-
-    self->tables = (VecTable){0, NULL};
-
-    self->mems = (VecMem){0, NULL};
-
-    self->exports = (VecExport){0, NULL};
-
-    self->start = 0;
-
-    self->elem = (VecElem){0, NULL};
-
-    self->data_count = 0;
-
-    self->data = (VecData){0, NULL};
-}
 
 void WpModuleInstanceInit(WpModuleInstance *self){
     self->type = WP_OBJECT_MODULE_INSTANCE;
@@ -61,6 +37,9 @@ void WpModuleInstanceInit(WpModuleInstance *self){
     self->dataaddrs.elements = NULL;*/
 }
 
+/**
+ * @brief Initialize a module state object
+ */
 void WpModuleInit(WpModuleState *self){
 
     self->type = WP_OBJECT_MODULE_STATE;
@@ -84,18 +63,19 @@ void WpModuleInit(WpModuleState *self){
     self->datacountsec = (WasmBinSection){0, NULL};
     self->codesec = (WasmBinSection){0, NULL};
     self->datasec = (WasmBinSection){0, NULL};
+    ////////////////////////////////////////////////////////////////////////////////////////    
+    self->functype_count = 0;
+    self->import_count = 0; 
+    self->function_count = 0;
+    self->table_count = 0;
+    self->memory_count = 0;
+    self->global_count = 0;
+    self->export_count = 0;
+    self->element_count = 0;
+    self->start = 0;
+    self->element_count = 0;
+    self->data_count = 0;
     ////////////////////////////////////////////////////////////////////////////////////////
-    self->was = (WasModule *)malloc(sizeof(WasModule));
-    if (!self->was) {
-        // Handle memory allocation error
-        self->type = WP_OBJECT_ERROR;
-        self->status = WP_MODULE_STATUS_ERROR;
-        return;
-    }
-    WasModuleInit(self->was);
-
     WpModuleInstanceInit(&self->instance);
-
-
 }
 

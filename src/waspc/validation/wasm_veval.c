@@ -55,6 +55,14 @@ ValType WpValPopExpectedValType(WpValidatorState *self, ValType val_type) {
     return UNKNOW; // Stack underflow, return unknown type
 }
 
+ValType WpValPopValType(WpValidatorState *self) {
+    // Check if the stack is not empty before popping
+    if (self->stk_ptr > self->val_stack) {        
+        return *(--self->stk_ptr);        
+    }
+    return UNKNOW; // Stack underflow, return unknown type
+}
+
 /**
  * @brief Function to push a control frame onto the validator's control stack.
  * This function checks if there is enough space in the control stack before pushing.   
@@ -68,10 +76,10 @@ uint8_t WpValPushCtrlFrame(WpValidatorState *self, ValCtrlFrame frame) {
     if (self->ctr_stack_idx < self->ctr_stack_size) {
         top_frame = &self->ctrl_stack[self->ctr_stack_idx++];       /// take current index and increment the control stack index after
         // Initialize the control frame
-        top_frame->op = frame.op;
+        //top_frame->op = frame.op;
         top_frame->start_types = frame.start_types;
         top_frame->end_types = frame.end_types;
-        top_frame->val_stack = frame.val_stack;
+        //top_frame->val_stack = frame.val_stack;
         top_frame->unreachable = frame.unreachable;
         return 1; // Success
     }
@@ -90,7 +98,7 @@ ValCtrlFrame WpValPopCtrlFrame(WpValidatorState *self) {
         return self->ctrl_stack[--self->ctr_stack_idx];
     }
     // Handle underflow error, return an empty Ctrl structure or handle as needed
-    ValCtrlFrame empty_ctrl = {0, NULL, 0, NULL, 0, NULL, 0};
+    ValCtrlFrame empty_ctrl = {NULL, NULL, 0, NULL, 0, 0};
     return empty_ctrl; // Indicating an empty control frame
 }
 
@@ -105,8 +113,8 @@ ValCtrlFrame WpValPopCtrlFrame(WpValidatorState *self) {
  */
 uint32_t WpValEvalOpcode(WpValidatorState *self, OpCode opcode) {
 
-    uint32_t dec_u32; // auxiliary variable for decoded values
-    ValCtrlFrame frame; // control frame to store the current state of the validator
+    uint32_t dec_u32; // auxiliary variable for decoded values   
+    ValCtrlFrame *frame = &self->ctrl_stack[self->ctr_stack_idx - 1]; // Get the current control frame 
 
     switch (opcode) {        
         case OPCODE_I32_CONST:
@@ -115,8 +123,8 @@ uint32_t WpValEvalOpcode(WpValidatorState *self, OpCode opcode) {
                 return 0; // Stack overflow error
             }
             //move instruction pointer forward
-            self->ip = DecodeLeb128UInt32(self->ip, &dec_u32);
-            if (!self->ip) {
+            frame->ip = DecodeLeb128UInt32(frame->ip, &dec_u32);
+            if (!frame->ip) {
                 return 0; // Decoding error
             }
             break;
@@ -125,25 +133,16 @@ uint32_t WpValEvalOpcode(WpValidatorState *self, OpCode opcode) {
             if (self->ctr_stack_idx == 0) {
                 return 0; // Control stack underflow
             }
-            frame = WpValPopCtrlFrame(self);
-            
-            // Check if the end types match the expected types
-            if (frame.end_types_len != 0 && frame.end_types != NULL) {
-                // Check if the stack has enough types to match the end types
-                if (self->stk_ptr - self->val_stack < frame.end_types_len) {
-                    return 0; // Stack underflow, not enough types to match end types
-                }
-                // Check if the top of the stack matches the expected end types
-                for (uint32_t i = 0; i < frame.end_types_len; i++) {
-                    if (frame.end_types[i] != *(self->stk_ptr - 1 - i)) {
-                        return 0; // Type mismatch
-                    }
-                }
-                
-            } else {
-                break;      // No end types to check
+            /// set end_types pointer to where the returned values begin in the value stack
+            frame->end_types = self->stk_ptr - frame->end_types_len;
+            /// move return types to start types position
+            for (uint32_t i = 0; i < frame->end_types_len; i++) {
+                frame->start_types[i] = frame->end_types[i];
             }
-
+            /// Removing start types from the value stack
+            self->stk_ptr = frame->start_types; // Reset stack pointer to the start types
+            // Pop the control frame
+            WpValPopCtrlFrame(self);
             break;
         
         default:

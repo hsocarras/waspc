@@ -20,7 +20,7 @@
 #include <stdint.h>
 //#include <stdio.h>
 
-uint8_t WpValidateConstantExpr(WpValidatorState *self, const Expr *e , ValType *expected_types, uint32_t expected_types_len);
+
 
 /**
  * @brief Inner function to read a binary section into a WasmBinSection structure 
@@ -45,66 +45,27 @@ static const uint8_t * ReadBinSection(const uint8_t *index, WasmBinSection *sec)
 
 }
 
-/**
- * @brief Limits must have meaningful bounds that are within a given range
- * 
- * @param li Limit value to validate
- * @param k Bound to check
- * @return uint8_t 0-Invalid, 1-valid
- */
-static uint8_t ValidateLimitsType(const Limits *li, uint32_t k){    
-
-    if(li->min >= k){
-        if(li->max >0){
-            if(li->max <= k & li->max >= li->min){
-                //valid
-                return 1;
-            }
-            else{
-                //not valid max value
-                return 0;
-            }
-
-        }        
-    }
-    else{
-        //not valid min value        
-        return 0;
-    }
-    return 0;
-}
-
-/**
- * @brief Validate table type
- * The limits limits must be valid within range 2^32 − 1.
- * 
- * @param t table type to validate
- * @return uint8_t 0-Invalid, 1-valid
- */
-static uint8_t ValidateTableType(const TableType *t){    
-
-    return ValidateLimitsType(&t->lim, 0xFFFFFFFF);
-}
-
-/**
- * @brief Validate Memory type
- * The limits limits must be valid within range 2^16.
- * 
- * @param m Memory type to validate
- * @return uint8_t 0-Invalid, 1-valid
- */
-static uint8_t ValidateMemType(const MemType *m){    
-
-    return ValidateLimitsType(m, 0x010000); // 2^16 = 65536
-}
 
 /**
  * @brief Function to initialize the validator state.
  */
 void WpValidatorStateInit(WpValidatorState *self){
 
-    self->c.type_len = 0;
-    self->c_prime.type_len = 0;
+    // Initialize the validator state context c
+    //self->c.types.lenght = 0;
+    //self->c.types.elements = NULL;
+    self->c.locals.lenght = 0;
+    self->c.locals.elements = NULL;
+    self->c.return_types.lenght = 0;
+    self->c.return_types.elements = NULL;
+
+    // Initialize the prime context
+    //self->c_prime.types.lenght = 0;
+    //self->c_prime.types.elements = NULL;
+    self->c_prime.locals.lenght = 0;
+    self->c_prime.locals.elements = NULL;
+    self->c_prime.return_types.lenght = 0;
+    self->c_prime.return_types.elements = NULL;
 
     self->val_stack = NULL;
     self->stk_ptr = NULL;
@@ -117,265 +78,76 @@ void WpValidatorStateInit(WpValidatorState *self){
     self->ip = NULL; // Initialize instruction pointer to NULL
 }
 
-/**
- * @brief Function to validate encoded value type.
- * 
- * @param val_type 
- * @return uint8_t 0-non valid, 1-valid.
- */
-uint8_t ValidateValType(uint8_t val_type){
-    
-    if(val_type >= 0x60 && val_type <= 0x7F){
-        if(val_type == 0x60 || val_type == 0x6F || val_type == 0x70 ){            
-            return 1;
-        }
-        if(val_type >= 0x7B && val_type <= 0x7F){            
-            return 1;
-        }
+
+//todo
+uint8_t WpValidateExpr(WpValidatorState *self, Context *context, const Expr *e) {
+    /*
+    // Validate the expression
+    if (!WpValidateConstantExpr(self, e, expected_types, expected_types_len)) {
+        return 0; // Invalid expression
     }
-    else{
-        return 0;
+
+    // Check if the expression ends with 0x0B
+    if (*(e->end - 1) != 0x0B) {
+        return 0; // Expression does not end with 0x0B
     }
-    return 0;
+    */
+    return 1; // Expression is valid
 }
 
 /**
- * @brief Function to validate wasm binary magic number
- *          magic ::= 0x00 0x61 0x73 0x6D
- * @param buf wasm binary format 
- * @return uint8_t 1 - ok, 0 - invalid 
- */
-uint8_t ValidateMagic(const uint8_t *buf){
-
-   
-    uint8_t magic_number_bytes[4] = {0x00, 0x61, 0x73, 0x6D};           /// Magic number that all wasm file start
-    uint32_t wasm_magic_number = *((uint32_t *)magic_number_bytes);     /// magic number in uint32 format to avoid endianess problem
-    uint32_t file_magic_number;
-
-    // Magic number check
-    file_magic_number = *((uint32_t *)buf);    
-    if(file_magic_number != wasm_magic_number){
-        
-        return 0;
-    }
-    else return 1;
-}
-
-/**
- * @brief Function to validate wasm binary version number
- * 
- * @param buf wasm binary format 
- * @return uint8_t 1 - ok, 0 - invalid 
- */
-uint8_t ValidateVersion(const uint8_t *buf, uint32_t *version_number){
-
-    uint8_t version_number_bytes[4] = {0x01, 0x00, 0x00, 0x00};         /// version number    
-    uint32_t version_number_1 = *((uint32_t *)version_number_bytes);    /// version number in uint32 format to avoid endianess problem
-    uint32_t file_version_number;
-
-    file_version_number = *((uint32_t *)buf); 
-
-    if(file_version_number != version_number_1){
-        
-        return 0;
-    }
-    else {
-
-        *version_number = 1;
-        return 1;
-    } 
-}
-
-/**
- * @brief Validate Global type
- * The type must be valid and the mutability must be 0 or 1.
+ * @brief Function to validate a function in the validator state.
+ * This function checks if the function type is valid, sets the local variables in the context.
+ * It also validates the function body expression against the context.
  * @param self Pointer to the validator state
- * @param g Pointer to the global variable to validate   
- * @return uint8_t 0-Invalid, 1-valid
- */
-uint8_t ValidateGlobalType(WpValidatorState *self, const Global *g){
-    
-    GlobalType gt = g->gt;
-    // Validate global type
-    if(!ValidateValType(gt.t)){
-        //Invalid global type
-        return 0;
-    }
-    if(gt.m != 0 && gt.m != 1){
-        //Invalid global mutability
-        return 0;
-    }
-    
-    if(!WpValidateConstantExpr(self,&g->e, &gt.t, 1)){
-        //Invalid constant expression
-        return 0;
-
-    }
-
-    return 1;
-}
-
-/**
- * @brief 
- * 
- * @param imports Module imports to validate
- * @param imports_len Import's lenght
- * @param c Context 
- * @return WpError 
- 
-static WpObjectResult ValidateImportSection(Import *imports, uint32_t imports_len){
-
-    WpObjectResult result;
-    InitObjectResult(&result);
-
-    ImportDesc desc;
-
-    for(int i=0; i<imports_len; i++){
-
-        //first get import mod_name to get the context
-
-        
-        desc = imports[i].desc;
-
-        switch(desc->type){
-
-            case WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_FUNC:
-                if(desc->idx < c.type_len){
-
-                }
-                else{
-                    
-                }
-                break;
-            case WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_TABLE:
-                break;
-            case WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_MEM:
-                break
-            case WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_GLOBAL:
-                break;
-            default:
-
-        }
-    }
-
-}*/
-
-/**
-
-WpError ValidateModule(RuntimeEnv *self, WasmModule *mod){
-
-    WpError result = CreateError(WP_DIAG_ID_OK, W_DIAG_MOD_LIST_DECODER, 253, 0);       //No error
-    
-    WasContext c, c_prime;
-
-    //𝐶.types is module.types
-    c.type_len = mod->type_len;
-    c.types = mod->types;
-    c_prime.type_len = c.type_len;
-    c_prime.types = c.types;
-
-    //section function:
-
-    WpError = ValidateModFunction();
-    
-
-    return result;
-
-}*/
-
-/**
- * @brief Function to validate constant expression.
- * This function checks if the expression is valid and matches the expected value type.
- * @param self Pointer to the validator state
- * @param e Pointer to the expression to validate
- * @param expected_types The expected value type of the expression
- * @param expected_types_len The length of the expected value types
+ * @param func Pointer to the function to validate
  * @return uint8_t 1 - ok, 0 - invalid
- */
-uint8_t WpValidateConstantExpr(WpValidatorState *self, const Expr *e , ValType *expected_types, uint32_t expected_types_len) {
+ *
+uint8_t WpValidateFunction(WpValidatorState *self, const Func *func) {
 
-    self->ip = e->instr;                                // pointer to byte to traverse the binary file
-    const uint8_t *buf_end = e->end;                                // pointer to end of binary module
-    uint8_t opcode;                                     // variable to store the opcode 
     uint8_t result;
-    ValType value;
-    ValCtrlFrame frame;                                 // control frame to store the current state of the validator    
-    
-    
-    if(*buf_end != 0x0B) { // 0x0B is the opcode for end of expression
-        return 0; // Invalid expression, does not end with 0x0B
-    }    
-    // Check if the expression is empty
-    if (self->ip >= buf_end) {
-        /// The empty instruction sequence is valid with type [𝑡*] → [𝑡*], for any sequence of operand types 𝑡*.
-        return 1; 
+
+    //The type 𝐶.types[𝑥] must be defined in the context
+    if (func->type_index >= self->c.types.lenght) {
+        return 0; // Invalid function type index
     }
-    
-    #define READ_BYTE() (*self->ip++)
-    #define NOT_END() (self->ip < buf_end)
-    // Non empty intruction sequence
-    /// The instruction sequence instr* must be valid with some stack type [] → [𝑡′*]. WebAssembly Specification 2.0 3.3.10
-    frame.start_types = NULL; // No start types for expressions
-    frame.start_types_len = 0; // No start types for expressions
-    frame.end_types = expected_types; // Expected end types
-    frame.end_types_len = expected_types_len; // Length of expected end types
-    frame.val_stack = self->val_stack; // Pointer to the value stack
-    frame.unreachable = 0; // Unreachable flag is false
 
-    // Push the control frame onto the control stack
-    if (!WpValPushCtrlFrame(self, frame)) {
-        return 0; // Stack overflow error
-    }
-    
-    while (*self->ip != 0x0B && NOT_END()) {
+    // Setting c prime context
+    self->c_prime.types.lenght = self->c.types.lenght;
+    self->c_prime.types.elements = self->c.types.elements;
+    //Get function type
+    FuncType *ft = &self->c.types.elements[func->type_index];
+    self->c_prime.locals.lenght = ft->params.lenght + func->locals.lenght;
+    self->c_prime.locals.elements = self->stk_ptr;  // locals are stored in the value stack
 
-        opcode = READ_BYTE(); // Read the next opcode
-
-       //check constant opcode
-        switch (opcode) {
-            case OPCODE_I32_CONST:
-                break;
-            
-            //case OPCODE_GLOBAL_GET:
-                // Check if global type mut is constant                
-                //return 0;
-            default:
-                return 0; // Invalid opcode in constant expression
+    // Set the locals in the prime context
+    for(uint32_t i = 0; i < ft->params.lenght; i++){
+        result = WpValPushValType(self, ft->params.val_types[i]);
+        if (!result) {
+            return 0; // Stack overflow error
         }
-
-        result = WpValEvalOpcode(self, opcode);
-        
-        if (result == 0) {
-            return 0; // Evaluation failed
-        }
-        
     }
-    // Check if the expression ended correctly
-    if (*self->ip != 0x0B) {
-        return 0; // Expression did not end with 0x0B
+    for(uint32_t i = 0; i < func->locals.lenght; i++){
+        result = WpValPushValType(self, func->locals.elements[i].t);
+        if (!result) {
+            return 0; // Stack overflow error
+        }
+    }
+    // Set the return types in the prime context
+    self->c_prime.return_types.lenght = ft->results.lenght;
+    self->c_prime.return_types.elements = ft->results.val_types;
+
+    //Under the context 𝐶′, the expression expr must be valid with type [𝑡* 2].
+    if(!WpValidateExpr(self, &self->c_prime, &func->body)){
+        return 0; // Invalid function body
     }   
-    
-    result = WpValEvalOpcode(self, opcode);
-    if (result == 0) {
-        return 0; // Evaluation failed
-    }    
-    // Pop values from the value stack
-    for (uint32_t i = 0; i < expected_types_len; i++) {
-        value = WpValPopExpectedValType(self, expected_types[i]);
-        if (value == UNKNOW) {
-            return 0; // Stack underflow error
-        }
-    }
-    
-    return 1;
 
-    #undef READ_BYTE
-    #undef NOT_END
-    
-}   
+    return 1; // Function is valid
+}*/
 
 /**
  * @brief Function to decode and validate each section inside a module.
+ * Checks if the section is in the correct order and validates each section.
  * @param self Pointer to the validator state
  * @param index 
  * @param section_id 
@@ -385,7 +157,10 @@ uint8_t WpValidateConstantExpr(WpValidatorState *self, const Expr *e , ValType *
  */
 const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *index, const uint8_t section_id, uint8_t *previous_secction, WpModuleState *mod){
 
-    uint32_t aux_u32;                                               //auxiliary var to store u32 values        
+    uint32_t aux_u32;                                               //auxiliary var to store u32 values 
+    uint32_t len;
+    uint32_t i;
+
     /**
      * @brief Sections inside a module are encoded in a specific order.
      * this switch case is to validate the order of the sections.
@@ -434,7 +209,8 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             return NULL;
     }
 
-    start_at_type_sec:        
+    start_at_type_sec:  
+    const uint8_t *functype_index;      
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_TYPE){
         // Type Section 
         index = ReadBinSection(index, &mod->typesec);        
@@ -442,17 +218,38 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;              
             return NULL;                                        
         }
-        VecFuncType *types = DecodeTypeSection(mod);
-        if(!types){
-            mod->status = WP_MODULE_STATUS_ERROR;
-            return NULL;
-        }
-        ///Types are always valid Wev Assembly Spec 3.2.3
-        *previous_secction = WP_WSA_BIN_MOD_SEC_ID_TYPE;        
+        
+        functype_index = mod->typesec.content; // Pointer to the start of the type section content
+        functype_index = DecodeLeb128UInt32(functype_index, &len); // Get the number of types in the section
+        if (!functype_index){
+            mod->status = WP_MODULE_STATUS_ERROR; 
+            return NULL; // No types in the section
+        }        
+        mod->functype_count = len; // Store the number of function types in the module
+
+        for (i = 0; i < len; i++)
+        {
+            functype_index = GetFuncTypeByIndex(mod->typesec, i);
+            if (!functype_index) {
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid function type
+            }
+            if (!ValidateFuncTypeBuf(functype_index)) {
+                mod->status = WP_MODULE_STATUS_INVALID; 
+                return NULL; // Invalid function type
+            }
+        }  
+               
+        // Set the context types
+        self->c.functypes_count = mod->functype_count;
+        self->c.types = mod->typesec.content; // Pointer to the types section content
+        // previous section id is now type section
+        *previous_secction = WP_WSA_BIN_MOD_SEC_ID_TYPE;
         return index;
     }
 
     start_at_import_sec:
+    const uint8_t *import_index;
     if(section_id ==  WP_WSA_BIN_MOD_SEC_ID_IMPORT){
         // import Section 
         index = ReadBinSection(index, &mod->importsec);
@@ -460,17 +257,36 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;               
             return NULL;                                        
         }
-        VecImport *imports = DecodeImportSection(mod);
-        if(!imports){
+        import_index = mod->importsec.content; // Pointer to the start of the import section content
+        import_index = DecodeLeb128UInt32(import_index, &len); // Get the number of imports in the section
+        if (!import_index){
             mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
+            return NULL; // No imports in the section
+        }   
+        mod->import_count = len; // Store the number of imports in the module
+
+        for (i = 0; i < len; i++)
+        {
+            import_index = GetImportByIndex(mod->importsec, i);
+            if (!import_index) {
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid import
+            }
+            //Validate import
+            if(!ValidateImportBuf(import_index, mod->functype_count)) {
+                mod->status = WP_MODULE_STATUS_INVALID; 
+                return NULL; // Invalid import
+            }
         }
-        ///Imports are validated in instanciation stage.
+        
+        // previous section id is now import section
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_IMPORT;
         return index;
     }
 
-    start_at_function_sec:        
+    start_at_function_sec:     
+    const uint8_t *function_index; 
+    uint32_t function_type_index;  
     if(section_id ==  WP_WSA_BIN_MOD_SEC_ID_FUNCTION){
         // Function Section 
         index = ReadBinSection(index, &mod->functionsec);
@@ -478,29 +294,38 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;               
             return NULL;                                        
         }
-        VecFunc *funcs = DecodeFunctionSection(mod);
-        if(!funcs){
+        
+        function_index = mod->functionsec.content; // Pointer to the start of the function section content
+        function_index = DecodeLeb128UInt32(function_index, &len); // Get the number of functions in the section
+        if (!function_index){
             mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
+            return NULL; // No functions in the section
         }
-        ///Perform only basic validation on function section.
-        ///The type 𝐶.types[𝑥] must be defined in the context
-        if (mod->was->types.elements == NULL){
-            mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
-        }
-        for(size_t i = 0; i < funcs->lenght; i++){
-            if(funcs->elements[i].type_index >= mod->was->types.lenght){
-                mod->status = WP_MODULE_STATUS_INVALID;
-                //Invalid type index
-                return NULL;
+        mod->function_count = len; // Store the number of functions in the module
+        for(i = 0; i < len; i++){
+            function_index = GetFunctionByIndex(mod->functionsec, i);
+            if(!function_index){
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid function
+            }
+            //Validate function
+            function_index = DecodeLeb128UInt32(function_index, &function_type_index); // Get the function type index
+            if(!function_index){
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid function type index
+            }
+            if(function_type_index >= mod->functype_count){
+                mod->status = WP_MODULE_STATUS_INVALID; 
+                return NULL; // Invalid function type index
             }
         }
+        // previous section id is now function section
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_FUNCTION;
         return index;
     }
 
-    start_at_table_sec:       
+    start_at_table_sec:   
+    const uint8_t *table_index;    
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_TABLE){
         // Table Section
         index = ReadBinSection(index, &mod->tablesec);
@@ -508,24 +333,37 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;      
             return NULL;                                        
         }   
-        VecTable *tables = DecodeTableSection(mod);
-        if(!tables){
+        
+        table_index = mod->tablesec.content; // Pointer to the start of the table section content
+        table_index = DecodeLeb128UInt32(table_index, &len); // Get the number of tables in the section
+        if (!table_index){
             mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
+            return NULL; // No tables in the section
         }
+        mod->table_count = len; // Store the number of tables in the module 
+
         /// The table type tabletype must be valid.
-        for(size_t i = 0; i < tables->lenght; i++){
-            if(!ValidateTableType(&tables->elements[i])){
+        for(i = 0; i < len; i++){
+            table_index = GetTableByIndex(mod->tablesec, i);
+            if(!table_index){
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid table
+            }
+            
+            if(!ValidateTableTypeBuf(table_index)){
                 mod->status = WP_MODULE_STATUS_INVALID;
                 //Invalid table limits
                 return NULL;
             }
         }
+
+        // previous section id is now table section
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_TABLE;
         return index;
     }
 
     start_at_memory_sec:
+    const uint8_t *memory_index;
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_MEMORY){
         // Memory Section
         index = ReadBinSection(index, &mod->memsec);
@@ -533,24 +371,38 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;         
             return NULL;                                        
         } 
-        VecMem *mems = DecodeMemSection(mod);
-        if(!mems){
+        
+        memory_index = mod->memsec.content; // Pointer to the start of the memory section content
+        memory_index = DecodeLeb128UInt32(memory_index, &len); // Get the number of memories in the section
+        if (!memory_index){
             mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
+            return NULL; // No memories in the section
         }
+        mod->memory_count = len; // Store the number of memories in the module
+
         /// The memory type memtype must be valid.
-        for(size_t i = 0; i < mems->lenght; i++){
-            if(!ValidateMemType(&mems->elements[i])){
+        for(i = 0; i < len; i++){
+            memory_index = GetMemByIndex(mod->memsec, i);
+            if(!memory_index){
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid memory
+            }
+            //Validate memory type
+            if(!ValidateLimitsTypeBuf(memory_index, 0x10000)){
                 mod->status = WP_MODULE_STATUS_INVALID;
                 //Invalid memory limits
                 return NULL;
             }
         }
+
+        // previous section id is now memory section
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_MEMORY;
         return index;
     }
 
     start_at_global_sec:
+    const uint8_t *global_index;
+    ValType gt;
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_GLOBAL){
         // GLOBAL Section
         index = ReadBinSection(index, &mod->globalsec);
@@ -558,18 +410,31 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;             
             return NULL;                                        
         } 
-        VecGlobal *globals = DecodeGlobalSection(mod);
-        if(!globals){
+        global_index = mod->globalsec.content; // Pointer to the start of the global section content
+        global_index = DecodeLeb128UInt32(global_index, &len); // Get the number of globals in the section
+        if (!global_index){
             mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
+            return NULL; // No globals in the section
         }
-        ///Validate global        
-        for(size_t i = 0; i < globals->lenght; i++){
+        mod->global_count = len; // Store the number of globals in the module
+
+        for(i = 0; i < len; i++){
             /// The global type must be valid.
-            if(!ValidateGlobalType(self, &globals->elements[i])){
-                mod->status = WP_MODULE_STATUS_INVALID;
-                //Invalid global type
-                return NULL;
+            global_index = GetGlobalByIndex(mod->globalsec, i);
+            if(!global_index){
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid global
+            }
+            gt =  *global_index;  // Get global type value type
+            if(!ValidateGlobalTypeBuf(global_index)){
+                mod->status = WP_MODULE_STATUS_INVALID; 
+                return NULL; // Invalid global type
+            }
+            //Validate global init expr   
+            global_index += 2;           // Move pointer to the start of the init expr         
+            if(!ValidateConstantExprBuf(global_index, 0xFFFFFFFF)){
+                mod->status = WP_MODULE_STATUS_INVALID; 
+                return NULL; // Invalid global type
             }
         }
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_GLOBAL;
@@ -577,6 +442,7 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
     }
 
     start_at_export_sec:
+    const uint8_t *export_index;
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_EXPORT){
         //Export Section                
         index = ReadBinSection(index, &mod->exportsec);
@@ -584,16 +450,32 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;          
             return NULL;                                        
         } 
-        VecExport *exports = DecodeExportSection(mod);
-        if(!exports){
+        export_index = mod->exportsec.content; // Pointer to the start of the export section content
+        export_index = DecodeLeb128UInt32(export_index, &len); // Get the number of exports in the section
+        if (!export_index){
             mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
+            return NULL; // No exports in the section
+        }
+        mod->export_count = len; // Store the number of exports in the module
+
+        for(i = 0; i < len; i++){
+            export_index = GetExportByIndex(mod->exportsec, i);
+            if(!export_index){
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid export
+            }
+            //Validate export
+            if(!ValidateExportBuf(export_index, mod->function_count, mod->table_count, mod->memory_count, mod->global_count)) {
+                mod->status = WP_MODULE_STATUS_INVALID; 
+                return NULL; // Invalid export
+            }
         }
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_EXPORT;
         return index;   
     }
 
     start_at_start_sec:
+    const uint8_t *start_index;
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_START){
         // Start Section
         index = ReadBinSection(index, &mod->startsec);
@@ -601,16 +483,23 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;            
             return NULL;                                        
         } 
-        uint32_t *start = DecodeStartSection(mod);
-        if(!start){
+        index = DecodeLeb128UInt32(index, &mod->start); // Get the start function index
+        if(!index){
             mod->status = WP_MODULE_STATUS_ERROR; 
             return NULL;
         }
+        // The start function index must refer to a function in the module.
+        if(mod->start >= mod->function_count){
+            mod->status = WP_MODULE_STATUS_INVALID; 
+            return NULL; // Invalid start function index
+        }
+
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_START;
         return index;  
     }
 
     start_at_element_sec:
+    const uint8_t *element_index;
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_ELEMENT){
         // Element Section              
         index = ReadBinSection(index, &mod->elemsec);
@@ -618,16 +507,32 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;           
             return NULL;                                        
         } 
-        VecElem *elem = DecodeElementSection(mod);
-        if(!elem){
+        element_index = mod->elemsec.content; // Pointer to the start of the element section content
+        element_index = DecodeLeb128UInt32(element_index, &len); // Get the number of elements in the section
+        if (!element_index){
             mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
+            return NULL; // No elements in the section
         }
+        mod->element_count = len; // Store the number of elements in the module
+        for(i = 0; i < len; i++){
+            element_index = GetElementByIndex(mod->elemsec, i);
+            if(!element_index){
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid element
+            }
+            //Validate element
+            if(!ValidateElementBuf(element_index, mod->function_count, mod->table_count)) {
+                mod->status = WP_MODULE_STATUS_INVALID; 
+                return NULL; // Invalid element
+            }
+        }
+
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_ELEMENT;
         return index;      
     }
 
     start_at_data_count_sec:
+    const uint8_t *data_count_index;
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_DATA_COUNT){
         //Data Count Section   
         index = ReadBinSection(index, &mod->datacountsec);
@@ -635,32 +540,55 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;             
             return NULL;                                        
         }
-        uint32_t *data_count = DecodeDataCountSection(mod); 
-        if(!data_count){
+        data_count_index = mod->datacountsec.content;                               // Pointer to the start of the data count section content
+        data_count_index = DecodeLeb128UInt32(data_count_index, &mod->data_count);  // Get the number of data segments in the section
+        if (!data_count_index){
             mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
+            return NULL; // No data count in the section
         }
+        
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_DATA_COUNT;
         return index;
     }
 
-    start_at_code_sec:    
+    start_at_code_sec:  
+    const uint8_t *code_index;  
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_CODE){
         //Code Section   
         index = ReadBinSection(index, &mod->codesec);
         if (!index){                
             return NULL;                                        
         } 
-        VecFunc *funcs = DecodeCodeSection(mod);
-        if(!funcs){
+        code_index = mod->codesec.content; // Pointer to the start of the code section content
+        code_index = DecodeLeb128UInt32(code_index, &len); // Get the number of code in the section
+        if (!code_index){
             mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
+            return NULL; // No code in the section
         }
+        if(len != mod->function_count){
+            mod->status = WP_MODULE_STATUS_INVALID; 
+            return NULL; // The number of code entries must match the number of functions
+        }
+
+        for(i = 0; i < len; i++){
+            code_index = GetCodeByIndex(mod->codesec, i);
+            if(!code_index){
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid code
+            }
+            //Validate function
+            if(!ValidateCodeBuf(code_index)) {
+                mod->status = WP_MODULE_STATUS_INVALID; 
+                return NULL; // Invalid function
+            }
+        }
+
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_CODE;
         return index;
     }
 
     start_at_data_sec:
+    const uint8_t *data_index;
     if(section_id == WP_WSA_BIN_MOD_SEC_ID_DATA){
         //Data Section 
         index = ReadBinSection(index, &mod->datasec);
@@ -668,11 +596,30 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
             mod->status = WP_MODULE_STATUS_ERROR;            
             return NULL;                                        
         } 
-        VecData *data = DecodeDataSection(mod);
-        if(!data){
+        data_index = mod->datasec.content; // Pointer to the start of the data section content
+        data_index = DecodeLeb128UInt32(data_index, &len); // Get the number of data segments in the section
+        if (!data_index){
             mod->status = WP_MODULE_STATUS_ERROR; 
-            return NULL;
+            return NULL; // No data segments in the section
         }
+        if(len != mod->data_count){
+            mod->status = WP_MODULE_STATUS_INVALID; 
+            return NULL; // The number of data segments must match the data count
+        }
+        
+        for(i = 0; i < len; i++){
+            data_index = GetDataByIndex(mod->datasec, i);
+            if(!data_index){
+                mod->status = WP_MODULE_STATUS_ERROR; 
+                return NULL; // Invalid data segment
+            }
+            //Validate data segment
+            if(!ValidateDataBuf(data_index, mod->memory_count)) {
+                mod->status = WP_MODULE_STATUS_INVALID; 
+                return NULL; // Invalid data segment
+            }
+        }
+        
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_DATA;
         return index;    
     }
@@ -693,3 +640,102 @@ const uint8_t* ValidateBinSectionById(WpValidatorState *self, const uint8_t *ind
 
     return NULL;
 }
+
+/*To clean out
+
+static uint8_t ValidateTableType(const TableType *t){    
+
+    return ValidateLimitsType(&t->lim, 0xFFFFFFFF);
+}
+
+static uint8_t ValidateLimitsType(const Limits *li, uint32_t k){    
+
+    if(li->min >= k){
+        if(li->max >0){
+            if(li->max <= k & li->max >= li->min){
+                //valid
+                return 1;
+            }
+            else{
+                //not valid max value
+                return 0;
+            }
+
+        }        
+    }
+    else{
+        //not valid min value        
+        return 0;
+    }
+    return 0;
+}
+
+static uint8_t ValidateTableType(const TableType *t){    
+
+    return ValidateLimitsType(&t->lim, 0xFFFFFFFF);
+}
+
+static uint8_t ValidateMemType(const MemType *m){    
+
+    return ValidateLimitsType(m, 0x010000); // 2^16 = 65536
+}
+
+uint8_t ValidateGlobalType(WpValidatorState *self, const Global *g){
+    
+    GlobalType gt = g->gt;
+    // Validate global type
+    if(!ValidateValType(gt.t)){
+        //Invalid global type
+        return 0;
+    }
+    if(gt.m != 0 && gt.m != 1){
+        //Invalid global mutability
+        return 0;
+    }
+    
+    if(!WpValidateConstantExpr(self,&g->e, &gt.t, 1)){
+        //Invalid constant expression
+        return 0;
+
+    }
+
+    return 1;
+}
+
+static WpObjectResult ValidateImportSection(Import *imports, uint32_t imports_len){
+
+    WpObjectResult result;
+    InitObjectResult(&result);
+
+    ImportDesc desc;
+
+    for(int i=0; i<imports_len; i++){
+
+        //first get import mod_name to get the context
+
+        
+        desc = imports[i].desc;
+
+        switch(desc->type){
+
+            case WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_FUNC:
+                if(desc->idx < c.type_len){
+
+                }
+                else{
+                    
+                }
+                break;
+            case WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_TABLE:
+                break;
+            case WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_MEM:
+                break
+            case WP_WAS_STRUC_MOD_IMPORT_DESC_TYPE_GLOBAL:
+                break;
+            default:
+
+        }
+    }
+
+}
+*/

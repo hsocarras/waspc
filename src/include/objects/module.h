@@ -88,8 +88,19 @@ typedef struct WpModuleState{
 
     /// Temporary decoded webassembly module    
     /// This is a pointer to the decoded module that will be used to instanciate the module.    
-    WasModule *was;
+    //WasModule *was;
+    uint32_t functype_count;           /// number of function types in the module
+    uint32_t import_count;             /// number of imports in the module
+    uint32_t function_count;           /// number of functions in the module
+    uint32_t table_count;              /// number of tables in the module
+    uint32_t memory_count;             /// number of memories in the module
+    uint32_t global_count;             /// number of globals in the module
+    uint32_t export_count;             /// number of exports in the module
+    uint32_t element_count;            /// number of elements in the module
+    uint32_t start;                    /// start function index
+    uint32_t data_count;               /// number of data segments in the module
 
+    
     /// @brief Instance of the module
     /// This is the instance of the module that will be used to execute the module.
     WpModuleInstance instance;

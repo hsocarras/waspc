@@ -2,12 +2,13 @@
 #include "config_test.h"
 #include "utils/names.h"
 #include "utils/hash_table.h"
-#include "../wasm/test1.h"
+//#include "../wasm/test1.h"
 
 #include <stdlib.h>
 
 using namespace waspc::test::runtime;
 
+extern uint8_t test1[62];
 
 
 TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_READ_MODULE) {

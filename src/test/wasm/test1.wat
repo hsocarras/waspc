@@ -9,6 +9,7 @@
         global.get $g
         local.get $value_1
         i32.add
+        local.get $sum
         i32.add
         return
     )
