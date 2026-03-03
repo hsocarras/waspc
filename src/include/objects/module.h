@@ -50,6 +50,7 @@ typedef struct WpModuleInstance{
 }WpModuleInstance;
 
 /**
+ * @version 3.0
  * @brief Result object for return values for most waspc internal functions.
  * 
  */
@@ -58,7 +59,7 @@ typedef struct WpModuleState{
     WpObjectType type;   
 
     /// @brief module's name.
-    Name name;
+    //Name name;
 
     /// @brief module status
     WpModuleStatus status;
@@ -78,22 +79,23 @@ typedef struct WpModuleState{
     WasmBinSection functionsec;         /// encoded func section
     WasmBinSection tablesec;            /// encoded table section
     WasmBinSection memsec;              /// encoded memory section
+    WasmBinSection tagsec;              /// encoded tag section
     WasmBinSection globalsec;           /// encoded global section
     WasmBinSection exportsec;           /// encoded export section
     WasmBinSection startsec;            /// encoded start section
     WasmBinSection elemsec;             /// encoded element section
     WasmBinSection datacountsec;        /// encoded data count section section
     WasmBinSection codesec;             /// encoded code section
-    WasmBinSection datasec;             /// encoded data section 
+    WasmBinSection datasec;             /// encoded data section
 
-    /// Temporary decoded webassembly module    
-    /// This is a pointer to the decoded module that will be used to instanciate the module.    
-    //WasModule *was;
-    uint32_t functype_count;           /// number of function types in the module
+    
+    //WasModule's counter for instantiation;
+    uint32_t type_count;           /// number of function types in the module
     uint32_t import_count;             /// number of imports in the module
     uint32_t function_count;           /// number of functions in the module
     uint32_t table_count;              /// number of tables in the module
     uint32_t memory_count;             /// number of memories in the module
+    uint32_t tag_count;
     uint32_t global_count;             /// number of globals in the module
     uint32_t export_count;             /// number of exports in the module
     uint32_t element_count;            /// number of elements in the module
@@ -103,7 +105,7 @@ typedef struct WpModuleState{
     
     /// @brief Instance of the module
     /// This is the instance of the module that will be used to execute the module.
-    WpModuleInstance instance;
+    //WpModuleInstance instance;
 
     
 

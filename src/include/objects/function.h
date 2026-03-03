@@ -31,7 +31,7 @@ typedef struct WpFunctionInstance {
     /// head for all Waspc object to allow cast
     WpObjectType type;
     ///arity
-    FuncType *arity;
+    //FuncType *arity;
     /// @brief module instance that function belong to
     struct WpModuleInstance *module;
     /// @brief webassembly function.

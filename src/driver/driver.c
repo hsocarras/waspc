@@ -1,7 +1,8 @@
 /**
  * @file driver.c
  * @author H. E. Socarras
- * @brief This file implement windows driver. For now to load and prepare all thing for wasm interpreter
+ * @brief This file implement windows driver. 
+ * This is the entry point of the program, where we will read a wasm file, validate it and instanciate it. 
  * @version 0.0.1
  * @date 2024-03-17
  *
@@ -38,6 +39,7 @@ static uint8_t in[INPUT_SIZE];
 static uint8_t out[OUTPUT_SIZE];
 static uint8_t mark[MARK_SIZE];
 static uint8_t work_code_mem[CODE_MEMORY_SIZE];         //See tia portal code memory
+
 // Initialize the hash table for modules
 HtEntry table[10]; // Allocate memory for the hash table
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,11 +98,10 @@ int main(int argc, const char* argv[]) {
 
     printf("Starting \n");
 
-    //Init Runtime State    
+    //Init Runtime State    ////////////////////////////////////////////////////////////////////////////////
     WpRuntimeState runtime;    
-    WpRuntimeInit(&runtime);
-    WpRuntimeCodeMemInit(&runtime, work_code_mem, CODE_MEMORY_SIZE);    
-    WpRuntimetableInit(&runtime, table, 10);  // Initialize the hash table with 10 capacity
+    WpRuntimeInit(&runtime);  
+
     // Opening file in reading mode/////////////////////////////////////////////////////////////////////////
     FILE *wasm;   
     errno_t error_code;                             //Declaring a variable of type errno_t to store the return value of fopen_s
@@ -135,8 +136,15 @@ int main(int argc, const char* argv[]) {
     char name[6] = "main1";
     mod_name.name = name;
     mod_name.lenght = 6;
-    // Read module from file into runtime memory ///////////////////////////////////////////////////////////////////////////////
-    WpObject *result = WpRuntimeReadModule(&runtime, mod_name, load_ptr, len);
+    WpBinFile bin_file = {load_ptr, bytes_read};
+    WpModuleState *mod_state = malloc(sizeof(WpModuleState));
+    if(!mod_state){
+        printf("Memory allocation failed\n");
+        fclose(wasm);
+        free(load_ptr);
+        return 1;
+    }
+    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, mod_state, bin_file, mod_name);
     fclose(wasm);
     free(load_ptr);
     
@@ -149,10 +157,9 @@ int main(int argc, const char* argv[]) {
     }    
     assert(result->type == WP_OBJECT_MODULE_STATE);
     
-    // Read ok, now validate the module //////////////////////////////////////////////////////////////////////////////////////
-    WpModuleState *mod = (WpModuleState *)result;
-    // validate the module    
-    result = WpRuntimeValidateModule(&runtime, mod);
+    
+    // validate the module    ///////////////////////////////////////////////////////////////////////////////////////////
+    result = WpRuntimeValidateModule(&runtime, mod_state);
     if(result->type == WP_OBJECT_ERROR){
         printf("Error validating module\n");        
         WpError *err = (WpError *)result;        
@@ -161,17 +168,17 @@ int main(int argc, const char* argv[]) {
     }   
     assert(result->type == WP_OBJECT_MODULE_STATE);
     
-    // Module valid.
-    mod = (WpModuleState *)result;
-    printf("Module name: %s\n", WasNameToString(mod->name));
-    printf("Module status: %d\n", mod->status);
-    printf("Module version: %d\n", mod->version);     
+    // Module valid.    
+    //printf("Module name: %s\n", WasNameToString(mod_state->name));
+    printf("Module status: %d\n", mod_state->status);
+    printf("Module version: %d\n", mod_state->version);     
 
     // Now we can instanciate the module////////////////////////////////////////////////////////////////////////////////
-    printf("Instanciating module\n");
+    //printf("Instanciating module\n");
     // Create a module instance
     // Note: For now we are not using external values, so we pass NULL and 0
-    result = WpRuntimeInstanciateModule(&runtime, mod, NULL, 0);
+    /*
+    result = WpRuntimeInstanciateModule(&runtime, mod_state, NULL, 0);
     if(result->type == WP_OBJECT_ERROR){
                 printf("Error instanciating module\n");        
                 WpError *err = (WpError *)result;        
@@ -191,7 +198,7 @@ int main(int argc, const char* argv[]) {
         ReportError(err);
         return 3;
     }
-                
+    */           
     return 0;
      
     

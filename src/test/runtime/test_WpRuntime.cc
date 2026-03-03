@@ -2,105 +2,74 @@
 #include "config_test.h"
 #include "utils/names.h"
 #include "utils/hash_table.h"
-//#include "../wasm/test1.h"
+#include "objects/module.h"
+#include "../wasm/samples.h"
 
 #include <stdlib.h>
 
 using namespace waspc::test::runtime;
 
-extern uint8_t test1[62];
 
-
-TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_READ_MODULE) {
-    // Initialize the runtime state
+TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INIT) {
+    
     WpRuntimeState runtime;
     WpRuntimeInit(&runtime);
-    WpRuntimeCodeMemInit(&runtime, work_code_mem, 65536); 
-    // Initialize the hash table for modules
-    HtEntry table[10]; // Allocate memory for the hash table
 
-    // Opening file in reading mode/////////////////////////////////////////////////////////////////////////
-    
-    int32_t len = sizeof(test1); // Get the size of the test WASM file 
-    
-    //Reading file into runtime code memory
-    uint8_t *load_ptr = (uint8_t *)malloc(len);              //Declaring a variable to store the wasm file    
-    if (!load_ptr) {
-        FAIL() << "Failed to allocate memory for loading wasm file.";
-    }
-    uint32_t bytes_read;
-    memcpy(load_ptr, test1, len);    // Set the load pointer to the test WASM file
-    Name mod_name;
-    char name[6] = "main1";
-    mod_name.name = name;
-    mod_name.lenght = 5;
-    
-    // Case 1 table module capacity 0
-    WpError *result = (WpError *)WpRuntimeReadModule(&runtime, mod_name, load_ptr, len); 
-    // Check if the result is not null
-    ASSERT_NE(result, nullptr) << "WpRuntimeReadModule returned null";  
-    // Check if the result is an error object
-    ASSERT_EQ(result->type, WP_OBJECT_ERROR) << "WpRuntimeReadModule did not return a WpModule object";
-    ASSERT_EQ(result->id, 1) << "WpRuntimeReadModule did not return a WpModule object";
-    
-    // Case 2 table module capacity 0
-    WpRuntimeInit(&runtime);
-    WpRuntimeCodeMemInit(&runtime, work_code_mem, 65536);
-    WpRuntimetableInit(&runtime, table, 10);  // Initialize the hash table with 10 capacity
-    WpObject *result2 = WpRuntimeReadModule(&runtime, mod_name, load_ptr, len);    
-    ASSERT_NE(result2, nullptr) << "WpRuntimeReadModule returned null";
-    ASSERT_EQ(result2->type, WP_OBJECT_MODULE_STATE) << "WpRuntimeReadModule did not return a WpModuleState object";
-    WpModuleState *module_state = (WpModuleState *)result2;
-    
-    // Check if the module name matches
-    ASSERT_EQ(module_state->name.lenght, mod_name.lenght) << "Module name length does not match";
-    ASSERT_EQ(strncmp(module_state->name.name, mod_name.name, mod_name.lenght), 0) << "Module name does not match";
-    // Check if the module status is loaded
-    ASSERT_EQ(module_state->status, WP_MODULE_STATUS_READ) << "Module status is not WP_MODULE_LOADED";
-    // Check if the module buffer size matches the file size
-    ASSERT_EQ(module_state->bufsize, len) << "Module buffer size does not match file size";    
-    // Check if the module buffer is not null
-    ASSERT_NE(module_state->buf, nullptr) << "Module buffer is null";
-    // Check if the module buffer contains the correct data
-    ASSERT_EQ(memcmp(module_state->buf, load_ptr, len), 0) << "Module buffer does not contain the correct data";
-    
-    
-    free(load_ptr);
+    // Check if the error object is initialized correctly
+    ASSERT_EQ(runtime.err.type, WP_OBJECT_ERROR) << "Error object type is not WP_OBJECT_ERROR";
+    ASSERT_EQ(runtime.err.id, 0) << "Error object id is not initialized to 0";      
+
    
 }
 
-TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_VALIDATE_MODULE) {
-    // Initialize the runtime state
+TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_CREATE_MODULE_FROM_BIN_FILE) {
     WpRuntimeState runtime;
     WpRuntimeInit(&runtime);
-    WpRuntimeCodeMemInit(&runtime, work_code_mem, 65536); 
-    WpRuntimeValidatorInit(&runtime, 256, 24); // Initialize the validator with a stack size of 65536
 
-    // Initialize the hash table for modules
-    HtEntry table[10]; // Allocate memory for the hash table
-    WpRuntimetableInit(&runtime, table, 10);  // Initialize the hash table with 10 capacity
-    // Opening file in reading mode/////////////////////////////////////////////////////////////////////////
-    int32_t len = sizeof(test1); // Get the size of the test WASM file
-
-    //Reading file into runtime code memory
-    uint8_t *load_ptr = (uint8_t *)malloc(len);              //Declaring a variable to store the wasm file    
-    if (!load_ptr) {
-        FAIL() << "Failed to allocate memory for loading wasm file.";
-    }
-    memcpy(load_ptr, test1, len); // Set the load pointer to the test WASM file
-    // Initialize the module name
     Name mod_name;
-    char name[6] = "main1";
+    char name[6] = "main1"; 
     mod_name.name = name;
     mod_name.lenght = 6;
-   
-    // READ module from file into runtime memory
-    WpObject *result = WpRuntimeReadModule(&runtime, mod_name, load_ptr, len);      
-    ASSERT_NE(result, nullptr) << "WpRuntimeReadModule returned null";
-    ASSERT_EQ(result->type, WP_OBJECT_MODULE_STATE) << "WpRuntimeReadModule did not return a WpModuleState object";
-    WpModuleState *module_state = (WpModuleState *)result;
+
+    uint32_t len = sizeof(sample1); // Get the size of the test WASM file
+
+    //Creating a binary file struct to pass to the function
+    WpBinFile bin_file = {
+        sample1, // Allocate memory for the binary file buffer
+        len     // Set the buffer size to the size of the test WASM file
+    };
+
+    WpModuleState mod_state;
+    WpModuleInit(&mod_state);
+
+    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, &mod_state, bin_file, mod_name);
+    ASSERT_NE(result, nullptr) << "WpRuntimeCreateModuleFromBinFile returned null";
+    ASSERT_EQ(result->type, WP_OBJECT_MODULE_STATE) << "WpRuntimeCreateModuleFromBinFile did not return a WpModuleState object";
+}
+
+TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_VALIDATE_MODULE) {
+    WpRuntimeState runtime;
+    WpRuntimeInit(&runtime);
+
+    Name mod_name;
+    char name[6] = "main1"; 
+    mod_name.name = name;
+    mod_name.lenght = 6;
+
+    uint32_t len = sizeof(sample1); // Get the size of the test WASM file
+
+    //Creating a binary file struct to pass to the function
+    WpBinFile bin_file = {
+        &sample1[0], // Allocate memory for the binary file buffer
+        len     // Set the buffer size to the size of the test WASM file
+    };
+
+    WpModuleState mod_state;
+    WpModuleInit(&mod_state);
+
+    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, &mod_state, bin_file, mod_name);
     
-    result = WpRuntimeValidateModule(&runtime, module_state);
+    result = WpRuntimeValidateModule(&runtime, &mod_state);
     // Check if the result is not null
     ASSERT_NE(result, nullptr) << "WpRuntimeValidateModule returned null";
     if(result->type == WP_OBJECT_ERROR) {
@@ -111,10 +80,6 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_VALIDATE_MODULE) {
     ASSERT_EQ(result->type, WP_OBJECT_MODULE_STATE) << "WpRuntimeValidateModule did not return a WpModuleState object";
     WpModuleState *validated_module = (WpModuleState *)result;
     // Check if the module status is validated
-    ASSERT_EQ(validated_module->status, WP_MODULE_STATUS_VALIDATED) << "Module status is not WP_MODULE_STATUS_VALIDATED";    
-
-    free(load_ptr);
+    ASSERT_EQ(validated_module->status, WP_MODULE_STATUS_VALIDATED) << "Module status is not WP_MODULE_STATUS_VALIDATED";
    
 }
-
-

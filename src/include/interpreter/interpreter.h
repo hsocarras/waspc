@@ -38,9 +38,9 @@ typedef struct WpInterpreterState{
     //const uint8_t * byte_code;
     const uint8_t * ip;                                 ///instruction pointer to the current instruction
 
-    Value value_stack[VM_VALUE_STACK_SIZE];       //value stack implemented with     
-    Value *value_stack_top;                       //pointer to stack's top
-    Value *value_stack_end;                       //pointer to last element of stack for avoid stack overflow
+    //Value value_stack[VM_VALUE_STACK_SIZE];             //value stack implemented with     
+    //Value *value_stack_top;                             //pointer to stack's top
+    //Value *value_stack_end;                             //pointer to last element of stack for avoid stack overflow
 
     ActivationFrame frames[VM_CALL_STACK_SIZE];
     uint32_t call_index;

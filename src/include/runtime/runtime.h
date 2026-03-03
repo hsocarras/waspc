@@ -25,9 +25,16 @@
 
 #include <stdint.h>
 
+/**
+ * @brief Structure to represent a WebAssembly binary file in memory.
+ */
+typedef struct WpBinFile{
+    const uint8_t *buf;
+    uint32_t bufsize;
+} WpBinFile;
 
 /**
- * @brief Sandbox for webasembly runtime, customised for plc.
+ * @brief Sandbox for webasembly runtime.
  * 
  */
 typedef struct WpRuntimeState{
@@ -40,19 +47,20 @@ typedef struct WpRuntimeState{
     //uint8_t *mark;                            ///pointer to static allocation for mark area
     //uint32_t mark_size;    
 
-    /// @brief Properties related to memory to store in ram the web asembly wasm file
-    const uint8_t *code_mem_start;
-    uint8_t *code_mem_ptr;
-    uint32_t code_mem_size;
-
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
     WpError err;                                ///Error object for runtime
     
-    /// @brief Hash table for store loaded modules. Online project.
-    HashTable modules; 
+    /// @brief Store. Implementation for web assembly store/////////////////////////////////////////////////////
+    HashTable store; 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// @brief Interpreter state object for run webassembly code
+    WpInterpreterState interpreter;             /// Interpreter state object 
+
+    /// @brief Validator state object for validate webassembly modules
     WpValidatorState validator;                 /// Validator state object
    
-    WpInterpreterState interpreter;             /// Interpreter state object             
+                
 
 }WpRuntimeState;
 
@@ -65,32 +73,13 @@ typedef struct WpRuntimeState{
 void WpRuntimeInit(WpRuntimeState *self);
 
 /**
- * @brief Function to init code memory area
+ * @brief Creates a module state from a WebAssembly binary file.
  * 
- * @param self 
- * @param start pointer to where memory start
- * @param mem_size memory size in bytes
+ * @param mod_state Pointer to a WpModuleState structure to be initialized.
+ * @param bin_file A WpBinFile structure containing the binary data and its size.
+ * @param mod_name Name to assign to the created module state.
  */
-void WpRuntimeCodeMemInit(WpRuntimeState *self, const uint8_t *start, uint32_t mem_size);
-
-void WpRuntimetableInit(WpRuntimeState *self, HtEntry *table, uint32_t number_entries);
-
-/**
- * @brief Loads a WebAssembly binary module into the runtime memory.
- *
- * This function copies the provided binary module into the runtime's code memory area,
- * creates and registers a new module state structure, and associates it with the given name.
- * It checks for sufficient memory and proper initialization of the module table.
- * If an error occurs (such as insufficient memory or uninitialized table), an error object is returned.
- *
- * @param self Pointer to the runtime state.
- * @param mod_name Name identifier for the module to be loaded.
- * @param mod_start Pointer to the start of the buffer containing the binary module.
- * @param mod_size Size of the module in bytes.
- * @return WpObject* Returns a pointer to the loaded module object on success,
- *                   or a pointer to an error object on failure.
- */
-WpObject * WpRuntimeReadModule(WpRuntimeState *self, Name mod_name, const uint8_t *mod_start, uint32_t mod_size);
+WpObject * WpRuntimeCreateModuleFromBinFile(WpRuntimeState *self,WpModuleState *mod_state, WpBinFile bin_file, Name mod_name);
 
 /**
  * @brief Validates a WebAssembly module loaded into the runtime.
@@ -126,11 +115,11 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod);
  */
 WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len);
 
-WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_instance);
+//WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_instance);
 
-WpObject * WpFuncInstanceInvoke(WpRuntimeState *self, funcaddr func, Value *args, uint32_t argc);
+//WpObject * WpFuncInstanceInvoke(WpRuntimeState *self, funcaddr func, Value *args, uint32_t argc);
 
-void WpRuntimeValidatorInit(WpRuntimeState *self, uint32_t val_stack_size, uint32_t ctr_stack_size);
+
 
 #ifdef __cplusplus
     }

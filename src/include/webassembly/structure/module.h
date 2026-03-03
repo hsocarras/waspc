@@ -26,7 +26,7 @@ typedef struct VecFuncType{
 
     // types  
     uint32_t lenght;    
-    FuncType *elements;
+    //FuncType *elements;
 
 } VecFuncType;
 
@@ -70,7 +70,7 @@ typedef struct Func{
     /// type index
     uint32_t type_index;                 
     //array of locals variables
-    VecLocals locals;                  
+    //VecLocals locals;                  
     //function body
     Expr body;
 } Func;

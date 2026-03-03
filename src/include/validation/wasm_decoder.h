@@ -17,9 +17,34 @@
 #endif
 
 //wasp includes
-#include "objects/module.h"
+#include "webassembly/binary/module.h"
 
 #include <stdint.h>
+
+//// Type check Functions /////////////////////////////////////////////////////////////////////
+
+uint8_t IsAbsHeadType(uint8_t valtype);
+
+uint8_t IsRecType(uint8_t byte);
+
+uint8_t isRefType(uint8_t encoded_type);
+
+uint8_t isStorageType(uint8_t encoded_type);
+
+uint8_t IsValType(uint8_t val_type);
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// SKIP: Function to skip a buffer corresponding to an expression//////////////////////////////
+const uint8_t * SkipExprBuf(const uint8_t *const buf, const uint32_t max_len);
+
+const uint8_t * SkipRecSubType(const uint8_t *const buf);
+
+const uint8_t * SkipLimitTypeBuf(const uint8_t *const buf);
+
+const uint8_t * SkipRefTypeBuf(const uint8_t *const buf);
+
+const uint8_t * SkipTableTypeBuf(const uint8_t *const buf);
+///////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
 VecFuncType *DecodeTypeSection(WpModuleState *mod);
@@ -51,15 +76,17 @@ VecData * DecodeDataSection(WpModuleState *mod);*/
 /// @param buf pointer to beguin of expr
 /// @param max_len max leng to avoid endless loop
 /// @return 
-const uint8_t * SkipExprBuf(const uint8_t *const buf, const uint32_t max_len);
+//const uint8_t * SkipExprBuf(const uint8_t *const buf, const uint32_t max_len);
 
-const uint8_t * SkipLimitTypeBuf(const uint8_t *const buf);
+//const uint8_t * SkipLimitTypeBuf(const uint8_t *const buf);
+
+const uint8_t * GetSubTypeByIndex(const uint8_t * buf, uint32_t subtype_index);
 
 /// @brief Function to get the pointer where start the function type
 /// @param typesec WasmBinSection of type section
 /// @param type_index index of the function type to get
 /// @return index where function type start (0x60) otherwise NULL
-const uint8_t * GetFuncTypeByIndex(WasmBinSection typesec, uint32_t type_index);
+const uint8_t * GetTypeByIndex(WasmBinSection typesec, uint32_t type_index);
 
 const uint8_t * GetImportByIndex(WasmBinSection importsec, uint32_t import_index);
 
@@ -78,6 +105,8 @@ const uint8_t * GetElementByIndex(WasmBinSection elemsec, uint32_t elem_index);
 const uint8_t * GetCodeByIndex(WasmBinSection codesec, uint32_t code_index);
 
 const uint8_t * GetDataByIndex(WasmBinSection datasec, uint32_t data_index);
+
+const uint8_t * GetTagByIndex(WasmBinSection tagsec, uint32_t tag_index);
 
 #ifdef __cplusplus
     }

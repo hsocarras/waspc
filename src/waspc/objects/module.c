@@ -38,13 +38,14 @@ void WpModuleInstanceInit(WpModuleInstance *self){
 }
 
 /**
+ * @version 3.0
  * @brief Initialize a module state object
  */
 void WpModuleInit(WpModuleState *self){
 
     self->type = WP_OBJECT_MODULE_STATE;
-    self->name.name = NULL;
-    self->name.lenght = 0;
+    //self->name.name = NULL;
+    //self->name.lenght = 0;
     self->status = WP_MODULE_STATUS_INIT;
 
     ///Binary propertyes///////////////////////////////////////////////////////////////////
@@ -56,6 +57,7 @@ void WpModuleInit(WpModuleState *self){
     self->functionsec = (WasmBinSection){0, NULL};
     self->tablesec = (WasmBinSection){0, NULL};
     self->memsec = (WasmBinSection){0, NULL};
+    self->tagsec = (WasmBinSection){0, NULL};
     self->globalsec = (WasmBinSection){0, NULL};
     self->exportsec = (WasmBinSection){0, NULL};
     self->startsec = (WasmBinSection){0, NULL};
@@ -64,11 +66,12 @@ void WpModuleInit(WpModuleState *self){
     self->codesec = (WasmBinSection){0, NULL};
     self->datasec = (WasmBinSection){0, NULL};
     ////////////////////////////////////////////////////////////////////////////////////////    
-    self->functype_count = 0;
+    self->type_count = 0;
     self->import_count = 0; 
     self->function_count = 0;
     self->table_count = 0;
     self->memory_count = 0;
+    self->tag_count = 0;
     self->global_count = 0;
     self->export_count = 0;
     self->element_count = 0;
@@ -76,6 +79,6 @@ void WpModuleInit(WpModuleState *self){
     self->element_count = 0;
     self->data_count = 0;
     ////////////////////////////////////////////////////////////////////////////////////////
-    WpModuleInstanceInit(&self->instance);
+    //WpModuleInstanceInit(&self->instance);
 }
 

@@ -17,18 +17,50 @@
 #endif
 
 #include <stdint.h>
+
+/**
+ * @brief Unions to work with different leb128 unsigned types
+ */
+typedef union leb128u
+{
+    uint8_t u8;
+    uint16_t u16;
+    uint32_t u32;
+    uint64_t u64;
     
+}leb128u;
+
+/**
+ * @brief Unions to work with different leb128 signed types
+ */
+typedef union leb128s
+{
+    int8_t i8;
+    int16_t i16;
+    int32_t i32;
+    int64_t i64;
+    
+}leb128s;
+
+
     /**
      * Function to decode a 32 bit LEB128 integer      
      * Return a pointer to next uint8_t if success otherwise a null pointer
      */
-    const uint8_t * DecodeLeb128Int32(const uint8_t *, int32_t *);
+    const uint8_t * DecodeLeb128Int(const uint8_t *, uint8_t n, void *);
 
     /**
      * Function to decode a 32 bit unsigned LEB128 integer 
      * Return a pointer to next uint8_t if success otherwise a null pointer      
      */
-    const uint8_t * DecodeLeb128UInt32(const uint8_t *, uint32_t *);
+    const uint8_t * DecodeLeb128UInt(const uint8_t *, uint8_t n, void *);
+
+
+// Macros for common use cases
+#define DecodeLeb128Int32(buff, val) DecodeLeb128Int(buff, 32, (void *) val)
+#define DecodeLeb128UInt32(buff, val) DecodeLeb128UInt(buff, 32, (void *) val)
+#define DecodeLeb128Int64(buff, val) DecodeLeb128Int(buff, 64, (void *) val)
+#define DecodeLeb128UInt64(buff, val) DecodeLeb128UInt(buff, 64, (void *) val)
 
 #ifdef __cplusplus
     }

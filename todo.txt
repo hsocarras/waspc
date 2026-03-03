@@ -1,0 +1,51 @@
+- Done
+* Pending
+
+Driver:
+    All funcions related to load an manage plc program,
+    
+    -call to WpRuntimeCreateModuleFromBinFile
+    -call to WpRuntimeValidateModule
+    * call to WpRuntimeInstanciateModule
+
+    Runtime:
+        -InitRuntime
+        -WpRuntimeValidateModule:
+            -call to ValidateMagicBuf
+            -call to ValidateVersionBuf
+            -call to ValidateBinSectionById
+
+        Validator:
+            -Init
+            -ValidateBinSectionById:            
+                - order check
+                - call to ReadBinSection
+                    -call to GetTypeByIndex
+                    -call to ValidateTypeBuf
+                    -call to GetImportByIndex
+                    -call to ValidateImportBuf
+                    -call to GetFunctionByIndex 
+                    -call to GetTableByIndex
+                    -call to ValidateTableTypeBuf
+                    -call to GetMemByIndex
+                    -call to ValidateLimitsTypeBuf
+                    -call to GetTagByIndex
+                    -call to ValidateTagTypeBuf
+                    -call to GetGlobalByIndex
+                    -call to ValidateGlobalTypeBuf
+                    -call to ValidateConstantExprBuf
+                    -call to GetExportByIndex
+                    -call to ValidateExportBuf
+                    -call to GetElementByIndex
+                    -call to ValidateElementBuf
+                    -call to GetCodeByIndex
+                    -call to ValidateCodeBuf
+                    -call to GetDataByIndex
+                    -call to ValidateDataBuf
+                    *Custom section decode an validation.
+
+Commit milestone:
+all section order must be tested and done
+all functions GetByIndex must be tested and done
+all function ValidateBuf must be tested and done: this function only check that binary buffer meet binary format for the current section
+deeper validation must be done in separated function.

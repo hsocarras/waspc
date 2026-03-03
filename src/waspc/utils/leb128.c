@@ -12,38 +12,66 @@
 //Project includes
 #include "utils/leb128.h"
 
+
+//C standard library includes
+#include <assert.h>
+
 /**
  * @brief Function to decode a 32 bit LEB128 integer
  * 
  * @param buff pointer to first byte for encoded integer
- * @param ref_i32 reference to store decoded value
+ * @param n number of bits of the integer to decode (e.g., 32)
+ * @param val reference to store decoded value
  * @return const uint8_t* pointer to next byte after encoded integer if success, otherwise is null
  */
-const uint8_t * DecodeLeb128Int32(const uint8_t *buff, int32_t *ref_i32) {
+const uint8_t * DecodeLeb128Int(const uint8_t *buff, uint8_t n, void *val) {
+
+    assert(n > 8); //n must higher than 8
 
     uint8_t byte;               /// hold the current procesing byte from encoded array
     uint8_t cicle_counter = 0;  /// nasa golden rule 2
     uint8_t shift = 0;          /// value to shift
-    int32_t value = 0;          /// variable to store the decoded int32
+    leb128s value;              /// variable to store the decoded int
+    uint8_t max_bytes;
 
-    while(cicle_counter < 5){   // and encoded int32 must have no more than 5 bytes ceil (N/7)
+    value.i64 = 0;              //initialize value to 0
+
+    if(n % 7 == 0){
+        max_bytes = n / 7;
+    }
+    else{
+        max_bytes = (n / 7) + 1;
+    }
+
+    while(cicle_counter < max_bytes){   // and encoded int32 must have no more than 5 bytes ceil (N/7)
         //getting the first byte
         byte = *buff;
         //decode
-        value = value | ((byte & 0x7F) << shift);
+        value.i64 = value.i64 | ((byte & 0x7F) << shift);
         //value to shift in next iteration
         shift = shift + 7;
         //if most significant bit is 0 then byte is the last byte.
         if((byte & 0x80) == 0){
             //check bit for signed value            
             if(shift < 32 && (byte & 0x40) != 0){
-                *ref_i32 = value | (~0 << shift);
-                buff++;
+                value.i64 = value.i64 | (~0 << shift); 
+            }
+
+            buff++;
+
+            
+            if(n <= 32){
+                *((int32_t *)val) = value.i32;
                 return buff;
             }
-            *ref_i32 = value;
-            buff++;
-            return buff;
+            else if(n <= 64){
+                *((int64_t *)val) = value.i64;
+                return buff;
+            }
+            else{
+                return NULL; //invalid n
+            }
+            
         }
         //otherwise increment pointer and cicle_counter
         buff++;
@@ -59,27 +87,51 @@ const uint8_t * DecodeLeb128Int32(const uint8_t *buff, int32_t *ref_i32) {
  * @brief Function to decode a 32 bit LEB128 unsigned integer
  * 
  * @param buff pointer to first byte for encoded integer
- * @param ref_u32 reference to store decoded value
+ * @param n number of bits of the integer to decode (e.g., 32)
+ * @param val reference to store decoded value
  * @return const uint8_t* pointer to next byte after encoded integer if success, otherwise is null
  */
-const uint8_t * DecodeLeb128UInt32(const uint8_t *buff, uint32_t *ref_u32) {
+const uint8_t * DecodeLeb128UInt(const uint8_t *buff, uint8_t n, void *val) {
+
+    assert(n > 8); //n must higher than 8
 
     uint8_t byte;               /// hold the current procesing byte from encoded array
     uint8_t cicle_counter = 0;  /// nasa golden rule 2
     uint8_t shift = 0;          /// value to shift
-    int32_t value = 0;          /// variable to store the decoded int32
+    leb128u value;              /// variable to store the decoded uint
+    uint8_t max_bytes;
 
-    while(cicle_counter < 5){   // and encoded uint32 must have no more than 5 bytes
+    value.u64 = 0;              //initialize value to 0
+
+    if(n % 7 == 0){
+        max_bytes = n / 7;
+    }
+    else{
+        max_bytes = (n / 7) + 1;
+    }
+
+    while(cicle_counter < max_bytes){  
         //getting the first byte
         byte = *buff;
         //decode
-        value = value | ((byte & 0x7F) << shift);
+        value.u64 = value.u64 | ((byte & 0x7F) << shift);
         //if most significant bit is 0 then byte is the last byte.
         if((byte & 0x80) == 0){      
             
-            *ref_u32 = value;    
-            buff++; 
-            return buff;
+            
+            if(n <= 32){
+                *((uint32_t *)val) = value.u32;
+                buff++;
+                return buff;
+            }
+            else if(n <= 64){
+                *((uint64_t *)val) = value.u64;
+                buff++;
+                return buff;
+            }
+            else{
+                return NULL; //invalid n
+            }                
         }
         //otherwise increment pointer and cicle_counter
         shift = shift + 7;

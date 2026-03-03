@@ -107,46 +107,23 @@ typedef struct  VecRef
 
 // Reference ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//VALUE Type ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-//2.3.4 y 5.3.4
-typedef enum ValType {
-    
-    UNKNOW,
-    WAS_FUNCT_TYPE = 0x60,
-    WAS_NULL_REF_TYPE,
-    WAS_EXTERN_REF_TYPE = 0x6F,
-    WAS_FUNC_REF_TYPE = 0x70,
-    WAS_V128 = 0x7B,
-    WAS_F64 = 0x7C,
-    WAS_F32 = 0x7D,
-    WAS_I64 = 0x7E,
-    WAS_I32 = 0x7F,   
 
-} ValType;
-
-typedef struct VecValType{
-    uint32_t lenght;
-    ValType *elements;
-} VecValType;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Result type ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 //2.3.5
-typedef struct ResultType{
-    uint32_t lenght;
-    ValType * val_types;
-}ResultType;
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief Function types classify the signature of functions, mapping a vector of parameters to a vector of results.
  * 
  * functype ::= resulttype → resulttype
- */
+ *
 typedef struct FuncType{
-    ResultType params;
-    ResultType results;
-} FuncType;
+   // ResultType params;
+    //ResultType results;
+} FuncType;*/
 //#################################################################################################################
 
 
@@ -171,7 +148,7 @@ typedef struct TableType{
 // Global //////////////////////////////////////////////////////////////////////////////////////////////////////////
 typedef struct GlobalType {
     uint8_t m;                //0-constant, 1-variable
-    ValType t;
+    //ValType t;
 } GlobalType;
 // Global //////////////////////////////////////////////////////////////////////////////////////////////////////////
 

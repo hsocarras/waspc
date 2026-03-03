@@ -31,7 +31,13 @@ typedef struct WpError{
     WpObjectType type;
 
     /// errors id, unique for every posible error
-    uint32_t id;     
+    uint32_t id;   
+    
+    //TODO : this mus be only for dev
+    uint8_t module_id;
+    uint8_t code; //code for the error, unique for every module
+    uint8_t subcode; //subcode for the error, unique for every module and code
+    uint8_t severity; //severity of the error, from 0 to 5, where 0 is the least severe and 5 is the most severe
 
     #if WASPC_CONFIG_DEV_FLAG == 1
     char file[64];

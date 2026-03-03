@@ -37,30 +37,31 @@ typedef enum SectionId{
     WP_WSA_BIN_MOD_SEC_ID_ELEMENT,
     WP_WSA_BIN_MOD_SEC_ID_CODE,
     WP_WSA_BIN_MOD_SEC_ID_DATA,
-    WP_WSA_BIN_MOD_SEC_ID_DATA_COUNT,     
+    WP_WSA_BIN_MOD_SEC_ID_DATA_COUNT, 
+    WP_WSA_BIN_MOD_SEC_ID_TAG    
 } SectionId;
 
 // Code //////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
 typedef struct Locals{
     uint32_t n;                             //number of local variables
-    ValType t;                              //local variable type
+    //ValType t;                              //local variable type
 } Locals;
 
-typedef struct VecLocals{
+typedef struct ListLocals{
     uint32_t lenght;
     Locals *elements;
-} VecLocals;
+} ListLocals;
 
 typedef struct CodeFunc{    
-    VecLocals locals;
-    Expr e;
+    //Locals locals;
+    //Expr e;
 } CodeFunc;
 
 typedef struct Code{
-    uint32_t size;
-    CodeFunc code;
-} Code;
+    //uint32_t size;
+    //CodeFunc code;
+} Code;*/
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef struct WasmBinSection {   

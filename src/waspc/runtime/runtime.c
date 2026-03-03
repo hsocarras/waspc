@@ -1,12 +1,12 @@
 /**
  * @file runtime.c
  * @author your name (you@domain.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-01-22
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 
 #include "runtime/runtime.h"
@@ -16,160 +16,44 @@
 #include "webassembly/execution/runtime/values.h"
 #include "runtime/alloc.h"
 
-
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
-//#include <stdio.h>
-
+// #include <stdio.h>
 
 /**
  * @brief Init function for runtime state object
- * 
- * @param self 
+ *
+ * @param self
  */
-void WpRuntimeInit(WpRuntimeState *self){
-    
-    // Init code mem relate properties
-    self->code_mem_start = NULL;
-    self->code_mem_ptr = NULL;
-    self->code_mem_size = 0;    
+void WpRuntimeInit(WpRuntimeState *self)
+{
 
     // Init error object
     WpErrorInit(&self->err);
 
-    //Init validator
-    WpValidatorStateInit(&self->validator);
-
     // Init modules hash table
-    HashTableInit(&self->modules);    
+    // HashTableInit(&self->modules);
+
+    // Interpreter
+    //WpInterpreterInit(&self->interpreter);
+
+    // Init validator
+    WpValidatorStateInit(&self->validator);
 }
 
-/**
- * @brief Function to init code memory area
- * 
- * @param self 
- * @param start pointer to where memory start
- * @param mem_size memory size in bytes
- */
-void WpRuntimeCodeMemInit(WpRuntimeState *self, const uint8_t *start, uint32_t mem_size){
-
-    // Init code memory
-    self->code_mem_start = start;
-    self->code_mem_ptr = (uint8_t *)start;
-    self->code_mem_size = mem_size;
-}
-
-
-void WpRuntimetableInit(WpRuntimeState *self, HtEntry *table, uint32_t number_entries){
-
-    HastTableSetup(&self->modules, table, number_entries);
-
-}
-
-
-void WpRuntimeValidatorInit(WpRuntimeState *self, uint32_t val_stack_size, uint32_t ctr_stack_size){
-
-    self->validator.val_stack = (ValType *)malloc(sizeof(ValType) * val_stack_size);
-    if(!self->validator.val_stack){
-        self->err.id = 6;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeValidatorInit");
-        #endif
-        return;
+WpObject *WpRuntimeCreateModuleFromBinFile(WpRuntimeState *self, WpModuleState *mod_state, WpBinFile bin_file, Name mod_name)
+{
+    if (!mod_state)
+    {
+        return (WpObject *)&(self->err);
     }
-    self->validator.stk_ptr = self->validator.val_stack;
-    self->validator.val_stack_size = val_stack_size;
-
-    self->validator.ctrl_stack = (ValCtrlFrame *)malloc(sizeof(ValCtrlFrame) * ctr_stack_size);
-    if(!self->validator.ctrl_stack){    
-        self->err.id = 7;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeValidatorInit");
-        #endif
-        return;
-    }
-    self->validator.ctr_stack_idx = 0;
-    self->validator.ctr_stack_size = ctr_stack_size;
-}
-
-/**
- * @brief Function to get the binary module into the runtime memory
- * 
- * @param self 
- * @param mod_name every module must have a name to be identified.
- * @param buffer_start address of the buffer where the module is stored.
- * @param mod_size module size in bytes.
- * @return WpObject* Error object if error, or module object if success.
- */
-WpObject * WpRuntimeReadModule(WpRuntimeState *self, Name mod_name, const uint8_t *buffer_start, uint32_t mod_size){
-
-    //first check that code memory is not null
-    assert(self->code_mem_start);
-
-    //check that hash table was initilised corectly.    
-    if(self->modules.capacity == 0){
-        self->err.id = 1;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeLoadModule");
-        #endif
-        return (WpObject *)&self->err;
-    }
-    
-    //check that are enought memory.
-    uint32_t memory_usage = self->code_mem_ptr - self->code_mem_start;
-    uint32_t memory_left = self->code_mem_size - memory_usage;
-    if(mod_size > memory_left){
-        self->err.id = 2;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeLoadModule");
-        #endif
-        return (WpObject *)&self->err;
-    }
-
-    //copy module to code memory
-    uint8_t *mod_start_address = memcpy(self->code_mem_ptr, buffer_start, mod_size);
-    self->code_mem_ptr += mod_size;         //move pointer to next free memory
-    
-    //create module object
-    WpModuleState *mod = (WpModuleState *)malloc(sizeof(WpModuleState));
-    if(!mod){
-        self->err.id = 3;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeLoadModule");
-        #endif
-        return (WpObject *)&self->err;
-    }
-    WpModuleInit(mod);
-    
-    //register module object
-    assert(mod_name.name);    
-    HtEntry *curent_entry = HashTableSet(&self->modules, mod_name, mod);
-    
-    if(!curent_entry){
-        self->err.id = 4;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeLoadModule");
-        #endif
-        return (WpObject *)&self->err;
-    }
-
-    //copy module name
-    
-    mod->name = curent_entry->key;  //copy name from hash table entry
-    //set module properties  
-    mod->status = WP_MODULE_STATUS_READ;
-    mod->buf = mod_start_address;
-    mod->bufsize = mod_size;
-
-    return (WpObject *)mod;
-
+    mod_state->type = WP_OBJECT_MODULE_STATE;
+    // mod_state->name = mod_name;
+    mod_state->status = WP_MODULE_STATUS_INIT;
+    mod_state->buf = bin_file.buf;
+    mod_state->bufsize = bin_file.bufsize;
+    return (WpObject *)mod_state;
 }
 
 /**
@@ -186,84 +70,88 @@ WpObject * WpRuntimeReadModule(WpRuntimeState *self, Name mod_name, const uint8_
  * @return WpObject* Returns the validated module object on success,
  *                   or an error object on failure.
  */
-WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){ 
-    
-    if(!mod){
+WpObject *WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod)
+{
+
+    if (!mod)
+    {
         self->err.id = 11;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeValidateModule");
-        #endif
+#if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64, "runtime/runtime.c");
+        strcpy_s(self->err.func, 32, "WpRuntimeValidateModule");
+#endif
         return (WpObject *)&self->err;
     }
-        
-    
-    const uint8_t *index = mod->buf;                                // pointer to byte to traverse the binary file    
-    const uint8_t *buf_end = index + mod->bufsize;                  // pointer to end of binary module
-    uint32_t decoded_u32 = 0;                                       // auxiliary var to store u32 values
-    uint8_t section_id;
-    uint8_t last_loaded_section = 0;                                // var to keep track section order.
 
-    #define READ_BYTE() (*index++)
-    #define NOT_END() (index < buf_end)
+    const uint8_t *index = mod->buf;               // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + mod->bufsize; // pointer to end of binary module
+    uint32_t decoded_u32 = 0;                      // auxiliary var to store u32 values
+    uint8_t section_id;
+    uint8_t last_loaded_section = 0; // var to keep track section order.
+
+#define READ_BYTE() (*index++)
+#define NOT_END() (index < buf_end)
 
     // Check minimun module size for magic and version number ///////////////////////////////////
-    if(mod->bufsize < 12){
+    if (mod->bufsize < 12)
+    {
         self->err.id = 5;
         mod->status = WP_MODULE_STATUS_INVALID;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeValidateModule");
-        #endif
+#if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64, "runtime/runtime.c");
+        strcpy_s(self->err.func, 32, "WpRuntimeValidateModule");
+#endif
         return (WpObject *)&self->err;
     }
 
-    // Check magic number /////////////////////////////////////////////////////////////////////////    
-    if (!ValidateMagicBuf(index)){
+    // Check magic number /////////////////////////////////////////////////////////////////////////
+    if (ValidateMagicBuf(index)> 0)    {
         self->err.id = 13;
         mod->status = WP_MODULE_STATUS_INVALID;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeValidateModule");
-        #endif
+#if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64, "runtime/runtime.c");
+        strcpy_s(self->err.func, 32, "WpRuntimeValidateModule");
+#endif
         return (WpObject *)&self->err;
-    }   
-    index = index + 4; 
+    }
+    index = index + 4;
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    // Check version number /////////////////////////////////////////////////////////////////////////    
-    if (!ValidateVersionBuf(index, &decoded_u32)){
+    // Check version number /////////////////////////////////////////////////////////////////////////
+    if (ValidateVersionBuf(index, &decoded_u32) > 0){
         self->err.id = 14;
         mod->status = WP_MODULE_STATUS_INVALID;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeValidateModule");
-        #endif
-        return (WpObject *)&self->err;    
+#if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64, "runtime/runtime.c");
+        strcpy_s(self->err.func, 32, "WpRuntimeValidateModule");
+#endif
+        return (WpObject *)&self->err;
     }
-    index = index + 4;    
+    index = index + 4;
     mod->version = decoded_u32;
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    
-    //Traversing the binary file 
-    while(NOT_END()){
-        //Seccion
-        section_id = READ_BYTE();        
+
+    // Traversing the binary file
+    while (NOT_END())
+    {
+        // Seccion
+        section_id = READ_BYTE();
         //
         index = ValidateBinSectionById(&self->validator, index, section_id, &last_loaded_section, mod);
-        if (!index){  
+        if (!index)
+        {
             self->err.id = 16;
             mod->status = WP_MODULE_STATUS_INVALID;
-            #if WASPC_CONFIG_DEV_FLAG == 1
-            strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-            strcpy_s(self->err.func, 32,"WpRuntimeValidateModule");
-            #endif            
-            return (WpObject *)&self->err;                                                             
-        }        
-    }  
+#if WASPC_CONFIG_DEV_FLAG == 1
+            strcpy_s(self->err.file, 64, "runtime/runtime.c");
+            strcpy_s(self->err.func, 32, "WpRuntimeValidateModule");
+#endif
+            return (WpObject *)&self->err;
+        }
+    }
 
-    #undef READ_BYTE
-    #undef NOT_END
+#undef READ_BYTE
+#undef NOT_END
 
     mod->status = WP_MODULE_STATUS_VALIDATED;
     return (WpObject *)mod;
@@ -283,17 +171,18 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod){
  * @param extern_len Number of external values in the array.
  * @return WpObject* Returns a pointer to the initialized module instance.
  */
-static WpObject * WpRuntimeAllocateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len){
+static WpObject *WpRuntimeAllocateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len)
+{
 
     self->err.id = 3;
-    #if WASPC_CONFIG_DEV_FLAG == 1
-    strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-    strcpy_s(self->err.func, 32,"WpRuntimeLoadModule");
-    #endif
+#if WASPC_CONFIG_DEV_FLAG == 1
+    strcpy_s(self->err.file, 64, "runtime/runtime.c");
+    strcpy_s(self->err.func, 32, "WpRuntimeLoadModule");
+#endif
     return (WpObject *)&self->err;
     /*
     //step 2 For each function func𝑖 in module.funcs, do:
-    //    a. Let funcaddr𝑖 be the function address resulting from allocating func𝑖 
+    //    a. Let funcaddr𝑖 be the function address resulting from allocating func𝑖
     mod->instance.funcaddrs.lenght = 0;
     mod->instance.funcaddrs.elements = (funcaddr *)malloc(sizeof(funcaddr) * mod->was->funcs.lenght);
     for(uint32_t i = 0; i < mod->was->funcs.lenght; i++){
@@ -306,13 +195,13 @@ static WpObject * WpRuntimeAllocateModule(WpRuntimeState *self, WpModuleState *m
     if(!mod->instance.exports.elements){
         self->err.id = 3;
         #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
+        strcpy_s(self->err.file, 64,"runtime/runtime.c");
         strcpy_s(self->err.func, 32,"WpRuntimeLoadModule");
         #endif
         return (WpObject *)&self->err;
     }
     for(uint32_t i = 0; i < mod->was->exports.lenght; i++){
-       
+
         //WpExportInstanceInit(export_instance);
         mod->instance.exports.elements[i].name.name = mod->was->exports.elements[i].name.name;
         mod->instance.exports.elements[i].name.lenght = mod->was->exports.elements[i].name.lenght;
@@ -330,9 +219,9 @@ static WpObject * WpRuntimeAllocateModule(WpRuntimeState *self, WpModuleState *m
             break;
         default:
             break;
-        }        
+        }
     }
-    
+
 
     return (WpObject *)&mod->instance;
     */
@@ -354,18 +243,19 @@ static WpObject * WpRuntimeAllocateModule(WpRuntimeState *self, WpModuleState *m
  * @return WpObject* Returns the instantiated module object on success,
  *                   or an error object on failure.
  */
-WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len){
+WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len)
+{
     self->err.id = 21;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-        strcpy_s(self->err.func, 32,"WpRuntimeInstanciateModule");
-        #endif
-        return (WpObject *)&self->err;
-    /*    
+#if WASPC_CONFIG_DEV_FLAG == 1
+    strcpy_s(self->err.file, 64, "runtime/runtime.c");
+    strcpy_s(self->err.func, 32, "WpRuntimeInstanciateModule");
+#endif
+    return (WpObject *)&self->err;
+    /*
     if(!mod){
         self->err.id = 21;
         #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
+        strcpy_s(self->err.file, 64,"runtime/runtime.c");
         strcpy_s(self->err.func, 32,"WpRuntimeInstanciateModule");
         #endif
         return (WpObject *)&self->err;
@@ -376,7 +266,7 @@ WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, 
     if(mod->status != WP_MODULE_STATUS_VALIDATED){
         self->err.id = 22;
         #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
+        strcpy_s(self->err.file, 64,"runtime/runtime.c");
         strcpy_s(self->err.func, 32,"WpRuntimeInstanciateModule");
         #endif
         return (WpObject *)&self->err;
@@ -386,7 +276,7 @@ WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, 
     if(mod->was->imports.lenght != extern_len){
         self->err.id = 24;
         #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
+        strcpy_s(self->err.file, 64,"runtime/runtime.c");
         strcpy_s(self->err.func, 32,"WpRuntimeInstanciateModule");
         #endif
         return (WpObject *)&self->err;
@@ -405,7 +295,7 @@ WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, 
                 //Assert: ext is a function
                 //1. If the function is not valid, then:
                 //  a. Fail
-                
+
                 break;
             case WP_EXTERNAL_TYPE_TABLE:
                 //Assert: ext is a table
@@ -447,45 +337,46 @@ WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, 
  * @param mod Pointer to the instantiated module.
  * @return WpObject* Returns the result of the main function invocation on success,
  *                   or an error object on failure.
- */
-WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_instance){
+ *
+WpObject *WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_instance)
+{
 
     Name main_func = {5, "main"};
 
-    
-    //2-If the module does not have a main function, then: Return
-    
-    for(uint32_t i = 0; i < m_instance->exports.lenght; i++){
-        if(strncmp(m_instance->exports.elements[i].name.name, main_func.name, 5) == 0){
+    // 2-If the module does not have a main function, then: Return
 
-            //3-If the main function is not valid, then: Fail
-            if(m_instance->exports.elements[i].export_type != WP_EXTERNAL_TYPE_FUNC){
+    for (uint32_t i = 0; i < m_instance->exports.lenght; i++)
+    {
+        if (strncmp(m_instance->exports.elements[i].name.name, main_func.name, 5) == 0)
+        {
+
+            // 3-If the main function is not valid, then: Fail
+            if (m_instance->exports.elements[i].export_type != WP_EXTERNAL_TYPE_FUNC)
+            {
                 self->err.id = 32;
-                #if WASPC_CONFIG_DEV_FLAG == 1
-                strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-                strcpy_s(self->err.func, 32,"WpRuntimeInvocateProgram");
-                #endif
+#if WASPC_CONFIG_DEV_FLAG == 1
+                strcpy_s(self->err.file, 64, "runtime/runtime.c");
+                strcpy_s(self->err.func, 32, "WpRuntimeInvocateProgram");
+#endif
                 return (WpObject *)&self->err;
             }
 
-            //4-Invoke the main function
-           funcaddr main = m_instance->exports.elements[i].value.func;
+            // 4-Invoke the main function
+            funcaddr main = m_instance->exports.elements[i].value.func;
 
             return WpFuncInstanceInvoke(self, main, NULL, 0);
         }
     }
 
-    //3-If the main function is not found, then: Return Error    
+    // 3-If the main function is not found, then: Return Error
     self->err.id = 32;
-    #if WASPC_CONFIG_DEV_FLAG == 1
-    strcpy_s(self->err.file, 64,"runtime/runtime.c"); 
-    strcpy_s(self->err.func, 32,"WpRuntimeInvocateProgram");
-    #endif
+#if WASPC_CONFIG_DEV_FLAG == 1
+    strcpy_s(self->err.file, 64, "runtime/runtime.c");
+    strcpy_s(self->err.func, 32, "WpRuntimeInvocateProgram");
+#endif
     return (WpObject *)&self->err;
-    
-
 }
-
+*/
 /**
  * @brief Invokes a WebAssembly function instance according to the WebAssembly specification.
  *
@@ -499,16 +390,17 @@ WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_in
  * @param argc Number of argument values in the args array.
  * @return WpObject* Returns the result of the function invocation on success,
  *                   or an error object on failure.
- */
-WpObject * WpFuncInstanceInvoke(WpRuntimeState *self, funcaddr func, Value *args, uint32_t argc) {
-    
+ *
+WpObject *WpFuncInstanceInvoke(WpRuntimeState *self, funcaddr func, Value *args, uint32_t argc)
+{
+
     self->err.id = 40;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64, "runtime/runtime.c");
-        strcpy_s(self->err.func, 32, "WpFuncInstanceInvoke");
-        #endif
-        return (WpObject *)&self->err;
-    /*    
+#if WASPC_CONFIG_DEV_FLAG == 1
+    strcpy_s(self->err.file, 64, "runtime/runtime.c");
+    strcpy_s(self->err.func, 32, "WpFuncInstanceInvoke");
+#endif
+    return (WpObject *)&self->err;
+    
     if (!func) {
         self->err.id = 40;
         #if WASPC_CONFIG_DEV_FLAG == 1
@@ -560,5 +452,6 @@ WpObject * WpFuncInstanceInvoke(WpRuntimeState *self, funcaddr func, Value *args
     // 6. Free locals
     free(frame.locals);
 
-    return result;*/
+    return result;
 }
+*/

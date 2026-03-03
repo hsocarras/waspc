@@ -24,14 +24,14 @@
  * This function checks if there is enough space in the stack before pushing.
  * @param self Pointer to the validator state
  * @param val_type The value type to push onto the stack
- */
+ *
 uint8_t WpValPushValType(WpValidatorState *self, ValType val_type) {
     if (self->stk_ptr - self->val_stack < self->val_stack_size) {
         *(self->stk_ptr++) = val_type;
         return 1;
     }
     return 0; // Stack overflow
-}
+}*/
 
 /**
  * @brief Function to pop a value type from the validator's value stack.
@@ -39,7 +39,7 @@ uint8_t WpValPushValType(WpValidatorState *self, ValType val_type) {
  * @param self Pointer to the validator state
  * @param val_type The expected value type to pop from the stack
  * @return ValType The value type popped from the stack, or UNKNOW if the stack is empty or mismatched.
- */
+ *
 ValType WpValPopExpectedValType(WpValidatorState *self, ValType val_type) {
     // Check if the stack is not empty before popping
     if (self->stk_ptr > self->val_stack) {
@@ -61,7 +61,7 @@ ValType WpValPopValType(WpValidatorState *self) {
         return *(--self->stk_ptr);        
     }
     return UNKNOW; // Stack underflow, return unknown type
-}
+}*/
 
 /**
  * @brief Function to push a control frame onto the validator's control stack.
@@ -69,16 +69,16 @@ ValType WpValPopValType(WpValidatorState *self) {
  * @param self Pointer to the validator state
  * @param frame The control frame to push onto the stack
  * @return uint8_t 1 on success, 0 on failure (e.g.,    stack overflow)
- */
-uint8_t WpValPushCtrlFrame(WpValidatorState *self, ValCtrlFrame frame) {
+ *
+uint8_t WpValPushCtrlFrame(WpValidatorState *self, ActivationFrame frame) {
     // Check if there is space in the control stack
-    ValCtrlFrame *top_frame;
+    ActivationFrame *top_frame;
     if (self->ctr_stack_idx < self->ctr_stack_size) {
         top_frame = &self->ctrl_stack[self->ctr_stack_idx++];       /// take current index and increment the control stack index after
         // Initialize the control frame
         //top_frame->op = frame.op;
-        top_frame->start_types = frame.start_types;
-        top_frame->end_types = frame.end_types;
+        top_frame->locals = frame.locals;
+        top_frame->arity = frame.arity;
         //top_frame->val_stack = frame.val_stack;
         top_frame->unreachable = frame.unreachable;
         return 1; // Success
@@ -91,16 +91,16 @@ uint8_t WpValPushCtrlFrame(WpValidatorState *self, ValCtrlFrame frame) {
  * This function checks if the control stack is not empty before popping.
  * @param self Pointer to the validator state
  * @return ValCtrlFrame The popped control frame, or an empty frame if the stack is empty
- */
-ValCtrlFrame WpValPopCtrlFrame(WpValidatorState *self) {
+ *
+ActivationFrame WpValPopCtrlFrame(WpValidatorState *self) {
     // Check if the control stack is not empty before popping
     if (self->ctr_stack_idx > 0) {
         return self->ctrl_stack[--self->ctr_stack_idx];
     }
     // Handle underflow error, return an empty Ctrl structure or handle as needed
-    ValCtrlFrame empty_ctrl = {NULL, NULL, 0, NULL, 0, 0};
+    ActivationFrame empty_ctrl = {NULL, NULL, 0, NULL, 0, };
     return empty_ctrl; // Indicating an empty control frame
-}
+}*/
 
 
 /**
@@ -110,11 +110,11 @@ ValCtrlFrame WpValPopCtrlFrame(WpValidatorState *self) {
  * @param self Pointer to the validator state
  * @param opcode The opcode to evaluate
  * @return uint32_t 0 on error, 1 on success
- */
-uint32_t WpValEvalOpcode(WpValidatorState *self, OpCode opcode) {
+ *
+uint8_t WpValEvalOpcode(WpValidatorState *self, OpCode opcode) {
 
     uint32_t dec_u32; // auxiliary variable for decoded values   
-    ValCtrlFrame *frame = &self->ctrl_stack[self->ctr_stack_idx - 1]; // Get the current control frame 
+    ActivationFrame *frame = &self->ctrl_stack[self->ctr_stack_idx - 1]; // Get the current control frame 
 
     switch (opcode) {        
         case OPCODE_I32_CONST:
@@ -149,4 +149,4 @@ uint32_t WpValEvalOpcode(WpValidatorState *self, OpCode opcode) {
             return 0; // Unsupported opcode
     }
     return 1; // Success
-}
+}*/

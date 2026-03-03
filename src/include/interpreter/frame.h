@@ -23,11 +23,18 @@
 
 
 typedef struct ActivationFrame {
-    uint32_t arity;                     // Number of return values
-    Value *locals;                      // Pointer to array of local variables (including parameters)
-    void *module;                       // Pointer to the module instance (ModuleInst *)
-    void *func;                         // Pointer to the function instance (FuncInst *)
+    const uint8_t *ip;                  // Instruction pointer to the current instruction in the function body
+    
+    //Value *locals;                      // Pointer to array of local variables (including parameters)
     uint32_t locals_count;              // Total number of locals (params + locals)
+
+    uint32_t arity;                     // Number of return values
+
+    //void *module;                       // Pointer to the module instance (ModuleInst *)
+    //void *func;                         // Pointer to the function instance (FuncInst *)
+
+    uint8_t unreachable;               /// unreachable flag
+    
 } ActivationFrame;
 
 
