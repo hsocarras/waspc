@@ -2,4 +2,5 @@
 
 
 
-add_library(vm STATIC vm.c eval.c stack.c instanciator.c) 
+add_library(interpreter STATIC interpreter.c eval.c stack.c) 
+target_link_libraries(interpreter PRIVATE  utils)

@@ -13,30 +13,6 @@
 #include <stdlib.h>
 
 
-void WpModuleInstanceInit(WpModuleInstance *self){
-    self->type = WP_OBJECT_MODULE_INSTANCE;
-
-    self->types = NULL;
-
-    self->funcaddrs.lenght = 0;
-    self->funcaddrs.elements = NULL;
-    /*
-    self->tableaddrs.lenght = 0;
-    self->tableaddrs.elements = NULL;
-
-    self->memaddrs.lenght = 0;
-    self->memaddrs.elements = NULL;
-
-    self->globaladdrs.lenght = 0;
-    self->globaladdrs.elements = NULL;
-
-    self->elemaddrs.lenght = 0;
-    self->elemaddrs.elements = NULL;
-
-    self->dataaddrs.lenght = 0;
-    self->dataaddrs.elements = NULL;*/
-}
-
 /**
  * @version 3.0
  * @brief Initialize a module state object

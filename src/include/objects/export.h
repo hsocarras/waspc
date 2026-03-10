@@ -19,11 +19,10 @@
 //wasp includes
 #include "objects/object.h"
 #include "objects/function.h"
-#include "webassembly/execution/runtime/values.h"
 #include "webassembly/structure/module.h"
 
 #include <stdint.h>
-
+/*
 typedef struct WpExportInstance {
     /// head for all Waspc object to allow cast
     WpObjectType type;
@@ -46,7 +45,7 @@ typedef struct VecExportInstance {
 // Methods **************************************************************************************************
 
 void WpExportInstanceInit(WpExportInstance *self);
-
+*/
 #ifdef __cplusplus
     }
 #endif

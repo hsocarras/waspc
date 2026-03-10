@@ -8,10 +8,54 @@
  * @copyright Copyright (c) 2025
  * 
  */
-#include "runtime/alloc.h"
+#include "runtime/store.h"
+#include "runtime/instances.h"
+#include "webassembly/values.h"
 
 #include <stdlib.h>
+#include <string.h>
 
+/**
+ * @brief Initializes the store with a given memory size.
+ */
+void WpStoreInit(WpStore *self)
+{
+    self->mem = NULL;
+    self->mem_size = 0;
+    self->mem_free = NULL; // Initially, the entire memory is free
+}
+
+const uint8_t * WpStoreAllocTypes(WpStore *self, const uint8_t *address)
+{
+    //Check if there is enough free memory to allocate the types
+    if (self->mem_free + sizeof(uint8_t *) > self->mem + self->mem_size)
+    {
+        return NULL; // Not enough memory
+    }
+    memcpy(self->mem_free, &address, sizeof(uint8_t *)); // Allocate memory for types
+    self->mem_free += sizeof(uint8_t *); // Move the free pointer
+    return self->mem_free - sizeof(uint8_t *); // Return the address of the allocated types
+}
+
+uint8_t * WpStoreAllocGlobal(WpStore *self, uint8_t mut, WasValType type, WasValue val)
+{
+    //Check if there is enough free memory to allocate the global
+    if (self->mem_free + sizeof(WpGlobalInstance) > self->mem + self->mem_size)
+    {
+        return NULL; // Not enough memory
+    }
+    
+    WpGlobalInstance global = {
+        .mut = mut,
+        .type = type,
+        .val = val
+    };
+
+    memcpy(self->mem_free, &global, sizeof(WpGlobalInstance)); // Allocate memory for global
+    self->mem_free += sizeof(WpGlobalInstance); // Move the free pointer
+    return self->mem_free - sizeof(WpGlobalInstance); // Return the address of the allocated global
+}
+   
 /**
  * @brief Allocates and initializes a new function instance for a WebAssembly function.
  *
@@ -21,7 +65,7 @@
  * @param f The function definition to instantiate.
  * @param mod_inst Pointer to the module instance to which this function belongs.
  * @return WpFunctionInstance* Pointer to the newly allocated function instance, or NULL on allocation failure.
- */
+ *
 WpFunctionInstance * WpAllocFunction(Func f, WpModuleInstance *mod_inst){
 
     WpFunctionInstance *f_instance = malloc(sizeof(WpFunctionInstance));    
@@ -34,7 +78,7 @@ WpFunctionInstance * WpAllocFunction(Func f, WpModuleInstance *mod_inst){
     f_instance->code= &f;
 
     return f_instance;
-}
+}*/
 
 /**
  * @brief Allocates and initializes a new export instance for a WebAssembly export.
@@ -46,7 +90,7 @@ WpFunctionInstance * WpAllocFunction(Func f, WpModuleInstance *mod_inst){
  * @param export_def The export definition to instantiate.
  * @param value Pointer to the value (function, table, memory, or global) being exported.
  * @return WpExportInstance* Pointer to the newly allocated export instance, or NULL on allocation failure.
- */
+ *
 WpExportInstance * WpAllocExportInstance(Export export_def, void *value) {
     WpExportInstance *exp_instance = malloc(sizeof(WpExportInstance));
     if (!exp_instance) {
@@ -76,4 +120,4 @@ WpExportInstance * WpAllocExportInstance(Export export_def, void *value) {
     }
     
     return exp_instance;
-}
+}*/

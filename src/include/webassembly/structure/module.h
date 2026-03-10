@@ -17,7 +17,7 @@
 #endif
 
 #include "webassembly/structure/types.h"
-#include "webassembly/binary/module.h"
+//#include "webassembly/binary/module.h"
 
 #include <stdint.h>
 

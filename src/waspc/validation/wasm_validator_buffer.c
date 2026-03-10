@@ -18,8 +18,7 @@
 #include "validation/wasm_decoder.h"
 #include "webassembly/structure/module.h"
 //#include "webassembly/binary/types.h"
-#include "webassembly/binary/module.h"
-#include "webassembly/binary/instructions.h"
+#include "webassembly/instructions.h"
 #include "utils/leb128.h"
 
 #include <stdint.h>

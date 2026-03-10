@@ -15,11 +15,15 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
-
-//wasp includes
-#include "webassembly/binary/module.h"
+#include "webassembly/bin.h"
 
 #include <stdint.h>
+
+/**
+ * @brief Enum with section id number inside binary format.
+ * 
+ */
+
 
 //// Type check Functions /////////////////////////////////////////////////////////////////////
 
@@ -35,6 +39,7 @@ uint8_t IsValType(uint8_t val_type);
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// SKIP: Function to skip a buffer corresponding to an expression//////////////////////////////
+// TODO check for make static skip functions
 const uint8_t * SkipExprBuf(const uint8_t *const buf, const uint32_t max_len);
 
 const uint8_t * SkipRecSubType(const uint8_t *const buf);
@@ -46,39 +51,7 @@ const uint8_t * SkipRefTypeBuf(const uint8_t *const buf);
 const uint8_t * SkipTableTypeBuf(const uint8_t *const buf);
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-/*
-VecFuncType *DecodeTypeSection(WpModuleState *mod);
-
-VecImport * DecodeImportSection(WpModuleState *mod);
-
-VecFunc * DecodeFunctionSection(WpModuleState *mod);
-
-VecTable * DecodeTableSection(WpModuleState *mod);
-
-VecMem * DecodeMemSection(WpModuleState *mod);
-
-VecGlobal * DecodeGlobalSection(WpModuleState *mod);
-
-VecExport * DecodeExportSection(WpModuleState *mod);
-
-uint32_t * DecodeStartSection(WpModuleState *mod);
-
-VecElem * DecodeElementSection(WpModuleState *mod);
-
-uint32_t * DecodeDataCountSection(WpModuleState *mod);
-
-VecFunc * DecodeCodeSection(WpModuleState *mod);
-
-VecData * DecodeDataSection(WpModuleState *mod);*/
-
-/// @brief function to skip expr rule
-/// expr ::= (in:instr)* 0x0B ⇒ in* end
-/// @param buf pointer to beguin of expr
-/// @param max_len max leng to avoid endless loop
-/// @return 
-//const uint8_t * SkipExprBuf(const uint8_t *const buf, const uint32_t max_len);
-
-//const uint8_t * SkipLimitTypeBuf(const uint8_t *const buf);
+/// GET binary element by id functions //////////////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t * GetSubTypeByIndex(const uint8_t * buf, uint32_t subtype_index);
 
@@ -107,6 +80,12 @@ const uint8_t * GetCodeByIndex(WasmBinSection codesec, uint32_t code_index);
 const uint8_t * GetDataByIndex(WasmBinSection datasec, uint32_t data_index);
 
 const uint8_t * GetTagByIndex(WasmBinSection tagsec, uint32_t tag_index);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Destructure functions /////////////////////////////////////////////////////////////////////////////
+WasmBinGlobal DestructureGlobal(const uint8_t *global_addr);
+///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef __cplusplus
     }

@@ -22,6 +22,10 @@
 #include "utils/hash_table.h"
 #include "validation/wasm_validator.h"
 #include "interpreter/interpreter.h"
+#include "runtime/store.h"
+#include "runtime/instances.h"
+#include "validation/wasm_decoder.h"
+#include "validation/wasm_validator.h"
 
 #include <stdint.h>
 
@@ -51,7 +55,7 @@ typedef struct WpRuntimeState{
     WpError err;                                ///Error object for runtime
     
     /// @brief Store. Implementation for web assembly store/////////////////////////////////////////////////////
-    HashTable store; 
+    WpStore store; 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// @brief Interpreter state object for run webassembly code
@@ -60,6 +64,7 @@ typedef struct WpRuntimeState{
     /// @brief Validator state object for validate webassembly modules
     WpValidatorState validator;                 /// Validator state object
    
+    
                 
 
 }WpRuntimeState;
@@ -113,7 +118,7 @@ WpObject * WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod);
  * @return WpObject* Returns the instantiated module object on success,
  *                   or a pointer to an error object on failure.
  */
-WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, ExternalValue *externv, uint32_t extern_len);
+WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, void *externv, uint32_t extern_len);
 
 //WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_instance);
 

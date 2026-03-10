@@ -9,8 +9,7 @@
  * 
  */
 
-#include "vm/vm.h"
-#include "webassembly/structure/types.h"
+#include "interpreter/interpreter.h"
 
 #include <string.h>
 
@@ -22,18 +21,9 @@
  * @param val Value to push
  * @return WpResult
  */
-WpResult VmPushValue(VM *self, VmValue value){
-
-    WpResult result;      //wasp result object
-    WpResultInit(&result);
+void PushValue(WpInterpreterState *self, WasValue val){   
     
-    //Check for stack overflow    
-    if(self->value_stack_top > self->value_stack_end){
-        WpResultAddError(&result, WP_DIAG_ID_STACK_OVERFLOW, W_DIAG_MOD_LIST_VM);
-        return result;
-    }
-
-    *self->value_stack_top = value;
+    *self->value_stack_top = val;
     self->value_stack_top++;
 
 }
@@ -44,19 +34,9 @@ WpResult VmPushValue(VM *self, VmValue value){
  * @param vm Virtual machine instance. 
  * @return VmValue 
  */
-WpResult VmPopValue(VM *self){
-
-    WpResult result;                //wasp result object
-    WpResultInit(&result);
-
-    //Check for stack overflow    
-    if(self->value_stack_top < self->value_stack){
-        WpResultAddError(&result, WP_DIAG_ID_STACK_OVERFLOW, W_DIAG_MOD_LIST_VM);
-        return result;
-    }
-
+WasValue PopValue(WpInterpreterState *self){  
+   
     self->value_stack_top--;
-    result.value.was = *self->value_stack_top;
-    
+    return *self->value_stack_top;    
 
 }

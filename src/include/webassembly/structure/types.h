@@ -16,56 +16,17 @@
     extern "C" {
 #endif
 
+#include "webassembly/values.h"
 
 #include <stdint.h>
 
-/**
- * @brief The simplest form of value are raw uninterpreted bytes. In the abstract syntax they are represented
- * as hexadecimal literals.
- *      byte ::= 0x00 | . . . | 0xFF
- * 
- */
-typedef uint8_t Byte;
+
 
 typedef struct VecByte{
     uint32_t lenght;
     const Byte *elements;
 } VecByte;
 
-/**
- * @brief The types i32 and i64 classify 32 and 64 bit integers, respectively. 
- * Integers are not inherently signed or unsigned,
- * their interpretation is determined by individual operations.
- * 
- */
-typedef int32_t I32;
-typedef uint32_t U32;
-typedef int64_t I64;
-typedef uint64_t U64;
-
-/**
- * @brief The types f32 and f64 classify 32 and 64 bit floating-point data, respectively. They correspond to the respective
- * binary floating-point representations, also known as single and double precision, as defined by the IEEE 75412
- * standard (Section 3.3).
- * 
- */
-typedef float F32;
-
-/**
- * @brief The types f32 and f64 classify 32 and 64 bit floating-point data, respectively. They correspond to the respective
- * binary floating-point representations, also known as single and double precision, as defined by the IEEE 75412
- * standard (Section 3.3).
- * 
- */
-typedef double F64;
-
-
-// Vectors ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/**
- * @brief 
- * 
- */
-typedef uint8_t V128[16];
 
 typedef uint8_t VecType[16];
 // Vectors ////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -4,6 +4,7 @@
 #include "utils/hash_table.h"
 #include "objects/module.h"
 #include "../wasm/samples.h"
+#include "webassembly/values.h"
 
 #include <stdlib.h>
 
@@ -81,5 +82,62 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_VALIDATE_MODULE) {
     WpModuleState *validated_module = (WpModuleState *)result;
     // Check if the module status is validated
     ASSERT_EQ(validated_module->status, WP_MODULE_STATUS_VALIDATED) << "Module status is not WP_MODULE_STATUS_VALIDATED";
+   
+}
+
+TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INSTANTIATE_MODULE) {
+
+    // Initialize the runtime /////////////////////////////////////////////////////////////////////////////
+    WpRuntimeState runtime;
+    WpRuntimeInit(&runtime);
+    uint8_t MEM[4096];
+    WasValue val[256];
+    runtime.store.mem = MEM;
+    runtime.store.mem_size = 4096;
+    runtime.store.mem_free = MEM;
+    runtime.interpreter.value_stack = val;
+    runtime.interpreter.value_stack_top = val;
+    runtime.interpreter.value_stack_end = val + 256;
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    Name mod_name;
+    char name[6] = "main1"; 
+    mod_name.name = name;
+    mod_name.lenght = 6;
+
+    uint32_t len = sizeof(sample1); // Get the size of the test WASM file
+
+    //Creating a binary file struct to pass to the function
+    WpBinFile bin_file = {
+        &sample1[0], // Allocate memory for the binary file buffer
+        len     // Set the buffer size to the size of the test WASM file
+    };
+
+    WpModuleState mod_state;
+    WpModuleInit(&mod_state);
+
+    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, &mod_state, bin_file, mod_name);
+
+    result = WpRuntimeInstanciateModule(&runtime, &mod_state, NULL, 0);
+    // Check if the result is not null
+    ASSERT_NE(result, nullptr) << "WpRuntimeInstantiateModule returned null";
+    if(result->type == WP_OBJECT_ERROR) {
+        WpError *error = (WpError *)result;
+        FAIL() << "WpRuntimeInstantiateModule returned an error: " << error->id;
+    }
+    // Check if the result is a module state object 
+    ASSERT_EQ(result->type, WP_OBJECT_MODULE_STATE) << "WpRuntimeInstantiateModule did not return a WpModuleState object";
+    WpModuleState *instantiated_module = (WpModuleState *)result;
+    // Check if the module status is instantiated
+    ASSERT_EQ(instantiated_module->status, WP_MODULE_STATUS_VALIDATED) << "Module status is not WP_MODULE_STATUS_VALIDATED";
+    ASSERT_EQ(instantiated_module->type_count, 1) << "Module type count is not 1";
+    uint8_t * address = *(uint8_t **)instantiated_module->types;
+    ASSERT_EQ(address, mod_state.buf + 0x0b) << "Module types are not correctly initialized";
+    //ASSERT_EQ(runtime.store.mem_free, runtime.store.mem + sizeof(uint8_t *)) << "Module import count is not 0";
+
+    WpGlobalInstance *global1 = (WpGlobalInstance *)(mod_state.globals);
+    ASSERT_EQ(global1->mut, 0) << "Global 1 mutability is not 0";
+    ASSERT_EQ(global1->type, 0x7f) << "Global 1 type is not i32";
+    ASSERT_EQ(global1->val.value.i32, 25) << "Global 1 initial value is not 25";
    
 }

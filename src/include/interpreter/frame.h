@@ -16,8 +16,6 @@
     extern "C" {
 #endif
 
-#include "webassembly/execution/runtime/values.h"
-
 #include <stdint.h>
 
 

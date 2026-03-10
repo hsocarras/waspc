@@ -14,9 +14,9 @@
 void WpInterpreterInit(WpInterpreterState *self){
 
     self->ip = NULL;
-    self->value_stack_top = self->value_stack;
-    self->value_stack_end = &self->value_stack[VM_VALUE_STACK_SIZE - 1];
 
-    self->call_index = 0;
+    self->value_stack_top = NULL;
+    self->value_stack = NULL;
+    self->value_stack_end = NULL;
     
 }

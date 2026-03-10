@@ -19,9 +19,7 @@
 #include "objects/object.h"
 #include "objects/function.h"
 #include "objects/export.h"
-#include "webassembly/binary/module.h"
-#include "webassembly/structure/module.h"
-#include "utils/hash_table.h"
+#include "webassembly/bin.h"   
 
 
 
@@ -37,17 +35,7 @@ typedef enum WpModuleStatus{
     WP_MODULE_STATUS_INSTANTIATED,    
 } WpModuleStatus;
 
-typedef struct WpModuleInstance{
-    /// head for all Waspc object to allow cast
-    WpObjectType type;   
 
-    VecType *types;
-
-    VecFuncAddr funcaddrs;
-
-    VecExportInstance exports;
-
-}WpModuleInstance;
 
 /**
  * @version 3.0
@@ -103,9 +91,10 @@ typedef struct WpModuleState{
     uint32_t data_count;               /// number of data segments in the module
 
     
-    /// @brief Instance of the module
-    /// This is the instance of the module that will be used to execute the module.
-    //WpModuleInstance instance;
+    /// @brief Instances
+    const uint8_t *types;             /// pointer to the types instances
+    uint8_t *globals;                   /// pointer to the global instances
+
 
     
 
@@ -115,7 +104,6 @@ typedef struct WpModuleState{
 
 void WpModuleInit(WpModuleState *self);
 
-void WpModuleInstanceInit(WpModuleInstance *self);
 
 
 #ifdef __cplusplus

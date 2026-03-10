@@ -18,7 +18,7 @@
 #include "validation/wasm_decoder.h"
 #include "validation/wasm_validator.h"
 #include "utils/leb128.h"
-#include "webassembly/binary/instructions.h"
+#include "webassembly/instructions.h"
 
 
 #include <assert.h>
@@ -716,7 +716,7 @@ const uint8_t * GetSubTypeByIndex(const uint8_t *buf, uint32_t subtype_index){
 
 /**
  * @version 3.0
- * @brief function to get a function type by index for module's version 1
+ * @brief function to get a type by index for module's version 1
  * @param typesec. Pointer to the WasmBinSection containing the type section.
  * @param type_index index of the function type to get
  * @return uint8_t* pointer to the function type (0x60) or NULL if not found
@@ -2808,4 +2808,34 @@ const uint8_t * GetTagByIndex(WasmBinSection tagsec, uint32_t tag_index){
     return NULL;
     #undef READ_BYTE
     #undef NOT_END
+}
+
+/// Destructuring Functions////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief function to destructure a global entry from the global section of a binary webassembly module.
+ * @param global_addr pointer to the global entry in the binary file
+ * @return WasmBinGlobal structure containing the destructured global entry
+ */
+WasmBinGlobal DestructureGlobal(const uint8_t *global_addr){
+    WasmBinGlobal global;
+    const uint8_t *index = global_addr;                           // pointer to byte to traverse the binary file
+    uint32_t dec_u32;                                                // auxiliary variable to decode leb128 values
+    
+    //get type
+    global.type = *index++;
+    
+    //get mutability
+    if(*index == 0x00 || *index == 0x01){
+        global.mut = *index; 
+        index++;    
+    } else {
+        //invalid mutability
+        global.mut = 0; //default value for mutability
+    }
+
+    //get init expression
+    global.init_expr = index;    
+
+    return global;
 }

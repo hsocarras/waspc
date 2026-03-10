@@ -9,25 +9,17 @@
  * 
  */
 
-#ifndef WASPC_VM_VM_H
-#define WASPC_VM_VM_H
+#ifndef WASPC_INTERPRETER_VM_H
+#define WASPC_INTERPRETER_VM_H
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-#include "webassembly/execution/runtime/values.h"
-#include "interpreter/frame.h"
+
+#include "webassembly/values.h"
 
 #include <stdint.h>
-
-#define VM_VALUE_STACK_SIZE 4096      //later must see how to include the PortConfig.h with Cmake and a target variable
-#define VM_CALL_STACK_SIZE  64       //must not be greater than 255
-
-#ifndef VM_VALUE_STACK_SIZE
-        #error Missing definition:  VM_MAX_STACK_SIZE must be defined in PortConfig.h.
-#endif
-
 
 /**
  * @brief Struct for Virtual machine object
@@ -35,23 +27,18 @@
  */
 typedef struct WpInterpreterState{
     
-    //const uint8_t * byte_code;
+    
     const uint8_t * ip;                                 ///instruction pointer to the current instruction
 
-    //Value value_stack[VM_VALUE_STACK_SIZE];             //value stack implemented with     
-    //Value *value_stack_top;                             //pointer to stack's top
-    //Value *value_stack_end;                             //pointer to last element of stack for avoid stack overflow
-
-    ActivationFrame frames[VM_CALL_STACK_SIZE];
-    uint32_t call_index;
-
-   
+    WasValue *value_stack;                                  //value stack implemented with     
+    WasValue *value_stack_top;                               //pointer to stack's top
+    WasValue *value_stack_end;                               //pointer to last element of stack for avoid stack overflow
     
 } WpInterpreterState;
 
 /// @brief constructor for vm struct
 /// @param  pointer to vm.
-//void VmInit(VM *);
+void WpInterpreterInit(WpInterpreterState *self);
 
 //void VmFree(VM *);
 
@@ -68,19 +55,24 @@ typedef struct WpInterpreterState{
 /// @return 
 //WpResult VmEvalFrame (VM *);
 
+//// Stack manipulation functions defined in stack.c //////////////////////////////////////////////////////////////////
+
 /// @brief function to push a value into value stack
 /// @param  vm Virtual machine instance.
 /// @param  val Value to push.
 /// @return bytes pushed into stack.
-//WpResult VmPushValue(VM *vm, VmValue val);
+void PushValue(WpInterpreterState *self, WasValue val);
 
 /// @brief function to pop a value from stack
 /// @param  vm Virtual machine instance.
 /// @param  val_type Type value to push
 /// @return 
-//VmValue VmPopValue(VM *vm);
+WasValue PopValue(WpInterpreterState *self);
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//WpResult InstantiateModule(VM *self, const uint8_t * const buf, const uint32_t size);
+/// Interpreter Eval functions defined in eval.c ///////////////////////////////////////////////////////////////////////
+WasValue WpInterpreterEvalExpr(WpInterpreterState *self, const uint8_t *code);
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef __cplusplus
     }
