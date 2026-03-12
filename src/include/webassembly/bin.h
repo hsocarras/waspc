@@ -39,6 +39,11 @@ typedef struct WasmBinGlobal{
     const uint8_t *init_expr;
 } WasmBinGlobal;
 
+typedef struct WasmBinFunction{
+    const uint8_t *locals;
+    const uint8_t *body;
+} WasmBinFunction;
+
 #ifdef __cplusplus
     }
 #endif

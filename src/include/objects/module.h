@@ -44,7 +44,10 @@ typedef enum WpModuleStatus{
  */
 typedef struct WpModuleState{
     /// head for all Waspc object to allow cast
-    WpObjectType type;   
+    WpObjectType wp_type;   
+
+    ///
+    struct WpModuleState *next; /// pointer to next module state in the store. This is for internal use only, not for public API.
 
     /// @brief module's name.
     //Name name;
@@ -92,8 +95,10 @@ typedef struct WpModuleState{
 
     
     /// @brief Instances
-    const uint8_t *types;             /// pointer to the types instances
+    const uint8_t *types;               /// pointer to the types instances
     uint8_t *globals;                   /// pointer to the global instances
+    const uint8_t *funcs;                     /// pointer to the function instances
+
 
 
     

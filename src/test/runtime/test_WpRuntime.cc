@@ -17,7 +17,7 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INIT) {
     WpRuntimeInit(&runtime);
 
     // Check if the error object is initialized correctly
-    ASSERT_EQ(runtime.err.type, WP_OBJECT_ERROR) << "Error object type is not WP_OBJECT_ERROR";
+    ASSERT_EQ(runtime.err.wp_type, WP_OBJECT_ERROR) << "Error object type is not WP_OBJECT_ERROR";
     ASSERT_EQ(runtime.err.id, 0) << "Error object id is not initialized to 0";      
 
    
@@ -45,7 +45,7 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_CREATE_MODULE_FROM_BIN_FILE) {
 
     WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, &mod_state, bin_file, mod_name);
     ASSERT_NE(result, nullptr) << "WpRuntimeCreateModuleFromBinFile returned null";
-    ASSERT_EQ(result->type, WP_OBJECT_MODULE_STATE) << "WpRuntimeCreateModuleFromBinFile did not return a WpModuleState object";
+    ASSERT_EQ(result->wp_type, WP_OBJECT_MODULE_STATE) << "WpRuntimeCreateModuleFromBinFile did not return a WpModuleState object";
 }
 
 TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_VALIDATE_MODULE) {
@@ -73,12 +73,12 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_VALIDATE_MODULE) {
     result = WpRuntimeValidateModule(&runtime, &mod_state);
     // Check if the result is not null
     ASSERT_NE(result, nullptr) << "WpRuntimeValidateModule returned null";
-    if(result->type == WP_OBJECT_ERROR) {
+    if(result->wp_type == WP_OBJECT_ERROR) {
         WpError *error = (WpError *)result;
         FAIL() << "WpRuntimeValidateModule returned an error: " << error->id;
     }
     // Check if the result is a module state object 
-    ASSERT_EQ(result->type, WP_OBJECT_MODULE_STATE) << "WpRuntimeValidateModule did not return a WpModuleState object";
+    ASSERT_EQ(result->wp_type, WP_OBJECT_MODULE_STATE) << "WpRuntimeValidateModule did not return a WpModuleState object";
     WpModuleState *validated_module = (WpModuleState *)result;
     // Check if the module status is validated
     ASSERT_EQ(validated_module->status, WP_MODULE_STATUS_VALIDATED) << "Module status is not WP_MODULE_STATUS_VALIDATED";
@@ -121,12 +121,12 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INSTANTIATE_MODULE) {
     result = WpRuntimeInstanciateModule(&runtime, &mod_state, NULL, 0);
     // Check if the result is not null
     ASSERT_NE(result, nullptr) << "WpRuntimeInstantiateModule returned null";
-    if(result->type == WP_OBJECT_ERROR) {
+    if(result->wp_type == WP_OBJECT_ERROR) {
         WpError *error = (WpError *)result;
         FAIL() << "WpRuntimeInstantiateModule returned an error: " << error->id;
     }
     // Check if the result is a module state object 
-    ASSERT_EQ(result->type, WP_OBJECT_MODULE_STATE) << "WpRuntimeInstantiateModule did not return a WpModuleState object";
+    ASSERT_EQ(result->wp_type, WP_OBJECT_MODULE_STATE) << "WpRuntimeInstantiateModule did not return a WpModuleState object";
     WpModuleState *instantiated_module = (WpModuleState *)result;
     // Check if the module status is instantiated
     ASSERT_EQ(instantiated_module->status, WP_MODULE_STATUS_VALIDATED) << "Module status is not WP_MODULE_STATUS_VALIDATED";
@@ -140,4 +140,9 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INSTANTIATE_MODULE) {
     ASSERT_EQ(global1->type, 0x7f) << "Global 1 type is not i32";
     ASSERT_EQ(global1->val.value.i32, 25) << "Global 1 initial value is not 25";
    
+    WpFunctionInstance *func1 = (WpFunctionInstance *)(mod_state.funcs);
+    ASSERT_EQ(func1->wp_type, WP_OBJECT_FUNCTION_INSTANCE) << "Function 1 type is not WpFunctionInstance";
+    ASSERT_EQ(func1->func_type[0], mod_state.buf[11]) << "Function type is at index 0x0B";
+    ASSERT_EQ(func1->locals[0], mod_state.buf[0x2B]) << "Locals start at index 0x2B";
+    ASSERT_EQ(func1->body[0], mod_state.buf[0x2D]) << "Body start at index 0x2D";
 }

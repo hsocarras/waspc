@@ -9,7 +9,7 @@
  * 
  */
 #include "runtime/store.h"
-#include "runtime/instances.h"
+#include "objects/wp_objects.h"
 #include "webassembly/values.h"
 
 #include <stdlib.h>
@@ -39,46 +39,43 @@ const uint8_t * WpStoreAllocTypes(WpStore *self, const uint8_t *address)
 
 uint8_t * WpStoreAllocGlobal(WpStore *self, uint8_t mut, WasValType type, WasValue val)
 {
+    WpGlobalInstance global;
+    WpGlobalInstanceInit(&global);
     //Check if there is enough free memory to allocate the global
     if (self->mem_free + sizeof(WpGlobalInstance) > self->mem + self->mem_size)
     {
         return NULL; // Not enough memory
     }
     
-    WpGlobalInstance global = {
-        .mut = mut,
-        .type = type,
-        .val = val
-    };
+    global.mut = mut;
+    global.type = type;
+    global.val = val;
 
     memcpy(self->mem_free, &global, sizeof(WpGlobalInstance)); // Allocate memory for global
     self->mem_free += sizeof(WpGlobalInstance); // Move the free pointer
     return self->mem_free - sizeof(WpGlobalInstance); // Return the address of the allocated global
 }
    
-/**
- * @brief Allocates and initializes a new function instance for a WebAssembly function.
- *
- * This function creates a new WpFunctionInstance structure, sets its type, arity, associated module,
- * and code pointer based on the provided function and module instance. The returned instance must be freed by the caller.
- *
- * @param f The function definition to instantiate.
- * @param mod_inst Pointer to the module instance to which this function belongs.
- * @return WpFunctionInstance* Pointer to the newly allocated function instance, or NULL on allocation failure.
- *
-WpFunctionInstance * WpAllocFunction(Func f, WpModuleInstance *mod_inst){
+const uint8_t * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, const uint8_t * func_type, const uint8_t *locals, const uint8_t *body)
+{
+    WpFunctionInstance func;
+    WpFunctionInstanceInit(&func);
 
-    WpFunctionInstance *f_instance = malloc(sizeof(WpFunctionInstance));    
-    if(!f_instance){
-        return NULL;
+     //Check if there is enough free memory to allocate the global
+    if (self->mem_free + sizeof(WpFunctionInstance) > self->mem + self->mem_size)
+    {
+        return NULL; // Not enough memory
     }
-    f_instance->type = WP_OBJECT_FUNCTION_INSTANCE;
-    //f_instance->arity = &f.type_index;
-    f_instance->module = mod_inst;
-    f_instance->code= &f;
 
-    return f_instance;
-}*/
+    func.module = mod;
+    func.func_type = func_type;
+    func.locals = locals;
+    func.body = body;
+
+    memcpy(self->mem_free, &func, sizeof(WpFunctionInstance));  // Allocate memory for function
+    self->mem_free += sizeof(WpFunctionInstance);               // Move the free pointer
+    return self->mem_free - sizeof(WpFunctionInstance);         // Return the address of the allocated global
+}
 
 /**
  * @brief Allocates and initializes a new export instance for a WebAssembly export.

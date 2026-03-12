@@ -551,6 +551,27 @@ const uint8_t * SkipTableTypeBuf(const uint8_t *const buf){
     return index;
 }
 
+
+static const uint8_t * SkipLocalBuf(const uint8_t *const buf){
+    const uint8_t *index = buf;
+    uint32_t local_count, aux;
+    //get number of element n
+    index = DecodeLeb128UInt32(index, &local_count);
+    if (!index){        
+        return NULL;                                     
+    }
+    //skip local types
+    for (uint32_t i = 0; i < local_count; i++)
+    {
+        index = DecodeLeb128UInt32(index, &aux);
+        if(!index){
+            return NULL;
+        }
+        //skip value type
+        index++;
+    }
+    return index;
+}
 /**
  * @brief function to decode a code entry inside code section
  * 
@@ -695,6 +716,8 @@ VecFuncType * DecodeTypeSection(WpModuleState *mod){
     #undef READ_BYTE
     #undef NOT_END
 }*/
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t * GetSubTypeByIndex(const uint8_t *buf, uint32_t subtype_index){
 
@@ -2812,6 +2835,17 @@ const uint8_t * GetTagByIndex(WasmBinSection tagsec, uint32_t tag_index){
 
 /// Destructuring Functions////////////////////////////////////////////////////////////////////////////////////////
 
+uint32_t DestructureFunctionIndex(const uint8_t *index){
+    uint32_t dec_u32;
+    index = DecodeLeb128UInt32(index, &dec_u32);    
+    if (!index)
+    {
+        dec_u32=0xFFFFFFFF;
+    }
+    
+    return dec_u32;
+}   
+
 /**
  * @brief function to destructure a global entry from the global section of a binary webassembly module.
  * @param global_addr pointer to the global entry in the binary file
@@ -2839,3 +2873,27 @@ WasmBinGlobal DestructureGlobal(const uint8_t *global_addr){
 
     return global;
 }
+
+WasmBinFunction DestructureCode(const uint8_t *code_addr){
+    WasmBinFunction func;
+    const uint8_t *index = code_addr;                           // pointer to byte to traverse the binary file
+    uint32_t dec_u32;                                                // auxiliary variable to decode leb128 values
+    
+    //get size of code        
+    index = DecodeLeb128UInt32(index, &dec_u32);  
+    if(!index){
+        //invalid code entry
+        func.locals = NULL;
+        func.body = NULL;
+        return func;                                      
+    }
+    
+    func.locals = index;  //pointer to the start of the locals vector
+    //get size of locals vector
+    index = SkipLocalBuf(index);
+
+    func.body = index; //pointer to the start of the function body
+
+    return func;
+}
+

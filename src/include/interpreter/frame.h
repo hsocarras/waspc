@@ -9,31 +9,33 @@
  * 
  */
 
-#ifndef WASPC_VM_FRAME_H
-#define WASPC_VM_FRAME_H
+#ifndef WASPC_INTERPRETER_FRAME_H
+#define WASPC_INTERPRETER_FRAME_H
 
 #ifdef __cplusplus
     extern "C" {
 #endif
+#include "webassembly/values.h"
+#include "objects/module.h"
 
 #include <stdint.h>
 
 
 
-typedef struct ActivationFrame {
-    const uint8_t *ip;                  // Instruction pointer to the current instruction in the function body
+typedef struct CallFrame {
+    //const uint8_t *ip;                  // Instruction pointer to the current instruction in the function body
     
-    //Value *locals;                      // Pointer to array of local variables (including parameters)
+    WasValue *bp;                       // base pointer (where the frame start on the stack)
     uint32_t locals_count;              // Total number of locals (params + locals)
 
     uint32_t arity;                     // Number of return values
 
-    //void *module;                       // Pointer to the module instance (ModuleInst *)
+    WpModuleState *module;              // Pointer to the module instance (ModuleInst *)
     //void *func;                         // Pointer to the function instance (FuncInst *)
 
-    uint8_t unreachable;               /// unreachable flag
+    //uint8_t unreachable;               /// unreachable flag
     
-} ActivationFrame;
+} CallFrame;
 
 
 

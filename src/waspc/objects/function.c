@@ -13,7 +13,9 @@
 
  void WpFunctionInstanceInit(WpFunctionInstance *self){
 
-    self->type = WP_OBJECT_FUNCTION_INSTANCE;
+    self->wp_type = WP_OBJECT_FUNCTION_INSTANCE;
     self->module = NULL;
-    self->code = NULL;
+    self->func_type = NULL;
+    self->locals = NULL;
+    self->body = NULL;
  }

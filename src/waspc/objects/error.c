@@ -22,7 +22,7 @@
  */
 void WpErrorInit(WpError *self){
     
-    self->type = WP_OBJECT_ERROR;
+    self->wp_type = WP_OBJECT_ERROR;
 
     self->id = 0;
     

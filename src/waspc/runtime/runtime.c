@@ -49,7 +49,7 @@ WpObject *WpRuntimeCreateModuleFromBinFile(WpRuntimeState *self, WpModuleState *
     {
         return (WpObject *)&(self->err);
     }
-    mod_state->type = WP_OBJECT_MODULE_STATE;
+    mod_state->wp_type = WP_OBJECT_MODULE_STATE;
     // mod_state->name = mod_name;
     mod_state->status = WP_MODULE_STATUS_INIT;
     mod_state->buf = bin_file.buf;
@@ -178,6 +178,7 @@ WpObject *WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod)
 WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, void *externv, uint32_t extern_len)
 {
     const uint8_t *address;
+    uint32_t u32_data;
     size_t i;
 
     if(!mod){
@@ -196,10 +197,10 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
         if(!result){
             return (WpObject *)&self->err;
         }
-        if(result->type == WP_OBJECT_ERROR){
+        if(result->wp_type == WP_OBJECT_ERROR){
             return (WpObject *)&self->err;
         }
-        if(result->type == WP_OBJECT_MODULE_STATE){
+        if(result->wp_type == WP_OBJECT_MODULE_STATE){
             if(((WpModuleState *)result)->status != WP_MODULE_STATUS_VALIDATED){
                 return (WpObject *)&self->err;
             }
@@ -234,6 +235,7 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
     
     /// 11, 12, 13 y 19 /////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Globals
+     WasmBinGlobal global;
     for(i = 0; i < mod->global_count; i++){
 
         address = GetGlobalByIndex(mod->globalsec, i);
@@ -242,7 +244,7 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
             return (WpObject *)&self->err;
         }
         /// destructuring global
-        WasmBinGlobal global = DestructureGlobal(address);
+        global = DestructureGlobal(address);
         WasValue val = WpInterpreterEvalExpr(&self->interpreter, global.init_expr);
         if(val.type == WAS_EX_VAL_TYPE_NULL){
             self->err.id = 26;        
@@ -265,10 +267,48 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
     
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// function
+    WasmBinFunction func;
+    const uint8_t *code;
     for(i = 0; i < mod->function_count; i++){
-        
-    }
 
+        address = GetFunctionByIndex(mod->functionsec, i);
+        if(!address){
+            self->err.id = 27;        
+            return (WpObject *)&self->err;
+        }
+        u32_data = DestructureFunctionIndex(address);
+        if(u32_data > mod->type_count){
+            self->err.id = 27;        
+            return (WpObject *)&self->err;
+        }
+        address = GetTypeByIndex(mod->typesec, u32_data);
+        if(!address){
+            self->err.id = 27;        
+            return (WpObject *)&self->err;
+        }
+        code = GetCodeByIndex(mod->codesec, i);
+        if(!code){
+            self->err.id = 28;        
+            return (WpObject *)&self->err;
+        }
+        
+        func = DestructureCode(code);
+        if(i == 0){
+            mod->funcs = WpStoreAllocFunction(&self->store, mod, address, func.locals, func.body);
+            if(!mod->funcs){
+                self->err.id = 29;        
+                return (WpObject *)&self->err;
+            }
+        }
+        else{
+            if(!WpStoreAllocFunction(&self->store, mod, address, func.locals, func.body)){
+                self->err.id = 29;        
+                return (WpObject *)&self->err;
+            }
+        }
+    }
+    
+    
     return (WpObject *)mod;
     
 }

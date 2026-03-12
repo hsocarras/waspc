@@ -23,7 +23,6 @@
 #include "validation/wasm_validator.h"
 #include "interpreter/interpreter.h"
 #include "runtime/store.h"
-#include "runtime/instances.h"
 #include "validation/wasm_decoder.h"
 #include "validation/wasm_validator.h"
 

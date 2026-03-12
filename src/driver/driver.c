@@ -147,24 +147,24 @@ int main(int argc, const char* argv[]) {
     free(load_ptr);
     
     // Check if the module was read successfully
-    if(result->type == WP_OBJECT_ERROR){
+    if(result->wp_type == WP_OBJECT_ERROR){
         printf("Error loading file content\n");        
         WpError *err = (WpError *)result;        
         ReportError(err);
         return 3;
     }    
-    assert(result->type == WP_OBJECT_MODULE_STATE);
+    assert(result->wp_type == WP_OBJECT_MODULE_STATE);
     
     
     // validate the module    ///////////////////////////////////////////////////////////////////////////////////////////
     result = WpRuntimeValidateModule(&runtime, mod_state);
-    if(result->type == WP_OBJECT_ERROR){
+    if(result->wp_type == WP_OBJECT_ERROR){
         printf("Error validating module\n");        
         WpError *err = (WpError *)result;        
         ReportError(err);
         return 3;
     }   
-    assert(result->type == WP_OBJECT_MODULE_STATE);
+    assert(result->wp_type == WP_OBJECT_MODULE_STATE);
     
     // Module valid.    
     //printf("Module name: %s\n", WasNameToString(mod_state->name));

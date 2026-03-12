@@ -16,13 +16,13 @@
     extern "C" {
 #endif
 
-//wasp includes
-#include "objects/module.h"
-#include "objects/function.h"
-#include "objects/export.h"
+
+
 #include "objects/error.h"
-
-
+//#include "objects/export.h"
+#include "objects/function.h"
+#include "objects/global.h"
+#include "objects/module.h"
 
 
 #ifdef __cplusplus

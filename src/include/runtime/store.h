@@ -7,6 +7,7 @@
 #endif
 
 #include "webassembly/values.h"
+#include "objects/wp_objects.h"
 
 
 #include <stdint.h>
@@ -20,8 +21,12 @@ typedef struct WpStore{
 
 
 void WpStoreInit(WpStore *self);
+
 const uint8_t * WpStoreAllocTypes(WpStore *self, const uint8_t *address);
+
 uint8_t * WpStoreAllocGlobal(WpStore *self, uint8_t mut, WasValType type, WasValue val);
+
+const uint8_t * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, const uint8_t * func_type, const uint8_t *locals, const uint8_t *body);
 
 #ifdef __cplusplus
     }

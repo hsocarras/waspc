@@ -19,7 +19,8 @@
  */
 void WpModuleInit(WpModuleState *self){
 
-    self->type = WP_OBJECT_MODULE_STATE;
+    self->wp_type = WP_OBJECT_MODULE_STATE;
+    self->next = NULL;
     //self->name.name = NULL;
     //self->name.lenght = 0;
     self->status = WP_MODULE_STATUS_INIT;

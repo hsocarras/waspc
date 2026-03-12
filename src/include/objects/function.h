@@ -19,38 +19,28 @@
 //wasp includes
 #include "objects/object.h"
 #include "objects/module.h"
-#include "webassembly/structure/module.h"
 
 // Forward declaration of ModuleInstance
-struct WpModuleInstance;
+struct WpModuleState;
 
 #include <stdint.h>
 
 
 typedef struct WpFunctionInstance {
     /// head for all Waspc object to allow cast
-    WpObjectType type;
-    ///arity
-    //FuncType *arity;
+    WpObjectType wp_type;
+
+    /// type
+    // deftype TODO
     /// @brief module instance that function belong to
-    struct WpModuleInstance *module;
-    /// @brief webassembly function.
-    Func *code;
+    struct WpModuleState *module;
+    /// @brief code.
+    const uint8_t * func_type;          ///the function type in the module's type section. Signature.
+    
+    const uint8_t * locals;             /// pointer to locals start.
+    const uint8_t *body;                /// pointer to the function code.
 
 }WpFunctionInstance;
-
-typedef struct  VecFunctionInstace {
-    uint32_t lenght;
-    WpFunctionInstance *elements;
-}VecFunctionInstace;
-
-typedef WpFunctionInstance * funcaddr;
-
-typedef struct VecFuncAddr{
-    funcaddr *elements;
-    uint32_t lenght;
-} VecFuncAddr;
-
 
 // Methods **************************************************************************************************
 

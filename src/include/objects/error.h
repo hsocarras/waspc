@@ -28,7 +28,7 @@
 typedef struct WpError{
 
     /// head for all Waspc object to allow cast
-    WpObjectType type;
+    WpObjectType wp_type;
 
     /// errors id, unique for every posible error
     uint32_t id;   
