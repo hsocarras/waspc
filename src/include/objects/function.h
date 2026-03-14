@@ -18,7 +18,6 @@
 
 //wasp includes
 #include "objects/object.h"
-#include "objects/module.h"
 
 // Forward declaration of ModuleInstance
 struct WpModuleState;
@@ -34,11 +33,19 @@ typedef struct WpFunctionInstance {
     // deftype TODO
     /// @brief module instance that function belong to
     struct WpModuleState *module;
-    /// @brief code.
-    const uint8_t * func_type;          ///the function type in the module's type section. Signature.
     
+    //Destructure type
+    uint32_t param_len;
+    uint8_t *param_types;
+    uint32_t ret_len;
+    uint8_t *ret_types;
+
+    /// @brief code.    
     const uint8_t * locals;             /// pointer to locals start.
     const uint8_t *body;                /// pointer to the function code.
+
+    struct WpFunctionInstance *next;
+
 
 }WpFunctionInstance;
 

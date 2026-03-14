@@ -17,7 +17,10 @@
 #endif
 
 
-#include "webassembly/values.h"
+#include "interpreter/ctrl_frame.h"
+#include "interpreter/values.h"
+
+struct WpStore;  //fordward declaration
 
 #include <stdint.h>
 
@@ -30,9 +33,14 @@ typedef struct WpInterpreterState{
     
     const uint8_t * ip;                                 ///instruction pointer to the current instruction
 
-    WasValue *value_stack;                                  //value stack implemented with     
-    WasValue *value_stack_top;                               //pointer to stack's top
-    WasValue *value_stack_end;                               //pointer to last element of stack for avoid stack overflow
+    StackValue *value_stack;                              //value stack implemented with     
+    StackValue *value_stack_top;                               //pointer to stack's top
+    StackValue *value_stack_end;                               //pointer to last element of stack for avoid stack overflow
+
+    CtrlFrame ctrl_satck[256];                          //TODO size asignation
+    uint32_t ctrl_count;
+    
+    struct WpStore *store;
     
 } WpInterpreterState;
 
@@ -61,17 +69,19 @@ void WpInterpreterInit(WpInterpreterState *self);
 /// @param  vm Virtual machine instance.
 /// @param  val Value to push.
 /// @return bytes pushed into stack.
-void PushValue(WpInterpreterState *self, WasValue val);
+void PushValue(WpInterpreterState *self, StackValue val);
 
 /// @brief function to pop a value from stack
 /// @param  vm Virtual machine instance.
 /// @param  val_type Type value to push
 /// @return 
-WasValue PopValue(WpInterpreterState *self);
+StackValue PopValue(WpInterpreterState *self);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Interpreter Eval functions defined in eval.c ///////////////////////////////////////////////////////////////////////
-WasValue WpInterpreterEvalExpr(WpInterpreterState *self, const uint8_t *code);
+StackValue WpInterpreterEvalExpr(WpInterpreterState *self, const uint8_t *code);
+
+uint8_t WpInterpreterExecuteCallRefFunc(WpInterpreterState *self, const uint8_t *type);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef __cplusplus

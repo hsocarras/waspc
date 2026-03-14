@@ -10,7 +10,7 @@
  */
 #include "runtime/store.h"
 #include "objects/wp_objects.h"
-#include "webassembly/values.h"
+#include "interpreter/values.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -25,41 +25,118 @@ void WpStoreInit(WpStore *self)
     self->mem_free = NULL; // Initially, the entire memory is free
 }
 
-const uint8_t * WpStoreAllocTypes(WpStore *self, const uint8_t *address)
+WpGlobalInstance * WpStoreGetLastGlobal(WpStore *self)
 {
-    //Check if there is enough free memory to allocate the types
-    if (self->mem_free + sizeof(uint8_t *) > self->mem + self->mem_size)
+    if (!self->globals)
     {
-        return NULL; // Not enough memory
+        return NULL;
     }
-    memcpy(self->mem_free, &address, sizeof(uint8_t *)); // Allocate memory for types
-    self->mem_free += sizeof(uint8_t *); // Move the free pointer
-    return self->mem_free - sizeof(uint8_t *); // Return the address of the allocated types
+
+    WpGlobalInstance *current = self->globals;
+    for (size_t i = 0; i < self->global_count; i++)
+    {
+        current = current->next;
+    }
+    if (!current->next)
+    {
+        return current;
+    }
+    else    return NULL;
 }
 
-uint8_t * WpStoreAllocGlobal(WpStore *self, uint8_t mut, WasValType type, WasValue val)
+WpGlobalInstance * WpStoreGetGlobalByIndex(WpStore *self, uint32_t index)
 {
-    WpGlobalInstance global;
-    WpGlobalInstanceInit(&global);
+    if (!self->globals)
+    {
+        return NULL;
+    }
+
+    WpGlobalInstance *current = self->globals;
+    for (size_t i = 0; i < index; i++)
+    {
+        current = current->next;
+    }
+    return current;
+}
+
+WpFunctionInstance * WpStoreGetLastFunction(WpStore *self)
+{
+    if(!self->funcs)
+    {
+        return NULL;
+    }
+
+    WpFunctionInstance *current = self->funcs;
+
+    for (size_t i = 0; i < self->func_count; i++)       
+    {
+        current = current->next;
+    }
+    if (!current->next)
+    {
+        return current;
+    }
+    else    return NULL;
+
+}  
+
+WpFunctionInstance * WpStoreGetFunctionByIndex(WpStore *self, uint32_t index)
+{
+    if(!self->funcs)
+    {
+        return NULL;
+    }
+
+    WpFunctionInstance *current = self->funcs;
+
+    for (size_t i = 0; i < index; i++)       
+    {
+        current = current->next;
+    }
+    return current;
+}
+
+WpGlobalInstance * WpStoreAllocGlobal(WpStore *self, uint8_t mut, StackValType type, StackValue val)
+{
+    WpGlobalInstance new_global;
+    WpGlobalInstance *last_global;  
+    WpGlobalInstance * address; 
+    
     //Check if there is enough free memory to allocate the global
     if (self->mem_free + sizeof(WpGlobalInstance) > self->mem + self->mem_size)
     {
         return NULL; // Not enough memory
     }
-    
-    global.mut = mut;
-    global.type = type;
-    global.val = val;
 
-    memcpy(self->mem_free, &global, sizeof(WpGlobalInstance)); // Allocate memory for global
-    self->mem_free += sizeof(WpGlobalInstance); // Move the free pointer
-    return self->mem_free - sizeof(WpGlobalInstance); // Return the address of the allocated global
+    // Init new global
+    WpGlobalInstanceInit(&new_global);    
+    new_global.mut = mut;
+    new_global.type = type;
+    new_global.val = val;
+
+    // alloc new global on store
+    memcpy(self->mem_free, &new_global, sizeof(WpGlobalInstance)); // Allocate memory for global    
+
+    if(self->global_count > 0) { //Not first global
+        last_global = WpStoreGetLastGlobal(self);
+        if(!last_global){
+            return NULL;        
+        }
+        last_global->next = (WpGlobalInstance *)self->mem_free;  // update linked list
+        
+    }
+
+    self->global_count++;
+    address = (WpGlobalInstance *)self->mem_free;
+    self->mem_free += sizeof(WpGlobalInstance); // Move the free pointer  
+    return address; // Return the address of the allocated global
 }
    
-const uint8_t * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, const uint8_t * func_type, const uint8_t *locals, const uint8_t *body)
+WpFunctionInstance * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, WasmBinFuncType func_type, const uint8_t *locals, const uint8_t *body)
 {
-    WpFunctionInstance func;
-    WpFunctionInstanceInit(&func);
+    WpFunctionInstance new_func;
+    WpFunctionInstance *last_func;  
+    WpFunctionInstance * address; 
 
      //Check if there is enough free memory to allocate the global
     if (self->mem_free + sizeof(WpFunctionInstance) > self->mem + self->mem_size)
@@ -67,54 +144,31 @@ const uint8_t * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, const ui
         return NULL; // Not enough memory
     }
 
-    func.module = mod;
-    func.func_type = func_type;
-    func.locals = locals;
-    func.body = body;
+    // Init new function
+    WpFunctionInstanceInit(&new_func);
+    new_func.module = mod;
+    new_func.param_len = func_type.param_len;
+    new_func.param_types = func_type.param_types;
+    new_func.ret_len = func_type.ret_len;
+    new_func.ret_types = func_type.ret_types;
+    new_func.locals = locals;
+    new_func.body = body;
 
-    memcpy(self->mem_free, &func, sizeof(WpFunctionInstance));  // Allocate memory for function
+    //alloc function
+    memcpy(self->mem_free, &new_func, sizeof(WpFunctionInstance));  // Allocate memory for function
+
+    if(self->func_count > 0) { //Not first function
+        last_func = WpStoreGetLastFunction(self);
+        if(!last_func){
+            return NULL;        
+        }
+        last_func->next = (WpFunctionInstance *)self->mem_free;  // update linked list
+        
+    }
+
+    self->func_count++;
+    address = (WpFunctionInstance *)self->mem_free;
     self->mem_free += sizeof(WpFunctionInstance);               // Move the free pointer
-    return self->mem_free - sizeof(WpFunctionInstance);         // Return the address of the allocated global
+    return address;         // Return the address of the allocated global
 }
 
-/**
- * @brief Allocates and initializes a new export instance for a WebAssembly export.
- *
- * This function creates a new WpExportInstance structure, sets its type, name, kind,
- * and value based on the provided export definition and associated value.
- * The returned instance must be freed by the caller.
- *
- * @param export_def The export definition to instantiate.
- * @param value Pointer to the value (function, table, memory, or global) being exported.
- * @return WpExportInstance* Pointer to the newly allocated export instance, or NULL on allocation failure.
- *
-WpExportInstance * WpAllocExportInstance(Export export_def, void *value) {
-    WpExportInstance *exp_instance = malloc(sizeof(WpExportInstance));
-    if (!exp_instance) {
-        return NULL;
-    }
-    exp_instance->type = WP_OBJECT_EXPORT_INSTANCE;
-    exp_instance->name = export_def.name;
-    exp_instance->export_type = export_def.type;
-
-    // Set the value based on the export type
-    switch (export_def.type) {
-        case WP_EXTERNAL_TYPE_FUNC:
-            exp_instance->value.func = (funcaddr)value; // Cast value to funcaddr
-            break;
-        case WP_EXTERNAL_TYPE_TABLE:
-            // Handle table export if needed
-            break;
-        case WP_EXTERNAL_TYPE_MEMORY:
-            // Handle memory export if needed
-            break;
-        case WP_EXTERNAL_TYPE_GLOBAL:
-            // Handle global export if needed
-            break;
-        default:
-            free(exp_instance);
-            return NULL; // Invalid export type
-    }
-    
-    return exp_instance;
-}*/

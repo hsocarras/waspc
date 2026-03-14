@@ -18,7 +18,7 @@
 //wasp includes
 #include "objects/object.h"
 #include "objects/function.h"
-#include "objects/export.h"
+#include "objects/global.h"
 #include "webassembly/bin.h"   
 
 
@@ -95,9 +95,8 @@ typedef struct WpModuleState{
 
     
     /// @brief Instances
-    const uint8_t *types;               /// pointer to the types instances
-    uint8_t *globals;                   /// pointer to the global instances
-    const uint8_t *funcs;                     /// pointer to the function instances
+    WpGlobalInstance *globals;              /// pointer to the global instances
+    WpFunctionInstance *funcs;        /// pointer to the function instances
 
 
 

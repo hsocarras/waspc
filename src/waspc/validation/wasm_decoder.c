@@ -2834,6 +2834,24 @@ const uint8_t * GetTagByIndex(WasmBinSection tagsec, uint32_t tag_index){
 }
 
 /// Destructuring Functions////////////////////////////////////////////////////////////////////////////////////////
+WasmBinFuncType DestructureFunctionType(const uint8_t *index){
+    WasmBinFuncType func_type;
+    uint32_t dec_u32;
+    
+    //get type
+    assert(*index == 0x60);
+    index++; //skip 0x60 
+    index = DecodeLeb128UInt32(index, &dec_u32); //read list length
+    func_type.param_len = dec_u32;
+    func_type.param_types = index;
+    index+= dec_u32;
+
+    index = DecodeLeb128UInt32(index, &dec_u32);
+    func_type.ret_len = dec_u32;
+    func_type.ret_types = index;
+    
+    return func_type;    
+}
 
 uint32_t DestructureFunctionIndex(const uint8_t *index){
     uint32_t dec_u32;

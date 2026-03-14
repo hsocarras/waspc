@@ -84,6 +84,8 @@ const uint8_t * GetTagByIndex(WasmBinSection tagsec, uint32_t tag_index);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Destructure functions /////////////////////////////////////////////////////////////////////////////
+WasmBinFuncType DestructureFunctionType(const uint8_t *index);
+
 uint32_t DestructureFunctionIndex(const uint8_t *index);
 
 WasmBinGlobal DestructureGlobal(const uint8_t *global_addr);

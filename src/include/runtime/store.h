@@ -14,20 +14,27 @@
 
 typedef struct WpStore{
 
-    uint8_t *mem;                              ///pointer to static allocation for store area
-    uint32_t mem_size;                        ///size of store area
-    uint8_t *mem_free;                            ///pointer to static allocation for mark area
+    uint8_t *mem;                               ///pointer to static allocation for store area
+    uint32_t mem_size;                          ///size of store area
+    uint8_t *mem_free;                          ///pointer to static allocation for mark area
+
+    WpGlobalInstance *globals;                  //head pointer to global linked list
+    uint32_t global_count;
+
+    WpFunctionInstance *funcs;                  //head pointer to function linked list
+    uint32_t func_count;
+
+
 }WpStore;
 
 
 void WpStoreInit(WpStore *self);
 
-const uint8_t * WpStoreAllocTypes(WpStore *self, const uint8_t *address);
+WpGlobalInstance * WpStoreAllocGlobal(WpStore *self, uint8_t mut, StackValType type, StackValue val);
 
-uint8_t * WpStoreAllocGlobal(WpStore *self, uint8_t mut, WasValType type, WasValue val);
+WpFunctionInstance * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, WasmBinFuncType func_type, const uint8_t *locals, const uint8_t *body);
 
-const uint8_t * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, const uint8_t * func_type, const uint8_t *locals, const uint8_t *body);
-
+WpFunctionInstance * WpStoreGetFunctionByIndex(WpStore *self, uint32_t index);
 #ifdef __cplusplus
     }
 #endif

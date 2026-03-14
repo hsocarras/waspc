@@ -18,7 +18,7 @@
 
 //wasp includes
 #include "objects/object.h"
-#include "webassembly/values.h"
+#include "interpreter/values.h"
 
 #include <stdint.h>
 
@@ -28,8 +28,10 @@ typedef struct WpGlobalInstance {
     WpObjectType wp_type;
     
     uint8_t mut;        ///0 for immutable, 1 for mutable
-    WasValType type;    ///value type
-    WasValue val;       ///curent value of the global
+    StackValType type;    ///value type
+    StackValue val;       ///curent value of the global
+
+    struct WpGlobalInstance *next;
 
 }WpGlobalInstance;
 

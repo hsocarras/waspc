@@ -15,17 +15,22 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
-#include "webassembly/values.h"
+#include "interpreter/values.h"
 #include "objects/module.h"
 
 #include <stdint.h>
 
+typedef enum CtrlFrameType{
+    WP_INTERPRETER_CTRL_LABEL,
+    WP_INTERPRETER_CTRL_CALL_FRAME,
+    WP_INTERPRETER_CTRL_HANDLER,
+}CtrlFrameType;
 
 
 typedef struct CallFrame {
     //const uint8_t *ip;                  // Instruction pointer to the current instruction in the function body
     
-    WasValue *bp;                       // base pointer (where the frame start on the stack)
+    StackValue *bp;                       // base pointer (where the frame start on the stack)
     uint32_t locals_count;              // Total number of locals (params + locals)
 
     uint32_t arity;                     // Number of return values
@@ -38,6 +43,13 @@ typedef struct CallFrame {
 } CallFrame;
 
 
+typedef struct CtrlFrame {
+    CtrlFrameType type;
+    union{
+        CallFrame call_frame;
+        uint32_t label;
+    }ctrl;
+}CtrlFrame;
 
 #ifdef __cplusplus
     }

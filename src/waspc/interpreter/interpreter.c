@@ -18,5 +18,9 @@ void WpInterpreterInit(WpInterpreterState *self){
     self->value_stack_top = NULL;
     self->value_stack = NULL;
     self->value_stack_end = NULL;
+
+    self->ctrl_count = 0;
+
+    self->store = NULL;
     
 }

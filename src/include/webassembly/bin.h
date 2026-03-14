@@ -44,6 +44,13 @@ typedef struct WasmBinFunction{
     const uint8_t *body;
 } WasmBinFunction;
 
+typedef struct WasmBinFuncType{
+    uint32_t param_len;
+    uint8_t *param_types;
+    uint32_t ret_len;
+    uint8_t *ret_types;
+}WasmBinFuncType;
+
 #ifdef __cplusplus
     }
 #endif

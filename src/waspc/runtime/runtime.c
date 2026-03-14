@@ -37,7 +37,8 @@ void WpRuntimeInit(WpRuntimeState *self)
     // HashTableInit(&self->modules);
 
     // Interpreter
-    //WpInterpreterInit(&self->interpreter);
+    WpInterpreterInit(&self->interpreter);
+    self->interpreter.store = &self->store;
 
     // Init validator
     WpValidatorStateInit(&self->validator);
@@ -207,31 +208,7 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
         }
     }
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///3 
-
-    for (i = 0; i < mod->type_count; i++)
-    {
-        address = GetTypeByIndex(mod->typesec, i);        
-        if (!address)
-        {
-            self->err.id = 22;        
-            return (WpObject *)&self->err;
-        }
-        if(i == 0){
-            mod->types = WpStoreAllocTypes(&self->store, address);
-            if (!mod->types)
-            {
-                self->err.id = 23;        
-                return (WpObject *)&self->err;
-            }
-        }
-        else{
-            if(!WpStoreAllocTypes(&self->store, address)){
-                self->err.id = 23;        
-                return (WpObject *)&self->err;
-            }
-        }
-    }
+       
     
     /// 11, 12, 13 y 19 /////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Globals
@@ -245,7 +222,7 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
         }
         /// destructuring global
         global = DestructureGlobal(address);
-        WasValue val = WpInterpreterEvalExpr(&self->interpreter, global.init_expr);
+        StackValue val = WpInterpreterEvalExpr(&self->interpreter, global.init_expr);
         if(val.type == WAS_EX_VAL_TYPE_NULL){
             self->err.id = 26;        
             return (WpObject *)&self->err;
@@ -268,6 +245,8 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// function
     WasmBinFunction func;
+    WasmBinFuncType type;
+
     const uint8_t *code;
     for(i = 0; i < mod->function_count; i++){
 
@@ -282,6 +261,8 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
             return (WpObject *)&self->err;
         }
         address = GetTypeByIndex(mod->typesec, u32_data);
+        type = DestructureFunctionType(address);
+
         if(!address){
             self->err.id = 27;        
             return (WpObject *)&self->err;
@@ -294,14 +275,14 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
         
         func = DestructureCode(code);
         if(i == 0){
-            mod->funcs = WpStoreAllocFunction(&self->store, mod, address, func.locals, func.body);
+            mod->funcs = WpStoreAllocFunction(&self->store, mod, type, func.locals, func.body);
             if(!mod->funcs){
                 self->err.id = 29;        
                 return (WpObject *)&self->err;
             }
         }
         else{
-            if(!WpStoreAllocFunction(&self->store, mod, address, func.locals, func.body)){
+            if(!WpStoreAllocFunction(&self->store, mod, type, func.locals, func.body)){
                 self->err.id = 29;        
                 return (WpObject *)&self->err;
             }
@@ -373,73 +354,52 @@ WpObject *WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_ins
  * and handles the function's return value(s). If an error occurs during invocation, an error object is returned.
  *
  * @param self Pointer to the runtime state.
- * @param func Pointer to the function instance to invoke.
+ * @param func Index to the function instance to invoke.
  * @param args Pointer to an array of argument values to pass to the function (parameters).
  * @param argc Number of argument values in the args array.
  * @return WpObject* Returns the result of the function invocation on success,
  *                   or an error object on failure.
- *
-WpObject *WpFuncInstanceInvoke(WpRuntimeState *self, funcaddr func, Value *args, uint32_t argc)
+ */
+WpObject *WpFuncRuntimeInvoke(WpRuntimeState *self, uint32_t func_address, StackValue *args, uint32_t argc)
 {
+    /// Step 1//////////////////////////////////////////////////////////////////////////////////
+    if(!self->store.funcs){
+        self->err.id = 33;
+        return (WpObject *)&self->err;
+    }
 
-    self->err.id = 40;
-#if WASPC_CONFIG_DEV_FLAG == 1
-    strcpy_s(self->err.file, 64, "runtime/runtime.c");
-    strcpy_s(self->err.func, 32, "WpFuncInstanceInvoke");
-#endif
+    if(func_address >= self->store.func_count){
+        self->err.id = 34;
+        return (WpObject *)&self->err;
+    }
+
+    WpFunctionInstance *func = WpStoreGetFunctionByIndex(&self->store, func_address);
+    if(!func){
+        self->err.id = 35;
+        return (WpObject *)&self->err;
+    }
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    /// TODO Step 2 to 5 
+
+    /// Step 6 and 7
+    //TODO check call_stack overflow
+    CtrlFrame * frame = &self->interpreter.ctrl_satck[self->interpreter.ctrl_count++]; //get top and add frame count
+    frame->type = WP_INTERPRETER_CTRL_CALL_FRAME;
+    frame->ctrl.call_frame.arity = 1;  //TODO arity come from previous step
+        
+    /// Step 8
+    for(uint32_t i = 0; i < argc; i++){
+        PushValue(&self->interpreter, args[i]);
+    }
+
+    /// Step 9
+    StackValue func_ref;
+    func_ref.type = WAS_VAL_REF_FUNC;
+    func_ref.value.i32 = func_address;
+    PushValue(&self->interpreter, func_ref);
+    uint8_t error_code = WpInterpreterExecuteCallRefFunc(&self->interpreter, NULL);
+
+    self->err.id = error_code;
     return (WpObject *)&self->err;
-    
-    if (!func) {
-        self->err.id = 40;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64, "runtime/runtime.c");
-        strcpy_s(self->err.func, 32, "WpFuncInstanceInvoke");
-        #endif
-        return (WpObject *)&self->err;
-    }
-
-    // 1. Allocate and initialize a new activation frame
-    ActivationFrame frame;
-    WpFunctionInstance *f_inst = (WpFunctionInstance *)func;
-    //frame.arity = f_inst->arity ? *(f_inst->arity) : 0;
-    frame.module = f_inst->module;
-    frame.func = f_inst;
-    //frame.locals_count = f_inst->code->locals_count;
-
-    // 2. Allocate and initialize locals (params + locals)
-    frame.locals = (Value *)malloc(sizeof(Value) * frame.locals_count);
-    if (!frame.locals) {
-        self->err.id = 41;
-        #if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64, "runtime/runtime.c");
-        strcpy_s(self->err.func, 32, "WpFuncInstanceInvoke");
-        #endif
-        return (WpObject *)&self->err;
-    }
-
-    // Copy arguments (parameters) to locals
-    uint32_t param_count = argc;
-    if (param_count > frame.locals_count) param_count = frame.locals_count;
-    for (uint32_t i = 0; i < param_count; i++) {
-        frame.locals[i] = args[i];
-    }
-    // Initialize remaining locals to zero
-    for (uint32_t i = param_count; i < frame.locals_count; i++) {
-        frame.locals[i] = (Value){0};
-    }
-
-    // 3. Push the frame to the call stack (not shown, depends on your runtime)
-    // push_activation_frame(self, &frame);
-
-    // 4. Execute the function body (interpreter or JIT)
-    WpObject *result;// = WpExecuteFunctionBody(self, &frame);
-
-    // 5. Pop the frame from the call stack (not shown)
-    // pop_activation_frame(self);
-
-    // 6. Free locals
-    free(frame.locals);
-
-    return result;
 }
-*/
+

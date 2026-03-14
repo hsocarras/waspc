@@ -91,7 +91,7 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INSTANTIATE_MODULE) {
     WpRuntimeState runtime;
     WpRuntimeInit(&runtime);
     uint8_t MEM[4096];
-    WasValue val[256];
+    StackValue val[256];
     runtime.store.mem = MEM;
     runtime.store.mem_size = 4096;
     runtime.store.mem_free = MEM;
@@ -131,18 +131,15 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INSTANTIATE_MODULE) {
     // Check if the module status is instantiated
     ASSERT_EQ(instantiated_module->status, WP_MODULE_STATUS_VALIDATED) << "Module status is not WP_MODULE_STATUS_VALIDATED";
     ASSERT_EQ(instantiated_module->type_count, 1) << "Module type count is not 1";
-    uint8_t * address = *(uint8_t **)instantiated_module->types;
-    ASSERT_EQ(address, mod_state.buf + 0x0b) << "Module types are not correctly initialized";
-    //ASSERT_EQ(runtime.store.mem_free, runtime.store.mem + sizeof(uint8_t *)) << "Module import count is not 0";
 
-    WpGlobalInstance *global1 = (WpGlobalInstance *)(mod_state.globals);
+    WpGlobalInstance *global1 = mod_state.globals;
     ASSERT_EQ(global1->mut, 0) << "Global 1 mutability is not 0";
     ASSERT_EQ(global1->type, 0x7f) << "Global 1 type is not i32";
     ASSERT_EQ(global1->val.value.i32, 25) << "Global 1 initial value is not 25";
    
-    WpFunctionInstance *func1 = (WpFunctionInstance *)(mod_state.funcs);
+    const WpFunctionInstance *func1 = mod_state.funcs;
     ASSERT_EQ(func1->wp_type, WP_OBJECT_FUNCTION_INSTANCE) << "Function 1 type is not WpFunctionInstance";
-    ASSERT_EQ(func1->func_type[0], mod_state.buf[11]) << "Function type is at index 0x0B";
+    //ASSERT_EQ(func1->func_type[0], mod_state.buf[11]) << "Function type is at index 0x0B";
     ASSERT_EQ(func1->locals[0], mod_state.buf[0x2B]) << "Locals start at index 0x2B";
     ASSERT_EQ(func1->body[0], mod_state.buf[0x2D]) << "Body start at index 0x2D";
 }

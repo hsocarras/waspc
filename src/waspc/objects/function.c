@@ -15,7 +15,13 @@
 
     self->wp_type = WP_OBJECT_FUNCTION_INSTANCE;
     self->module = NULL;
-    self->func_type = NULL;
+    self->param_len = 0;
+    self->param_types = NULL;
+    self->ret_len = 0;
+    self->ret_types = NULL;
     self->locals = NULL;
     self->body = NULL;
+
+    self->next = NULL;
+ 
  }

@@ -21,8 +21,8 @@
  * @param val Value to push
  * @return WpResult
  */
-void PushValue(WpInterpreterState *self, WasValue val){   
-    
+void PushValue(WpInterpreterState *self, StackValue val){   
+    //TODO stackoverflow 
     *self->value_stack_top = val;
     self->value_stack_top++;
 
@@ -34,7 +34,7 @@ void PushValue(WpInterpreterState *self, WasValue val){
  * @param vm Virtual machine instance. 
  * @return VmValue 
  */
-WasValue PopValue(WpInterpreterState *self){  
+StackValue PopValue(WpInterpreterState *self){  
    
     self->value_stack_top--;
     return *self->value_stack_top;    
