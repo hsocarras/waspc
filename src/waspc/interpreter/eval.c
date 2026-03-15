@@ -104,28 +104,28 @@ static uint8_t EvalFrame (WpInterpreterState *self, CallFrame *frame){
 
     #define READ_BYTE() (*self->ip++)
 
-    while(1){ //TODO better loop condition, watch dog to break the loop
-        instruction = READ_BYTE();        
-
+    while(1){ //TODO better loop condition, watch dog to break the loop and opcode end
+        instruction = READ_BYTE();   
         switch(instruction){
             case OPCODE_END:                
                 return 0; //no error 
             case OPCODE_RETURN:
             _return:
             ctrl_type = self->ctrl_satck[self->ctrl_count-1].type;
-            switch (ctrl_type)
-            {
-            case WP_INTERPRETER_CTRL_CALL_FRAME:
-                self->ctrl_count--;                break;
-            case WP_INTERPRETER_CTRL_LABEL:
-                self->ctrl_count--;
-                goto _return;
-                break;
-            case WP_INTERPRETER_CTRL_HANDLER:
-                break;
-            default:
-                break;
-            }  
+                switch (ctrl_type)
+                {
+                case WP_INTERPRETER_CTRL_CALL_FRAME:
+                    self->ctrl_count--;                
+                    return 0; //no error 
+                case WP_INTERPRETER_CTRL_LABEL:
+                    self->ctrl_count--;
+                    goto _return;
+                    break;
+                case WP_INTERPRETER_CTRL_HANDLER:
+                    break;
+                default:
+                    break;
+                }  
             case OPCODE_LOCAL_GET:
                 self->ip = DecodeLeb128Int32(self->ip, &aux_u32); //read local idx
                 if(!self->ip){
@@ -257,11 +257,14 @@ StackValue WpInterpreterEvalExpr(WpInterpreterState *self, const uint8_t *code){
 uint8_t WpInterpreterExecuteCallRefFunc(WpInterpreterState *self, const uint8_t *type){
     StackValue result;
     StackValue ref_func;
+    uint8_t error_code;
 
     ref_func = PopValue(self);
     if(ref_func.type != WAS_VAL_REF_FUNC){
         return 1;
     }
-    
-    return 0;    
+
+    error_code= InvokeFunctionRef(self, ref_func);
+    return error_code;
+
 }

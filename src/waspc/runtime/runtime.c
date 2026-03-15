@@ -364,7 +364,7 @@ WpObject *WpFuncRuntimeInvoke(WpRuntimeState *self, uint32_t func_address, Stack
 {
     /// Step 1//////////////////////////////////////////////////////////////////////////////////
     if(!self->store.funcs){
-        self->err.id = 33;
+        self->err.id = 133;
         return (WpObject *)&self->err;
     }
 
@@ -400,6 +400,10 @@ WpObject *WpFuncRuntimeInvoke(WpRuntimeState *self, uint32_t func_address, Stack
     uint8_t error_code = WpInterpreterExecuteCallRefFunc(&self->interpreter, NULL);
 
     self->err.id = error_code;
+    StackValue result = PopValue(&self->interpreter);
+    
+    self->err.code = result.value.i32;
+
     return (WpObject *)&self->err;
 }
 

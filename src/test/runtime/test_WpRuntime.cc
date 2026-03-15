@@ -4,7 +4,7 @@
 #include "utils/hash_table.h"
 #include "objects/module.h"
 #include "../wasm/samples.h"
-#include "webassembly/values.h"
+#include "interpreter/values.h"
 
 #include <stdlib.h>
 
@@ -142,4 +142,63 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INSTANTIATE_MODULE) {
     //ASSERT_EQ(func1->func_type[0], mod_state.buf[11]) << "Function type is at index 0x0B";
     ASSERT_EQ(func1->locals[0], mod_state.buf[0x2B]) << "Locals start at index 0x2B";
     ASSERT_EQ(func1->body[0], mod_state.buf[0x2D]) << "Body start at index 0x2D";
+}
+
+TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INVOKE_FUNCTION) {
+    
+    // Initialize the runtime /////////////////////////////////////////////////////////////////////////////
+    WpRuntimeState runtime;
+    WpRuntimeInit(&runtime);
+    uint8_t MEM[4096];
+    StackValue val[256];
+    runtime.store.mem = MEM;
+    runtime.store.mem_size = 4096;
+    runtime.store.mem_free = MEM;
+    runtime.interpreter.value_stack = val;
+    runtime.interpreter.value_stack_top = val;
+    runtime.interpreter.value_stack_end = val + 256;
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    Name mod_name;
+    char name[6] = "main1"; 
+    mod_name.name = name;
+    mod_name.lenght = 6;
+    
+    uint32_t len = sizeof(sample1); // Get the size of the test WASM file
+
+    //Creating a binary file struct to pass to the function
+    WpBinFile bin_file = {
+        &sample1[0], // Allocate memory for the binary file buffer
+        len     // Set the buffer size to the size of the test WASM file
+    };
+
+    WpModuleState mod_state;
+    WpModuleInit(&mod_state);
+
+    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, &mod_state, bin_file, mod_name);
+
+    result = WpRuntimeInstanciateModule(&runtime, &mod_state, NULL, 0);
+    // Check if the result is not null
+    ASSERT_NE(result, nullptr) << "WpRuntimeInstantiateModule returned null";
+    if(result->wp_type == WP_OBJECT_ERROR) {
+        WpError *error = (WpError *)result;
+        FAIL() << "WpRuntimeInstantiateModule returned an error: " << error->id;
+    }
+    // Check if the result is a module state object 
+    ASSERT_EQ(result->wp_type, WP_OBJECT_MODULE_STATE) << "WpRuntimeInstantiateModule did not return a WpModuleState object";
+    WpModuleState *instantiated_module = (WpModuleState *)result;
+    // Check if the module status is instantiated
+    StackValue par;
+    par.type = WAS_VAL_TYPE_I32;
+    par.value.i32 = 10;
+    
+    ASSERT_GT(runtime.store.global_count, 0)  << "Global count is not greater than 0";
+    ASSERT_GT(runtime.store.func_count, 0)  << "Global count is not greater than 0";
+    ASSERT_NE(runtime.store.funcs, nullptr) << "Function linked list is null";
+
+    result = WpFuncRuntimeInvoke(&runtime, 0, &par, 1);
+    WpError *error = (WpError *)result;
+    ASSERT_EQ(error->id, 0);
+    StackValue ret = runtime.interpreter.value_stack[1];
+    ASSERT_EQ(error->code, 37);
 }

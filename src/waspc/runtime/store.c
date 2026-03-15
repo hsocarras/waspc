@@ -125,6 +125,10 @@ WpGlobalInstance * WpStoreAllocGlobal(WpStore *self, uint8_t mut, StackValType t
         last_global->next = (WpGlobalInstance *)self->mem_free;  // update linked list
         
     }
+    else{
+        self->globals = (WpGlobalInstance *)self->mem_free;
+    }
+
 
     self->global_count++;
     address = (WpGlobalInstance *)self->mem_free;
@@ -164,6 +168,9 @@ WpFunctionInstance * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, Was
         }
         last_func->next = (WpFunctionInstance *)self->mem_free;  // update linked list
         
+    }
+    else{
+        self->funcs = (WpFunctionInstance *)self->mem_free;
     }
 
     self->func_count++;
