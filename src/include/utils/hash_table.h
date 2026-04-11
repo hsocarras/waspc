@@ -16,13 +16,11 @@
     extern "C" {
 #endif
 
-#include "webassembly/structure/types.h"
-
 #include <stdint.h>
 
 
 typedef struct HtEntry {                            ///Entry for hash table    
-    Name key;                                       ///string key
+    const char *key;                                       ///string key
     void *value;                                    ///any kind value
 } HtEntry ;
 
@@ -47,14 +45,14 @@ void HasTableDestroy(HashTable *self);
 /// @param self 
 /// @param key 
 /// @return value or NULL if key not found
-void * HashTableGet(HashTable *self, Name key);
+//void * HashTableGet(HashTable *self, Name key);
 
 /// @brief Set item with given key to value. If item not exist, a new one is created
 /// @param self 
 /// @param key 
 /// @param value 
 /// @return value if success, otherwise NULL
-HtEntry * HashTableSet(HashTable *self, const Name key, void *value);
+//HtEntry * HashTableSet(HashTable *self, const Name key, void *value);
 
 
 #ifdef __cplusplus

@@ -1,3 +1,4 @@
+
 #include path for header files
 include_directories(BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/wasm
@@ -8,6 +9,7 @@ include_directories(BEFORE
 if (BUILD_TESTING)
     add_subdirectory(wasm)
     add_subdirectory(utils)
-    add_subdirectory(runtime)
+    add_subdirectory(decoder)
     add_subdirectory(validation)
+    add_subdirectory(runtime)    
 endif()

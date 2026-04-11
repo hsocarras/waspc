@@ -8,13 +8,13 @@ extern "C" {
 #endif
 
 #include <string.h>
-#include "webassembly/structure/types.h"
+
 
 //Convert a Name struct to null-terminated C string.
-char* WasNameToString(Name name);
+//char* WasNameToString(Name name);
 
 //Convert a null-terminated C string to a Name struct.
-Name StrToWasName(const char* str);
+//Name StrToWasName(const char* str);
 
 #ifdef __cplusplus
 }

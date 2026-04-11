@@ -2,5 +2,5 @@
 
 
 
-add_library(objects STATIC  error.c module.c global.c function.c)
-#target_link_libraries(object PRIVATE diagnostic utils memory)
+add_library(objects STATIC  error.c export.c function.c global.c memory.c module.c  result.c)
+#target_link_libraries(objects PRIVATE diagnostic utils)

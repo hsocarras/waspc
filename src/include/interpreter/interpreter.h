@@ -16,11 +16,11 @@
     extern "C" {
 #endif
 
-
+#include "memory/store.h"
+#include "objects/wp_objects.h"
 #include "interpreter/ctrl_frame.h"
 #include "interpreter/values.h"
 
-struct WpStore;  //fordward declaration
 
 #include <stdint.h>
 
@@ -31,16 +31,22 @@ struct WpStore;  //fordward declaration
 typedef struct WpInterpreterState{
     
     
-    const uint8_t * ip;                                 ///instruction pointer to the current instruction
+    const uint8_t * ip;                                     ///instruction pointer to the current instruction
 
-    StackValue *value_stack;                              //value stack implemented with     
-    StackValue *value_stack_top;                               //pointer to stack's top
-    StackValue *value_stack_end;                               //pointer to last element of stack for avoid stack overflow
+    StackValue *value_stack;                                //value stack implemented with     
+    StackValue *value_stack_top;                            //pointer to stack's top
+    StackValue *value_stack_end;                            //pointer to last element of stack for avoid stack overflow
 
-    CtrlFrame ctrl_satck[256];                          //TODO size asignation
-    uint32_t ctrl_count;
-    
-    struct WpStore *store;
+    CallFrame *call_stack;                               //TODO size asignation
+    uint32_t call_stack_size;                          //TODO count of frames in call stack
+    uint32_t call_stack_count;
+
+    uint8_t *block_stack;                                   //TODO block stack for store block's start and end position for control flow instructions
+    uint8_t *block_stack_top;                                  //pointer to stack's top
+    uint8_t *block_stack_end;                                  //pointer to last element of stack for avoid stack overflow
+
+    WpStore *store;                                         //pointer to store, which contains all the module instances and function instances 
+                                                            //of the program, used for function calls and global variable access   
     
 } WpInterpreterState;
 
@@ -79,9 +85,9 @@ StackValue PopValue(WpInterpreterState *self);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Interpreter Eval functions defined in eval.c ///////////////////////////////////////////////////////////////////////
-StackValue WpInterpreterEvalExpr(WpInterpreterState *self, const uint8_t *code);
+StackValue WpInterpreterEvalExpr(WpInterpreterState *self, CallFrame *frame);
 
-uint8_t WpInterpreterExecuteCallRefFunc(WpInterpreterState *self, const uint8_t *type);
+uint32_t InvokeFunctionFast(WpInterpreterState *self, WpFunctionInstance *func);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef __cplusplus

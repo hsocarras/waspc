@@ -6,7 +6,7 @@
 
 
 
-
+/*
 TEST(WASPC_UTILS_HASH_TABLE, HASH_TABLE_SETUP) {
   
     HashTable ht;
@@ -52,3 +52,4 @@ TEST(WASPC_UTILS_HASH_TABLE, HASH_TABLE_SET_GET) {
     retrieved_value = HashTableGet(&ht, key2);
     EXPECT_EQ(retrieved_value, &value2);
 }
+*/

@@ -2,4 +2,4 @@
 
 
 
-#add_library(memory STATIC pool_object.c)
+add_library(memory STATIC store.c)

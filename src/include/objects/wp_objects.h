@@ -17,11 +17,13 @@
 #endif
 
 
-
+#include "objects/result.h"
 #include "objects/error.h"
-//#include "objects/export.h"
+#include "objects/export.h"
 #include "objects/function.h"
 #include "objects/global.h"
+#include "objects/export.h"
+#include "objects/memory.h"
 #include "objects/module.h"
 
 

@@ -6,7 +6,7 @@
  * These are utility functions of the validation module but do not belong to the WpValidator class
  * and do not receive the "self" parameter.
  * They are used to validate the sections of the module and the different types 
- * defined in the binary format ensuring that the buffer complies with binary sintax..
+ * defined in the binary format ensuring that the buffer complies with binary sintax.
  * @version 0.1
  * @date 2024-08-21
  * 
@@ -15,9 +15,8 @@
  */
 
 #include "validation/wasm_validator.h"
-#include "validation/wasm_decoder.h"
-#include "webassembly/structure/module.h"
-//#include "webassembly/binary/types.h"
+#include "validation/wasm_validator_private.h"
+#include "decoder/wasm_decoder.h"
 #include "webassembly/instructions.h"
 #include "utils/leb128.h"
 
@@ -34,7 +33,7 @@
  * @param buf wasm binary format 
  * @return uint8_t 0 - ok, error code 1 otherwise
  */
-uint8_t ValidateMagicBuf(const uint8_t *buf){
+uint32_t ValidateMagicBuf(const uint8_t *buf){
 
    assert(buf != NULL);                                                 // Ensure the buffer is not NULL
     uint8_t magic_number_bytes[4] = {0x00, 0x61, 0x73, 0x6D};           /// Magic number that all wasm file start
@@ -57,7 +56,7 @@ uint8_t ValidateMagicBuf(const uint8_t *buf){
  * @param version_number pointer to store the version number
  * @return uint8_t 0 - ok, error code 2 otherwise
  */
-uint8_t ValidateVersionBuf(const uint8_t *buf, uint32_t *version_number){
+uint32_t ValidateVersionBuf(const uint8_t *buf, uint32_t *version_number){
 
     uint8_t version_number_bytes[4] = {0x01, 0x00, 0x00, 0x00};         /// version number    
     uint32_t version_number_1 = *((uint32_t *)version_number_bytes);    /// version number in uint32 format to avoid endianess problem
@@ -80,10 +79,10 @@ uint8_t ValidateVersionBuf(const uint8_t *buf, uint32_t *version_number){
  * @version 3.0
  * @brief Function to validate component type
  * @param buf  Binary encoded component type
- * @return uint8_t 0 - ok, error code otherwise used (3-9)
+ * @return uint8_t 0 - ok, error code otherwise used (4-12)
  * 
  */
-uint8_t ValidateCompTypeBuf(const uint8_t *buf){
+uint32_t ValidateCompTypeBuf(const uint8_t *buf){
     const uint8_t *index = buf;
     uint32_t len;
     uint32_t i;
@@ -98,8 +97,8 @@ uint8_t ValidateCompTypeBuf(const uint8_t *buf){
     {
     case 0x5E:
         encoded_byte = READ_BYTE();
-        if(!isStorageType(encoded_byte)){
-            return 3; // Invalid storage type
+        if(!IsStorageType(index - 1)){
+            return 4; // Invalid storage type
         }
         //mutability byte can or not be present
         return 0;
@@ -107,15 +106,15 @@ uint8_t ValidateCompTypeBuf(const uint8_t *buf){
     case 0x5F:
         index = DecodeLeb128UInt32(index, &len);  //get field type len for struct
         if(!index){
-            return 4; // Invalid leb128 encoding
+            return 5; // Invalid leb128 encoding
         }
 
         for (i = 0; i < len; i++)
         {
             encoded_byte = READ_BYTE();
 
-            if(!isStorageType(encoded_byte)){
-                return 5; // Invalid storage type
+            if(!IsStorageType(index - 1)){
+                return 6; // Invalid storage type
             }
             //check mutability
             mut = READ_BYTE();
@@ -128,24 +127,26 @@ uint8_t ValidateCompTypeBuf(const uint8_t *buf){
     case 0x60:
         index = DecodeLeb128UInt32(index, &len);             // get paramateters count
         if (!index){
-            return 6; // Invalid leb128 encoding
+            return 7; // Invalid leb128 encoding
         }
 
         for (i = 0; i < len; i++){
-            if(!IsValType(READ_BYTE())){
-                return 7; // Invalid value type
+            if(!IsValType(index)){
+                return 8; // Invalid value type
             } 
+            READ_BYTE();
         } 
 
         index = DecodeLeb128UInt32(index, &len);             // get result count
         if (!index){
-            return 8; // Invalid leb128 encoding
+            return 9; // Invalid leb128 encoding
         }
 
         for (i = 0; i < len; i++){
-            if(!IsValType(READ_BYTE())){
-                return 9; // Invalid value type
+            if(!IsValType(index)){
+                return 10; // Invalid value type
             } 
+            READ_BYTE();
         }
         return 0; // Valid
         break;
@@ -162,9 +163,9 @@ uint8_t ValidateCompTypeBuf(const uint8_t *buf){
  * @brief Function to validate subtype
  * @param buf  Binary encoded subtype
  * @param type_count Number of types in the module to validate type indices
- * @return uint8_t 0 - ok, error code otherwise (10-12)
+ * @return uint8_t 0 - ok, error code otherwise (13-16)
  */
-uint8_t ValidateSubtypeBuf(const uint8_t *buf, uint32_t type_count){
+uint32_t ValidateSubtypeBuf(const uint8_t *buf, uint32_t type_count){
     const uint8_t *index = buf;
     uint32_t len;
     uint32_t typeidx;
@@ -181,17 +182,17 @@ uint8_t ValidateSubtypeBuf(const uint8_t *buf, uint32_t type_count){
     case 0x50: //recursive subtype
         index = DecodeLeb128UInt32(index, &len);
         if(!index){
-            return 10; // Invalid leb128 encoding
+            return 13; // Invalid leb128 encoding
         }
 
         for (i = 0; i < len; i++)
         {
             index = DecodeLeb128UInt32(index, &typeidx);
             if(!index){
-                return 11; // Invalid leb128 encoding
+                return 14; // Invalid leb128 encoding
             }
             if(typeidx > type_count){
-                return 12; // Invalid index range
+                return 15; // Invalid index range
             }
         }
 
@@ -211,7 +212,7 @@ uint8_t ValidateSubtypeBuf(const uint8_t *buf, uint32_t type_count){
  * @param buf  Binary encoded function type
  * @return uint8_t 0 - ok,  error code otherwise (13-28)
  */
-uint8_t ValidateLimitsTypeBuf(const uint8_t *buf, uint32_t k){    
+uint32_t ValidateLimitsTypeBuf(const uint8_t *buf, uint32_t k){    
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
 
@@ -238,7 +239,7 @@ uint8_t ValidateLimitsTypeBuf(const uint8_t *buf, uint32_t k){
             return 15; // Invalid limits
         }
         break;
-    case 0x02:  //i32 min and max
+    case 0x01:  //i32 min and max
         index = DecodeLeb128UInt64(index, &min);
         if (!index){
             return 16;                                       
@@ -298,7 +299,7 @@ uint8_t ValidateLimitsTypeBuf(const uint8_t *buf, uint32_t k){
  * @param buf Pointer to the binary encoded reference type
  * @return uint8_t 0-ok, error code otherwise (29-31)
  */
-uint8_t ValidateRefTypeBuf(const uint8_t *buf){
+uint32_t ValidateRefTypeBuf(const uint8_t *buf){
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file
@@ -313,7 +314,7 @@ uint8_t ValidateRefTypeBuf(const uint8_t *buf){
     {
     case 0x63:  // ref null headtype
     case 0x64:  // ref head type        
-        if(IsAbsHeadType(encoded_type)){
+        if(IsAbsHeadType(index - 1)){
             break;
         }
         else{
@@ -327,7 +328,7 @@ uint8_t ValidateRefTypeBuf(const uint8_t *buf){
         }
         break;
     default:
-        if(!IsAbsHeadType(encoded_type)){
+        if(!IsAbsHeadType(index-1)){
             return 31; // Invalid reference type
         }
     }
@@ -344,7 +345,7 @@ uint8_t ValidateRefTypeBuf(const uint8_t *buf){
  * @param buf Pointer to the binary encoded memory type
  * @return uint8_t 0-ok, error code otherwise 
  */
-uint8_t ValidateMemTypeBuf(const uint8_t *buf){    
+uint32_t ValidateMemTypeBuf(const uint8_t *buf){    
 
     return ValidateLimitsTypeBuf(buf, 0x010000); // 2^16 = 65536
 } //max 65536 pages
@@ -356,7 +357,7 @@ uint8_t ValidateMemTypeBuf(const uint8_t *buf){
  * @param buf Pointer to the binary encoded tag type    
  * @return uint8_t 0-ok, error code otherwise (32-33)
  */
-uint8_t ValidateTagTypeBuf(const uint8_t *buf){
+uint32_t ValidateTagTypeBuf(const uint8_t *buf){
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file
@@ -388,7 +389,7 @@ uint8_t ValidateTagTypeBuf(const uint8_t *buf){
  * @param buf Pointer to the binary encoded external type
  * @return uint8_t 0-ok, error code otherwise (34-38)
  */
-uint8_t ValidateExternalTypeBuf(const uint8_t *buf){
+uint32_t ValidateExternalTypeBuf(const uint8_t *buf){
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file
@@ -421,10 +422,9 @@ uint8_t ValidateExternalTypeBuf(const uint8_t *buf){
         }
         break;
     case 0x03:  // globalref
-        err_code = ValidateGlobalTypeBuf(index);
-        if(err_code > 0){
-            return err_code; // Invalid global type
-        }
+        if(!IsValType(index)){
+            return 35; // Invalid global type
+        }        
         break;   
     case 0x04:  // tagtype
         err_code = ValidateTagTypeBuf(index);
@@ -448,7 +448,7 @@ uint8_t ValidateExternalTypeBuf(const uint8_t *buf){
  * @param t Pointer to the table to validate   
  * @return uint8_t 0-ok, error code otherwise (39-40)
  */
-uint8_t ValidateTableTypeBuf(const uint8_t *buf){    
+uint32_t ValidateTableTypeBuf(const uint8_t *buf){    
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file
@@ -484,7 +484,7 @@ uint8_t ValidateTableTypeBuf(const uint8_t *buf){
  * @param buf Pointer to the binary encoded table type
  * @return uint8_t 0-ok, error code otherwise (41-45)
  */
-uint8_t ValidateTableBuf(const uint8_t *buf){
+uint32_t ValidateTableBuf(const uint8_t *buf){
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file
     uint8_t encoded_type;
@@ -521,7 +521,8 @@ uint8_t ValidateTableBuf(const uint8_t *buf){
         return 44;
         break;
     default:
-        if(IsAbsHeadType(encoded_type)){
+        //che
+        if(!IsAbsHeadType(index-1)){
             return 0;
         }
         else{
@@ -542,7 +543,7 @@ uint8_t ValidateTableBuf(const uint8_t *buf){
  * @param buf Pointer to the binary encoded global type
  * @return uint8_t 0 - ok, error code otherwise (46-47)
  */
-uint8_t ValidateGlobalTypeBuf(const uint8_t *buf){
+uint32_t ValidateGlobalBuf(const uint8_t *buf, const uint8_t *global_section_end){
     
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file    
@@ -551,12 +552,27 @@ uint8_t ValidateGlobalTypeBuf(const uint8_t *buf){
     
     #define READ_BYTE() (*index++)
 
-    byte_val = READ_BYTE(); // get global type
-    if(!IsValType(byte_val)){
+    if(!IsValType(index)){
         return 46; // Invalid global type
-    }   
+    } 
+    byte_val = READ_BYTE(); // get global type      
 
-    return 0; // Valid global type
+    byte_val = READ_BYTE(); // get mutability
+
+    if(byte_val == 0x00 || byte_val == 0x01){
+        byte_val = READ_BYTE(); //get expresion
+    }
+
+    while (byte_val != OPCODE_END && index <= global_section_end)
+    {
+        byte_val = READ_BYTE();
+        if(byte_val == OPCODE_END){
+            return 0; // Valid global buff
+        }    
+    }
+    
+
+    return 100; // reach end of global section without find end opcode
     #undef READ_BYTE
 }
 
@@ -574,21 +590,21 @@ uint8_t ValidateGlobalTypeBuf(const uint8_t *buf){
  *       printf("Valid type\n");
  *   }
  */
-uint8_t ValidateTypeBuf(const uint8_t *buf, uint32_t type_count){
+uint32_t ValidateTypeBuf(const uint8_t *buf, uint32_t type_count){
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file
     uint32_t len;
     uint8_t encoded_type;
-    uint8_t err_code;
+    uint32_t err_code;
 
     
     #define READ_BYTE() (*index++)
 
-    encoded_type = READ_BYTE();
-    if(!IsRecType(encoded_type)){ 
+    if(!IsRecType(index)){ 
         return 48; // Invalid recursive type
     }
+    encoded_type = READ_BYTE();    
 
     if(encoded_type == 0x4E){ //0x4E st*:list(subtype)
         index = DecodeLeb128UInt32(index, &len);          // get subtypes list's len
@@ -624,7 +640,7 @@ uint8_t ValidateTypeBuf(const uint8_t *buf, uint32_t type_count){
  * @param functiontype_count Number of function types in the module to validate function type index
  * @return uint8_t 0- no error, error code otherwise (50-52)
  */
-uint8_t ValidateImportBuf(const uint8_t *buf, uint32_t type_count){
+uint32_t ValidateImportBuf(const uint8_t *buf, uint32_t type_count){
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file
@@ -658,19 +674,15 @@ uint8_t ValidateImportBuf(const uint8_t *buf, uint32_t type_count){
 /**
  * @brief Validate Export
  * @param buf Binary encoded export
- * @param functiontype_count Number of function types in the module to validate function index
- * @param table_count Number of tables in the module to validate table index
- * @param memory_count Number of memories in the module to validate memory index
- * @param global_count Number of globals in the module to validate global index
- * @return uint8_t 0-no error, error code otherwise (53-65)
+ * @return uint32_t 0-no error, error code otherwise (53-65)
 */
-uint8_t ValidateExportBuf(const uint8_t *buf, uint32_t functiontype_count, uint32_t table_count, uint32_t memory_count, uint32_t global_count){
+uint32_t ValidateExportBuf(const uint8_t *buf){
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file
     uint32_t aux_32;
     uint8_t byte_val;
-    uint8_t err_code;
+    uint32_t err_code;
     
     #define READ_BYTE() (*index++)
 
@@ -681,48 +693,22 @@ uint8_t ValidateExportBuf(const uint8_t *buf, uint32_t functiontype_count, uint3
     index = index + aux_32; // skip name
 
     byte_val = READ_BYTE(); // get export desc type
+    //check ext type with switch for easy excalation if needed
     switch(byte_val){
-        case 0: // function
-            index = DecodeLeb128UInt32(index, &aux_32);             // get function index            
-            if (!index){
-                return 57; // Invalid leb128 encoding
-            }        
-            if(aux_32 >= functiontype_count){
-                return 58; // Invalid function index
-            }               
-            break;
-        case 1: // table            
-            index = DecodeLeb128UInt32(index, &aux_32);             // get table index            
-            if (!index){
-                return 59; // Invalid leb128 encoding
-            }     
-            if(aux_32 >= table_count){
-                return 60; // Invalid table index
-            }                  
-            break;
-        case 2: // memory
-            index = DecodeLeb128UInt32(index, &aux_32);             // get memory index            
-            if (!index){
-                return 61; // Invalid leb128 encoding
-            }      
-            if(aux_32 >= memory_count){
-                return 62; // Invalid memory index
-            }                 
-            break;
-        case 3: // global            
-            index = DecodeLeb128UInt32(index, &aux_32);             // get global index            
-            if (!index){
-                return 63; // Invalid leb128 encoding
-            }
-            if(aux_32 >= global_count){
-                return 64; // Invalid global index
-            }                       
-            break;  
+        case 0: // function            
+        case 1: // table    
+        case 2: // memory            
+        case 3: // global         
+            break;  //ok
         default:
             return 65; // Invalid export desc type
-    }
-
-    return 0; // Valid export
+    }   
+    //get external index
+    index = DecodeLeb128UInt32(index, &aux_32);
+    if (!index){
+        return 57; // Invalid leb128 encoding
+    } 
+    return 0; // Valid export binary buffer
     #undef READ_BYTE
 }
 
@@ -734,14 +720,14 @@ uint8_t ValidateExportBuf(const uint8_t *buf, uint32_t functiontype_count, uint3
  * @param table_count Number of tables in the module to validate table indices
  * @return uint8_t 0-ok, error code otherwise (66-102)
  */
-uint8_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_t table_count){
+uint32_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_t table_count){
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file
     uint32_t aux_32;    
     uint8_t byte_val;
     uint32_t idx = 0;   // auxiliary variable to decode index
-    uint8_t err_code;
+    uint32_t err_code;
     
     #define READ_BYTE() (*index++)
 
@@ -958,13 +944,13 @@ uint8_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_t
 
 /**
  * @brief Function to validate constant expression.
- * This function checks if the expression are formed only for constant instructions.
+ * This function checks thar 0x0B opcode is present at the end.
  * @param self Pointer to the validator state
  * @param buf Pointer to the expression to validate
  * @param max_len Maximum length of the expression buffer to avoid endless loops
  * @return uint8_t 0 - ok, error code otherwise (103-105)
  */
-uint8_t ValidateConstantExprBuf(const uint8_t *buf, uint32_t max_len) {
+uint32_t ValidateConstantExprBuf(const uint8_t *buf, uint32_t max_len) {
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
 
@@ -982,23 +968,7 @@ uint8_t ValidateConstantExprBuf(const uint8_t *buf, uint32_t max_len) {
     
     while (*index != 0x0B && NOT_END()) {
 
-        opcode = READ_BYTE(); // Read the next opcode
-
-       //check constant opcode
-        switch (opcode) {
-            case OPCODE_I32_CONST:
-                index = DecodeLeb128Int32(index, &i32); // skip i32 value
-                if (!index){                
-                    return 103;                                       
-                }
-                break;
-            
-            //case OPCODE_GLOBAL_GET:
-                // Check if global type mut is constant                
-                //return 0;
-            default:
-                return 104; // Invalid opcode in constant expression
-        }
+        opcode = READ_BYTE(); // Read the next opcode      
     }
 
     // Check if the expression ended correctly
@@ -1021,7 +991,7 @@ uint8_t ValidateConstantExprBuf(const uint8_t *buf, uint32_t max_len) {
  * @param buf Pointer to the code buffer to validate
  * @return uint8_t 0 - ok, error code otherwise (106-111)
  */
-uint8_t ValidateCodeBuf(const uint8_t *buf){
+uint32_t ValidateCodeBuf(const uint8_t *buf){
 
     assert(buf != NULL);                                                        // Ensure the buffer is not NULL
 
@@ -1051,10 +1021,12 @@ uint8_t ValidateCodeBuf(const uint8_t *buf){
         if (!index){        
             return 108;                                       
         }
-        type = READ_BYTE(); // get local type
-        if(!IsValType(type)){
+        //check if type is valid
+        if(!IsValType(index)){
             return 109; // Invalid value type
-        } 
+        }
+        type = READ_BYTE(); // get local type
+         
     }
 
     while (opcode != OPCODE_END && NOT_END()) {
@@ -1085,7 +1057,7 @@ uint8_t ValidateCodeBuf(const uint8_t *buf){
  * @param memory_count Number of memories in the module to validate memory index
  * @return uint8_t 0-ok, error code otherwise (112-120)
 */
-uint8_t ValidateDataBuf(const uint8_t *buf, uint32_t memory_count){
+uint32_t ValidateDataBuf(const uint8_t *buf, uint32_t memory_count){
 
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
 

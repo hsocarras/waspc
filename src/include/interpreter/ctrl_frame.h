@@ -20,20 +20,18 @@
 
 #include <stdint.h>
 
-typedef enum CtrlFrameType{
-    WP_INTERPRETER_CTRL_LABEL,
-    WP_INTERPRETER_CTRL_CALL_FRAME,
-    WP_INTERPRETER_CTRL_HANDLER,
-}CtrlFrameType;
+
 
 
 typedef struct CallFrame {
-    //const uint8_t *ip;                  // Instruction pointer to the current instruction in the function body
+    const uint8_t *blocks;                    // pointer to first block of the frame, used for control flow instructions
+    const uint8_t *block_top;                 // pointer to the current block of the frame, used for control flow instructions
     
-    StackValue *bp;                       // base pointer (where the frame start on the stack)
+    StackValue *locals;                       // base pointer (where the frame start on the stack)
     uint32_t locals_count;              // Total number of locals (params + locals)
 
     uint32_t arity;                     // Number of return values
+    const uint8_t *ip;                    // instruction pointer for the current execution point in the function body
 
     WpModuleState *module;              // Pointer to the module instance (ModuleInst *)
     //void *func;                         // Pointer to the function instance (FuncInst *)
@@ -43,13 +41,6 @@ typedef struct CallFrame {
 } CallFrame;
 
 
-typedef struct CtrlFrame {
-    CtrlFrameType type;
-    union{
-        CallFrame call_frame;
-        uint32_t label;
-    }ctrl;
-}CtrlFrame;
 
 #ifdef __cplusplus
     }

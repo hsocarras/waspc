@@ -27,7 +27,7 @@ __pycache__/
 docs/_build/
 #binaries
 build/*
-!build/buidl.bat
+!build/build.bat
 !build/test.bat
 #vs code editor cache
 .vscode

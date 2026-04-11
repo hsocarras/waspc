@@ -1,0 +1,7 @@
+Step 1 Decode:
+    Type section
+        GetTypeByIndex done 100%
+            SkipRecSubtype done 100%
+    
+    Import section
+        ImportType done 100%

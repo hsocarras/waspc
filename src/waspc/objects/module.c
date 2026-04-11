@@ -56,6 +56,9 @@ void WpModuleInit(WpModuleState *self){
     self->element_count = 0;
     self->data_count = 0;
     ////////////////////////////////////////////////////////////////////////////////////////
-    //WpModuleInstanceInit(&self->instance);
+    self->globals = NULL;
+    self->funcs = NULL;
+    self->mems = NULL;
+    self->exports = NULL;
 }
 

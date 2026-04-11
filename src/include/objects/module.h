@@ -19,6 +19,8 @@
 #include "objects/object.h"
 #include "objects/function.h"
 #include "objects/global.h"
+#include "objects/memory.h"
+#include "objects/export.h"
 #include "webassembly/bin.h"   
 
 
@@ -96,8 +98,9 @@ typedef struct WpModuleState{
     
     /// @brief Instances
     WpGlobalInstance *globals;              /// pointer to the global instances
-    WpFunctionInstance *funcs;        /// pointer to the function instances
-
+    WpFunctionInstance *funcs;              /// pointer to the function instances
+    WpMemoryInstance *mems;                  /// pointer to the memory instances
+    WpExportInstance *exports;              /// pointer to the export instances
 
 
     

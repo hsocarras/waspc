@@ -1,6 +1,6 @@
 
 
 
-add_library(runtime STATIC runtime.c store.c)
-target_link_libraries(runtime PRIVATE  objects utils validation interpreter)
+add_library(runtime STATIC runtime.c)
+target_link_libraries(runtime PRIVATE  objects utils memory decoder interpreter validation)
 

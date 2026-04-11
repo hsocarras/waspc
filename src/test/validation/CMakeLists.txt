@@ -1,8 +1,8 @@
 
 
-add_executable(tvalidation test_wasm_decoder.cc test_wasm_validator.cc)
+add_executable(tvalidation test_wasm_validator.cc)
 # Link the test executable with GoogleTest and the main 'waspc' library
-target_link_libraries(tvalidation PRIVATE GTest::gtest_main waspc samples)
+target_link_libraries(tvalidation PRIVATE GTest::gtest_main waspc wasm_file_reader decoder)
 
 include(GoogleTest)
 

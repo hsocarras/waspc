@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef WASPC_INTERPRETER_CTRL_FRAME_H
-#define WASPC_INTERPRETER_CTRL_FRAME_H
+#ifndef WASPC_INTERPRETER_VALUES_H
+#define WASPC_INTERPRETER_VALUES_H
 
 #ifdef __cplusplus
     extern "C" {
@@ -26,7 +26,8 @@ typedef enum StackValType {
     WAS_VAL_TYPE_F32 = 0x7D,
     WAS_VAL_TYPE_F64 = 0x7C,
     WAS_VAL_TYPE_V128 = 0x7B,
-    WAS_VAL_REF_FUNC ,
+    WAS_VAL_REF_FUNC = 0x70,
+    WAS_VAL_REF_NULL_FUNC,
 } StackValType;
 
 typedef struct SatckValue{

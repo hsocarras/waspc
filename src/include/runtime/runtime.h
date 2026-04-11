@@ -17,14 +17,12 @@
 #endif
 
 //wasp includes
-#include "objects/module.h"
-#include "objects/error.h"
-#include "utils/hash_table.h"
-#include "validation/wasm_validator.h"
+#include "objects/wp_objects.h"
+#include "memory/store.h"
+#include "decoder/wasm_decoder.h"
 #include "interpreter/interpreter.h"
-#include "runtime/store.h"
-#include "validation/wasm_decoder.h"
 #include "validation/wasm_validator.h"
+
 
 #include <stdint.h>
 
@@ -42,20 +40,27 @@ typedef struct WpBinFile{
  */
 typedef struct WpRuntimeState{
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-    //uint8_t *in;                              ///pointer to static allocation for input area
-    //uint32_t input_size;
-    //uint8_t *out;                             ///pointer to static allocation for output area
-    //uint32_t output_size;
-    //uint8_t *mark;                            ///pointer to static allocation for mark area
+    ////////////////////////////////////////////////////////////////////////////////////////////////////    
+    //uint32_t input_size;   
+    //uint32_t output_size;    
     //uint32_t mark_size;    
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
     WpError err;                                ///Error object for runtime
-    
-    /// @brief Store. Implementation for web assembly store/////////////////////////////////////////////////////
-    WpStore store; 
+    WpResult result;                            ///Result object for runtime
+
+    /// Memories  ///////////////////////////////////////////////////////////////////////////////////////////////
+    WpStore store;                              /// Store for instances according to webassembly specification.
+    uint8_t *data_memory;                       /// Pointer to the data memory for memory instaces data.
+    uint32_t data_memory_size;                  /// Size of the data memory for memory instaces data.
+    StackValue *value_stack;                    /// Pointer to the value stack for store values during execution.
+    uint32_t value_stack_size;                  /// Size of the value stack.
+    CallFrame *call_stack;                      /// Pointer to the call stack for store function call frames during execution.
+    uint32_t call_stack_size;                   /// Size of the call stack.
+    uint8_t *block_stack;                       /// Pointer to the block stack for store block information during execution.
+    uint32_t block_stack_size;                  /// Size of the block stack.
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
 
     /// @brief Interpreter state object for run webassembly code
     WpInterpreterState interpreter;             /// Interpreter state object 
@@ -76,6 +81,16 @@ typedef struct WpRuntimeState{
  */
 void WpRuntimeInit(WpRuntimeState *self);
 
+uint32_t WpRuntimeSetMemoryStore(WpRuntimeState *self, uint8_t *mem, uint32_t mem_size);
+
+uint32_t WpRuntimeSetMemoryData(WpRuntimeState *self, uint8_t *data, uint32_t data_size);
+
+uint32_t WpRuntimeSetMemoryValueStack(WpRuntimeState *self, StackValue *stack, uint32_t stack_size);
+
+uint32_t WpRuntimeSetMemoryCallStack(WpRuntimeState *self, CallFrame *stack, uint32_t stack_size);
+
+uint32_t WpRuntimeSetMemoryBlockStack(WpRuntimeState *self, uint8_t *stack, uint32_t stack_size);
+
 /**
  * @brief Creates a module state from a WebAssembly binary file.
  * 
@@ -83,7 +98,7 @@ void WpRuntimeInit(WpRuntimeState *self);
  * @param bin_file A WpBinFile structure containing the binary data and its size.
  * @param mod_name Name to assign to the created module state.
  */
-WpObject * WpRuntimeCreateModuleFromBinFile(WpRuntimeState *self,WpModuleState *mod_state, WpBinFile bin_file, Name mod_name);
+WpObject * WpRuntimeCreateModuleFromBinFile(WpRuntimeState *self,WpModuleState *mod_state, WpBinFile bin_file);
 
 /**
  * @brief Validates a WebAssembly module loaded into the runtime.
@@ -121,7 +136,7 @@ WpObject * WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, 
 
 //WpObject * WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_instance);
 
-WpObject *WpFuncRuntimeInvoke(WpRuntimeState *self, uint32_t func_address, StackValue *args, uint32_t argc);
+WpObject *WpRuntimeInvokeFunction(WpRuntimeState *self, WpModuleState *mod, char *func_name, StackValue *args, uint32_t argc);
 
 #ifdef __cplusplus
     }

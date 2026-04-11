@@ -15,6 +15,7 @@
 
 
 #include <utils/leb128.h>
+#include "file_reader.h"
 
 #include <gtest/gtest.h>
 
@@ -87,3 +88,6 @@ TEST(WASPC_UTILS_LEB128, Decoding_32_UInteger) {
     EXPECT_EQ(end-start, 5);
     EXPECT_EQ(value, 1689863251);
 }
+
+
+

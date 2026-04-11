@@ -15,31 +15,13 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
+
 #include "webassembly/bin.h"
+#include "interpreter/values.h"
 
 #include <stdint.h>
 
-/**
- * @brief Enum with section id number inside binary format.
- * 
- */
-
-
-//// Type check Functions /////////////////////////////////////////////////////////////////////
-
-uint8_t IsAbsHeadType(uint8_t valtype);
-
-uint8_t IsRecType(uint8_t byte);
-
-uint8_t isRefType(uint8_t encoded_type);
-
-uint8_t isStorageType(uint8_t encoded_type);
-
-uint8_t IsValType(uint8_t val_type);
-////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// SKIP: Function to skip a buffer corresponding to an expression//////////////////////////////
-// TODO check for make static skip functions
+/// Fast traverse function ////////////////////////////////////////////////////////////////////
 const uint8_t * SkipExprBuf(const uint8_t *const buf, const uint32_t max_len);
 
 const uint8_t * SkipRecSubType(const uint8_t *const buf);
@@ -49,7 +31,26 @@ const uint8_t * SkipLimitTypeBuf(const uint8_t *const buf);
 const uint8_t * SkipRefTypeBuf(const uint8_t *const buf);
 
 const uint8_t * SkipTableTypeBuf(const uint8_t *const buf);
-///////////////////////////////////////////////////////////////////////////////////////////////
+
+const uint8_t * SkipLocalBuf(const uint8_t *const buf);
+
+const uint8_t *SkipMemArgBuf(const uint8_t *const buf);
+
+//// Type check Functions /////////////////////////////////////////////////////////////////////
+
+uint8_t IsAbsHeadType(const uint8_t *valtype);
+
+uint8_t IsNumericType(const uint8_t *valtype);
+
+uint8_t IsRecType(const uint8_t *encoded_type);
+
+uint8_t IsRefType(const uint8_t *valtype);
+
+uint8_t IsStorageType(const uint8_t *encoded_type);
+
+uint8_t IsValType(const uint8_t *valtype);
+////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 /// GET binary element by id functions //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -90,7 +91,15 @@ uint32_t DestructureFunctionIndex(const uint8_t *index);
 
 WasmBinGlobal DestructureGlobal(const uint8_t *global_addr);
 
+WasmBinMemory DestructureMemory(const uint8_t *memory_addr);
+
+WasmBinExport DestructureExport(const uint8_t *export_addr);
+
 WasmBinFunction DestructureCode(const uint8_t *code_addr);
+
+WasmBinMemArg DestructureMemArg(const uint8_t *index);
+
+StackValType DestructureStackValType(const uint8_t *index);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef __cplusplus

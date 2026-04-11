@@ -25,7 +25,10 @@ void WpErrorInit(WpError *self){
     self->wp_type = WP_OBJECT_ERROR;
 
     self->id = 0;
-    
+    uint8_t module_id = 0;
+    uint8_t code = 0;
+    uint8_t subcode = 0;
+    uint8_t severity = 0;
     #if WASPC_CONFIG_DEV_FLAG == 1   
     strcpy_s(self->file, 64, "none"); 
     strcpy_s(self->func, 32, "nan");    

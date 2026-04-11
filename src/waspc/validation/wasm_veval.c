@@ -10,97 +10,28 @@
  */
 
 #include "validation/wasm_validator.h"
-#include "validation/wasm_decoder.h"
-#include "webassembly/structure/module.h"
-#include "webassembly/structure/types.h"
+#include "decoder/wasm_decoder.h"
+#include "interpreter/values.h"
 #include "webassembly/instructions.h"
 #include "utils/leb128.h"
+#include "utils/ieee_754.h"
 
 #include <stdint.h>
 
-/**
- * @brief Function to push a value type onto the validator's value stack.   
- * This function checks if there is enough space in the stack before pushing.
- * @param self Pointer to the validator state
- * @param val_type The value type to push onto the stack
- *
-uint8_t WpValPushValType(WpValidatorState *self, ValType val_type) {
-    if (self->stk_ptr - self->val_stack < self->val_stack_size) {
-        *(self->stk_ptr++) = val_type;
-        return 1;
-    }
-    return 0; // Stack overflow
-}*/
 
-/**
- * @brief Function to pop a value type from the validator's value stack.
- * This function checks if the stack is not empty before popping.
- * @param self Pointer to the validator state
- * @param val_type The expected value type to pop from the stack
- * @return ValType The value type popped from the stack, or UNKNOW if the stack is empty or mismatched.
- *
-ValType WpValPopExpectedValType(WpValidatorState *self, ValType val_type) {
-    // Check if the stack is not empty before popping
-    if (self->stk_ptr > self->val_stack) {
-        // Check if the top of the stack matches the expected value type
-        if(*(self->stk_ptr - 1) == val_type) {
-            return *(--self->stk_ptr);
-        } else {
-            // Handle type mismatch error
-            // This could be an error code or a specific action
-            return UNKNOW; // Indicating type mismatch
-        }
-    }
-    return UNKNOW; // Stack underflow, return unknown type
+void ValPushValue(WpValidatorState *self, StackValue val){   
+    //TODO stackoverflow 
+    *self->value_stack_top = val;
+    self->value_stack_top++;
+
 }
 
-ValType WpValPopValType(WpValidatorState *self) {
-    // Check if the stack is not empty before popping
-    if (self->stk_ptr > self->val_stack) {        
-        return *(--self->stk_ptr);        
-    }
-    return UNKNOW; // Stack underflow, return unknown type
-}*/
+StackValue ValPopValue(WpValidatorState *self){  
+   
+    self->value_stack_top--;
+    return *self->value_stack_top;    
 
-/**
- * @brief Function to push a control frame onto the validator's control stack.
- * This function checks if there is enough space in the control stack before pushing.   
- * @param self Pointer to the validator state
- * @param frame The control frame to push onto the stack
- * @return uint8_t 1 on success, 0 on failure (e.g.,    stack overflow)
- *
-uint8_t WpValPushCtrlFrame(WpValidatorState *self, ActivationFrame frame) {
-    // Check if there is space in the control stack
-    ActivationFrame *top_frame;
-    if (self->ctr_stack_idx < self->ctr_stack_size) {
-        top_frame = &self->ctrl_stack[self->ctr_stack_idx++];       /// take current index and increment the control stack index after
-        // Initialize the control frame
-        //top_frame->op = frame.op;
-        top_frame->locals = frame.locals;
-        top_frame->arity = frame.arity;
-        //top_frame->val_stack = frame.val_stack;
-        top_frame->unreachable = frame.unreachable;
-        return 1; // Success
-    }
-    return 0; // Stack overflow
 }
-
-/**
- * @brief Function to pop a control frame from the validator's control stack.
- * This function checks if the control stack is not empty before popping.
- * @param self Pointer to the validator state
- * @return ValCtrlFrame The popped control frame, or an empty frame if the stack is empty
- *
-ActivationFrame WpValPopCtrlFrame(WpValidatorState *self) {
-    // Check if the control stack is not empty before popping
-    if (self->ctr_stack_idx > 0) {
-        return self->ctrl_stack[--self->ctr_stack_idx];
-    }
-    // Handle underflow error, return an empty Ctrl structure or handle as needed
-    ActivationFrame empty_ctrl = {NULL, NULL, 0, NULL, 0, };
-    return empty_ctrl; // Indicating an empty control frame
-}*/
-
 
 /**
  * @brief Function to evaluate a WebAssembly opcode in the validator.
@@ -109,43 +40,118 @@ ActivationFrame WpValPopCtrlFrame(WpValidatorState *self) {
  * @param self Pointer to the validator state
  * @param opcode The opcode to evaluate
  * @return uint32_t 0 on error, 1 on success
- *
-uint8_t WpValEvalOpcode(WpValidatorState *self, OpCode opcode) {
+ */
+static uint32_t WpValidateOpcode(WpValidatorState *self, OpCode opcode) {
 
-    uint32_t dec_u32; // auxiliary variable for decoded values   
-    ActivationFrame *frame = &self->ctrl_stack[self->ctr_stack_idx - 1]; // Get the current control frame 
-
+    StackValue val;             //auxiliary variable for decoded values  
+    uint32_t err_code;
+   
+    
     switch (opcode) {        
         case OPCODE_I32_CONST:
             // Push I32 type onto the stack
-            if (!WpValPushValType(self, WAS_I32)) {
-                return 0; // Stack overflow error
+            self->ip = DecodeLeb128Int32(self->ip, &val.value.i32);
+            if(!self->ip){
+                err_code = 1;
+                return err_code;
             }
-            //move instruction pointer forward
-            frame->ip = DecodeLeb128UInt32(frame->ip, &dec_u32);
-            if (!frame->ip) {
-                return 0; // Decoding error
-            }
+            val.type = WAS_VAL_TYPE_I32;
+            ValPushValue(self, val); 
+            return 0;           
             break;
+        case OPCODE_I64_CONST:
+            // Push I64 type onto the stack
+            self->ip = DecodeLeb128Int64(self->ip, &val.value.i64);
+            if(!self->ip){
+                err_code = 2;
+                return err_code;
+            }
+            val.type = WAS_VAL_TYPE_I64;
+            ValPushValue(self, val);
+            return 0;
+            break;
+        case OPCODE_F32_CONST:
+            // Push F32 type onto the stack
+            self->ip = DecodeF32(self->ip, &val.value.f32);
+            if(!self->ip){
+                err_code = 3;
+                return err_code;
+            }
+            val.type = WAS_VAL_TYPE_F32;
+            ValPushValue(self, val);
+            return 0;
+            break;
+        case OPCODE_F64_CONST:
+            // Push F64 type onto the stack
+            self->ip = DecodeF64(self->ip, &val.value.f64);
+            if(!self->ip){
+                err_code = 4;
+                return err_code;
+            }
+            val.type = WAS_VAL_TYPE_F64;
+            ValPushValue(self, val);
+            return 0;
+            break;  
         case OPCODE_END:
             // Pop the stack, expecting an end of expression
-            if (self->ctr_stack_idx == 0) {
-                return 0; // Control stack underflow
-            }
-            /// set end_types pointer to where the returned values begin in the value stack
-            frame->end_types = self->stk_ptr - frame->end_types_len;
-            /// move return types to start types position
-            for (uint32_t i = 0; i < frame->end_types_len; i++) {
-                frame->start_types[i] = frame->end_types[i];
-            }
-            /// Removing start types from the value stack
-            self->stk_ptr = frame->start_types; // Reset stack pointer to the start types
-            // Pop the control frame
-            WpValPopCtrlFrame(self);
-            break;
-        
+            return 0;
         default:
-            return 0; // Unsupported opcode
+            err_code = 300;
+            return err_code; // Unsupported opcode
     }
-    return 1; // Success
-}*/
+}
+
+/**
+ * @brief function to validate constant expresions used to init globals
+ * TODO rest of constant expresions
+ * @param 
+ * @param
+ * @param
+ * @return error code. 0 no error.
+ */
+uint32_t WpValidateConstantExpresion(WpValidatorState *self,StackValType type, const uint8_t *index, const uint8_t *end_index) {
+    
+    uint8_t opcode;
+    uint32_t error_code;
+    StackValue val;
+    self->ip = index;
+    
+    #define READ_BYTE() (*self->ip++)    
+    
+    while (self->ip < end_index)
+    {
+        opcode = READ_BYTE();
+        switch (opcode)
+        {
+        case OPCODE_I32_CONST:
+        case OPCODE_I64_CONST:
+        case OPCODE_F32_CONST:
+        case OPCODE_F64_CONST:
+            
+            error_code = WpValidateOpcode(self, opcode);
+            if(error_code > 0){
+                return error_code;
+            }
+            break;        
+        case OPCODE_END:
+            error_code = WpValidateOpcode(self, opcode);
+            if(error_code > 0){
+                return error_code;
+            }
+            //get the eval result
+            val = ValPopValue(self);
+            if(val.type != type){
+                error_code = 303;
+                return error_code;
+            }
+            return 0;
+        default:
+            error_code = 301;
+            return error_code;
+        }
+    }
+    
+    return 309; // No end opcode found
+    #undef READ_BYTE
+    
+}

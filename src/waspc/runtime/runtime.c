@@ -10,15 +10,12 @@
  */
 
 #include "runtime/runtime.h"
-#include "runtime/store.h"
-#include "objects/object.h"
-#include "objects/export.h"
-#include "validation/wasm_validator.h"
+#include "webassembly/bin.h"
 
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
-// #include <stdio.h>
+#include <stdio.h>
 
 
 /**
@@ -31,20 +28,98 @@ void WpRuntimeInit(WpRuntimeState *self)
 
     // Init error object
     WpErrorInit(&self->err);
+    // Init result object
+    WpResultInit(&self->result);
 
-    //Init store
+    //Init Memories
+    self->data_memory = NULL;
+    self->data_memory_size = 0;
+    self->value_stack = NULL;
+    self->value_stack_size = 0;
+    self->call_stack = NULL;
+    self->call_stack_size = 0; 
     WpStoreInit(&self->store); //
-    // HashTableInit(&self->modules);
 
     // Interpreter
     WpInterpreterInit(&self->interpreter);
     self->interpreter.store = &self->store;
+    self->interpreter.value_stack = self->value_stack;
+    self->interpreter.value_stack_top = self->value_stack;
+    self->interpreter.value_stack_end = self->value_stack + self->value_stack_size;
+    
 
     // Init validator
     WpValidatorStateInit(&self->validator);
 }
 
-WpObject *WpRuntimeCreateModuleFromBinFile(WpRuntimeState *self, WpModuleState *mod_state, WpBinFile bin_file, Name mod_name)
+uint32_t WpRuntimeSetMemoryStore(WpRuntimeState *self, uint8_t *mem, uint32_t mem_size)
+{
+    if (!mem || mem_size == 0)
+    {
+        self->err.id = 31;
+        return 1;
+    }
+    self->store.buffer = mem;
+    self->store.buffer_size = mem_size;
+    self->store.buffer_free = mem;
+
+    self->interpreter.store = &self->store;
+    return 0;
+}
+
+uint32_t WpRuntimeSetMemoryData(WpRuntimeState *self, uint8_t *data, uint32_t data_size)
+{
+    if (!data || data_size == 0)
+    {
+        self->err.id = 32;
+        return 1;
+    }
+    self->data_memory = data;
+    self->data_memory_size = data_size;
+    return 0;
+
+    self->interpreter.block_stack = data;
+    self->interpreter.block_stack_top = data;
+    self->interpreter.block_stack_end = data + data_size;
+}
+
+uint32_t WpRuntimeSetMemoryValueStack(WpRuntimeState *self, StackValue *stack, uint32_t stack_size)
+{
+    if (!stack || stack_size == 0)
+    {
+        self->err.id = 33;
+        return 1;
+    }
+    self->value_stack = stack;
+    self->value_stack_size = stack_size;
+
+    self->interpreter.value_stack = stack;
+    self->interpreter.value_stack_top = stack;  
+    self->interpreter.value_stack_end = stack + stack_size;
+
+    self->validator.value_stack = stack;
+    self->validator.value_stack_top = stack;
+    self->validator.value_stack_end = stack + stack_size;
+
+    return 0;
+}
+
+uint32_t WpRuntimeSetMemoryCallStack(WpRuntimeState *self, CallFrame *stack, uint32_t stack_size)
+{
+    if (!stack || stack_size == 0)
+    {
+        self->err.id = 34;
+        return 1;
+    }
+    self->call_stack = stack;
+    self->call_stack_size = stack_size;   
+    self->interpreter.call_stack = stack;
+    self->interpreter.call_stack_size = stack_size; 
+    
+    return 0;
+}
+
+WpObject *WpRuntimeCreateModuleFromBinFile(WpRuntimeState *self, WpModuleState *mod_state, WpBinFile bin_file)
 {
     if (!mod_state)
     {
@@ -84,16 +159,7 @@ WpObject *WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod)
 #endif
         return (WpObject *)&self->err;
     }
-
-    const uint8_t *index = mod->buf;               // pointer to byte to traverse the binary file
-    const uint8_t *buf_end = index + mod->bufsize; // pointer to end of binary module
-    uint32_t decoded_u32 = 0;                      // auxiliary var to store u32 values
-    uint8_t section_id;
-    uint8_t last_loaded_section = 0; // var to keep track section order.
-
-#define READ_BYTE() (*index++)
-#define NOT_END() (index < buf_end)
-
+    
     // Check minimun module size for magic and version number ///////////////////////////////////
     if (mod->bufsize < 12)
     {
@@ -105,58 +171,8 @@ WpObject *WpRuntimeValidateModule(WpRuntimeState *self, WpModuleState *mod)
 #endif
         return (WpObject *)&self->err;
     }
-
-    // Check magic number /////////////////////////////////////////////////////////////////////////
-    if (ValidateMagicBuf(index)> 0)    {
-        self->err.id = 13;
-        mod->status = WP_MODULE_STATUS_INVALID;
-#if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64, "runtime/runtime.c");
-        strcpy_s(self->err.func, 32, "WpRuntimeValidateModule");
-#endif
-        return (WpObject *)&self->err;
-    }
-    index = index + 4;
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    // Check version number /////////////////////////////////////////////////////////////////////////
-    if (ValidateVersionBuf(index, &decoded_u32) > 0){
-        self->err.id = 14;
-        mod->status = WP_MODULE_STATUS_INVALID;
-#if WASPC_CONFIG_DEV_FLAG == 1
-        strcpy_s(self->err.file, 64, "runtime/runtime.c");
-        strcpy_s(self->err.func, 32, "WpRuntimeValidateModule");
-#endif
-        return (WpObject *)&self->err;
-    }
-    index = index + 4;
-    mod->version = decoded_u32;
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    // Traversing the binary file
-    while (NOT_END())
-    {
-        // Seccion
-        section_id = READ_BYTE();
-        //
-        index = ValidateBinSectionById(&self->validator, index, section_id, &last_loaded_section, mod);
-        if (!index)
-        {
-            self->err.id = 16;
-            mod->status = WP_MODULE_STATUS_INVALID;
-#if WASPC_CONFIG_DEV_FLAG == 1
-            strcpy_s(self->err.file, 64, "runtime/runtime.c");
-            strcpy_s(self->err.func, 32, "WpRuntimeValidateModule");
-#endif
-            return (WpObject *)&self->err;
-        }
-    }
-
-#undef READ_BYTE
-#undef NOT_END
-
-    mod->status = WP_MODULE_STATUS_VALIDATED;
-    return (WpObject *)mod;
+    
+    return WpValidatorValidateModule(&self->validator, mod);
 }
 
 
@@ -181,7 +197,7 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
     const uint8_t *address;
     uint32_t u32_data;
     size_t i;
-
+    printf("Instantiating module...\n");
     if(!mod){
         self->err.id = 21;
         #if WASPC_CONFIG_DEV_FLAG == 1
@@ -207,46 +223,90 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
             }
         }
     }
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-       
-    
+    //////16  ////////////////////////////////////////////////////////////////////////////////////////////////
+    CallFrame f_init;
+    f_init.module = NULL; //TODO: set module instance when module instance struct is defined
+    f_init.locals = NULL;
+    f_init.locals_count = 0;
+    f_init.arity = 0;
+    f_init.ip = NULL;
+    f_init.blocks = NULL;
     /// 11, 12, 13 y 19 /////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Globals
-     WasmBinGlobal global;
-    for(i = 0; i < mod->global_count; i++){
-
-        address = GetGlobalByIndex(mod->globalsec, i);
-        if(!address){
-            self->err.id = 24;        
-            return (WpObject *)&self->err;
-        }
-        /// destructuring global
-        global = DestructureGlobal(address);
-        StackValue val = WpInterpreterEvalExpr(&self->interpreter, global.init_expr);
-        if(val.type == WAS_EX_VAL_TYPE_NULL){
-            self->err.id = 26;        
-            return (WpObject *)&self->err;
-        }
-        if(i == 0){
-            mod->globals = WpStoreAllocGlobal(&self->store, global.mut, global.type, val);
-            if(!mod->globals){
-                self->err.id = 25;        
+    {   printf("Instantiating globals...\n");
+        WasmBinGlobal global;
+        for(i = 0; i < mod->global_count; i++){
+            //read binary section
+            address = GetGlobalByIndex(mod->globalsec, i);
+            if(!address){
+                self->err.id = 24;        
                 return (WpObject *)&self->err;
             }
-        }
-        else{
-            if(!WpStoreAllocGlobal(&self->store, global.mut, global.type, val)){
+            /// destructuring global
+            printf("Destructuring global %d...\n", i);
+            global = DestructureGlobal(address);
+            StackValType val_type = DestructureStackValType(global.type);
+            if(val_type == WAS_EX_VAL_TYPE_NULL){
+                self->err.id = 24;        
+                return (WpObject *)&self->err;
+            }
+            f_init.ip = global.init_expr; //set the instruction pointer of the initial frame to the global init expression
+            f_init.arity = 1; //set the arity of the initial frame to 1, because global init expression must return a value
+            f_init.locals = self->interpreter.value_stack_top; //set the locals of the initial frame to the current top of the value stack, because global init expression can use the value stack to store intermediate values during evaluation
+            
+            StackValue val = WpInterpreterEvalExpr(&self->interpreter, &f_init); //evaluate the global init expression and get the value
+            if(val.type == WAS_EX_VAL_TYPE_NULL){
                 self->err.id = 26;        
                 return (WpObject *)&self->err;
             }
+            if(i == 0){
+                //if first global asign addres to module instances list
+                mod->globals = WpStoreAllocGlobal(&self->store, global.mut, val_type, val);
+                if(!mod->globals){
+                    self->err.id = 25;        
+                    return (WpObject *)&self->err;
+                }
+            }
+            else{
+                if(!WpStoreAllocGlobal(&self->store, global.mut, val_type, val)){
+                    self->err.id = 26;        
+                    return (WpObject *)&self->err;
+                }
+            }
         }
     }
-    
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// function
+    //Memory///////////////////////////////////////////////////////////////////////////////////////////////////////////
+    {   printf("Instantiating memories...\n");
+        WasmBinMemory memory;
+        for(i = 0; i < mod->memory_count; i++){
+            address = GetMemByIndex(mod->memsec, i);
+            if(!address){
+                self->err.id = 27;        
+                return (WpObject *)&self->err;
+            }
+            
+            memory = DestructureMemory(address);
+
+            if(i == 0){
+                mod->mems = WpStoreAllocMemory(&self->store, memory, self->data_memory);
+                if(!mod->mems){
+                    self->err.id = 28;        
+                    return (WpObject *)&self->err;
+                }
+            }
+            else{
+                if(!WpStoreAllocMemory(&self->store, memory, self->data_memory)){
+                    self->err.id = 28;        
+                    return (WpObject *)&self->err;
+                }
+            }
+        }
+    }
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
+    /// function//////////////////////////////////////////////////////////////////////////////////////////////////////
     WasmBinFunction func;
     WasmBinFuncType type;
-
+    printf("function count: %d\n", mod->function_count);
     const uint8_t *code;
     for(i = 0; i < mod->function_count; i++){
 
@@ -275,20 +335,45 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod, v
         
         func = DestructureCode(code);
         if(i == 0){
-            mod->funcs = WpStoreAllocFunction(&self->store, mod, type, func.locals, func.body);
+            mod->funcs = WpStoreAllocFunction(&self->store, mod, type, func);
             if(!mod->funcs){
                 self->err.id = 29;        
                 return (WpObject *)&self->err;
             }
         }
         else{
-            if(!WpStoreAllocFunction(&self->store, mod, type, func.locals, func.body)){
+            if(!WpStoreAllocFunction(&self->store, mod, type, func)){
                 self->err.id = 29;        
                 return (WpObject *)&self->err;
             }
         }
     }
-    
+    /// Export ///////////////////////////////////////////////////////////////////////////////////////////////////////
+    {
+        WasmBinExport export;
+        for(i = 0; i < mod->export_count; i++){
+            address = GetExportByIndex(mod->exportsec, i);
+            if(!address){
+                self->err.id = 27;        
+                return (WpObject *)&self->err;
+            }
+            export = DestructureExport(address);    
+            if(i == 0){
+                mod->exports = WpStoreAllocExport(&self->store, export, mod);
+                if(!mod->exports){
+                    self->err.id = 29;        
+                    return (WpObject *)&self->err;
+                }
+            }
+            else{
+                if(!WpStoreAllocExport(&self->store, export, mod)){
+                    self->err.id = 29;        
+                    return (WpObject *)&self->err;
+                }
+            }
+        }
+    }
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     return (WpObject *)mod;
     
@@ -359,7 +444,7 @@ WpObject *WpRuntimeInvocateProgram(WpRuntimeState *self, WpModuleInstance *m_ins
  * @param argc Number of argument values in the args array.
  * @return WpObject* Returns the result of the function invocation on success,
  *                   or an error object on failure.
- */
+ *
 WpObject *WpFuncRuntimeInvoke(WpRuntimeState *self, uint32_t func_address, StackValue *args, uint32_t argc)
 {
     /// Step 1//////////////////////////////////////////////////////////////////////////////////
@@ -383,9 +468,8 @@ WpObject *WpFuncRuntimeInvoke(WpRuntimeState *self, uint32_t func_address, Stack
 
     /// Step 6 and 7
     //TODO check call_stack overflow
-    CtrlFrame * frame = &self->interpreter.ctrl_satck[self->interpreter.ctrl_count++]; //get top and add frame count
-    frame->type = WP_INTERPRETER_CTRL_CALL_FRAME;
-    frame->ctrl.call_frame.arity = 1;  //TODO arity come from previous step
+    CallFrame * frame = &self->interpreter.call_stack[self->interpreter.call_stack_count++]; //get top and add frame count
+    frame->arity = 1;  //TODO arity come from previous step
         
     /// Step 8
     for(uint32_t i = 0; i < argc; i++){
@@ -405,5 +489,46 @@ WpObject *WpFuncRuntimeInvoke(WpRuntimeState *self, uint32_t func_address, Stack
     self->err.code = result.value.i32;
 
     return (WpObject *)&self->err;
-}
+}*/
 
+WpObject *WpRuntimeInvokeFunction(WpRuntimeState *self, WpModuleState *mod, char *func_name, StackValue *args, uint32_t argc)
+{ 
+    //look for export with func_name
+    for(uint32_t i = 0; i < mod->export_count; i++){
+        WpExportInstance export = mod->exports[i];
+        if(export.export_type == 0x00){ //if export is a function
+            //TODO match string len also
+            WpFunctionInstance *func = (WpFunctionInstance *)export.address; //TODO check if export address is correct and if it is a function instance
+            if(strncmp((const char *)export.name, func_name, export.name_len) == 0){
+                ///////////////////////////////////////////////////////////////////////////////////////////
+                /// TODO Step 2 to 5 
+                /// Step 6 and 7
+                //TODO check call_stack overflow
+                printf("Invoking function: %s\n", func_name);
+                //CallFrame * frame = &self->interpreter.call_stack[self->interpreter.call_stack_count++]; //get top and add frame count                
+                //frame->arity = func->ret_len;  
+                /// Step 8
+                for(uint32_t i = 0; i < argc; i++){
+                    PushValue(&self->interpreter, args[i]);
+                }
+                uint32_t error_code = InvokeFunctionFast(&self->interpreter, func);
+                if(error_code != 0){
+                    self->err.id = error_code;
+                    return (WpObject *)&self->err;
+                }
+                //STEP 11. Pop the values val′𝑘 from the stack.
+                //self->interpreter.value_stack_top -= func->ret_len; 
+                //Step 12. Pop the frame from the stack.
+                //self->interpreter.call_stack_count--;
+                //STEP 13. Return the values val′𝑘 as the result of the function invocation.
+                
+                self->result.vals = self->interpreter.value_stack_top-func->ret_len; //TODO check if value_stack_top is correct after function invocation and if it points to the return values
+                self->result.len = func->ret_len;
+                return (WpObject *)&self->result;          
+            }
+        }
+    }
+
+    self->err.id = 36; //not found TODO better error handling.
+    return (WpObject *)&self->err;
+}

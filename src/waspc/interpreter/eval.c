@@ -11,15 +11,16 @@
 
 #include "interpreter/interpreter.h"
 #include "webassembly/instructions.h"
+#include "webassembly/bin.h"
 #include "utils/leb128.h"
-#include "runtime/store.h"
+#include "decoder/wasm_decoder.h"
 
 
 
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
-
+#include <stdio.h>
 
 static StackValue GetDefaultValue (uint8_t type){
 
@@ -88,89 +89,273 @@ static uint32_t InitLocals (WpInterpreterState *self, const uint8_t *locals){
     
 }
 
-static uint8_t EvalFrame (WpInterpreterState *self, CallFrame *frame){
+/**
+ * @brief This function is responsible for invoking a function by its index.
+ * It sets up the call frame, initializes local variables, and manages the control flow for the function execution. 
+ * It returns an error code if any step of the invocation process fails.
+ * Implement the steps 1 to 10 of the function invocation as described in the WebAssembly specification 4.6.5.
+ * @param self Pointer to the interpreter state.
+ * @param func_index Index of the function to invoke.
+ * @return uint32_t Error code. 0 on success, non-zero on failure.
+ */
+static uint32_t InvokeFunction(WpInterpreterState *self, uint32_t func_index){
+    
+    
+
+    //STEP 1 Assert: due to validation, 𝑆.funcs[𝑎] exists 
+    if(!self->store->funcs || func_index >= self->store->func_count){
+        return 1;   //TODO better error handling, maybe return an error object instead of an error code TRAP
+    }
+    //STEP 2 Let 𝑓 be the function instance, 𝑆.funcs[𝑎].
+    WpFunctionInstance *func = WpStoreGetFunctionByIndex(self->store, func_index);
+    if(!func){
+        return 2;
+    }
+
+    return InvokeFunctionFast(self, func);
+
+}
+
+/**
+ * @brief This function is responsible for executing a function call frame. 
+ * It fetches and executes instructions until it reaches the end of the frame or encounters a return instruction. 
+ * It manages the control flow and stack operations for the function execution.
+ */
+static uint32_t EvalFrame (WpInterpreterState *self, CallFrame *frame){
 
     uint8_t instruction;
     WpGlobalInstance *global;
     StackValue c1, c2, c3;
+    StackValue *peeked_val;
     uint32_t aux_u32;
-    CtrlFrameType ctrl_type;
-   
-    //clock_t start_t, current_t;
+    uint32_t error_code;
+    CallFrame *current_frame = frame;           //a frae parameter will be used for recursion
+    WasmBinMemArg mem_args; 
+    WpMemoryInstance *memory;                     
     //uint64_t watchdog = 2*CLOCKS_PER_SEC;    
     
     //start_t = clock();
     //current_t = clock();
 
-    #define READ_BYTE() (*self->ip++)
+    #define READ_BYTE() (*current_frame->ip++)
+    #define instruction_pointer current_frame->ip
 
     while(1){ //TODO better loop condition, watch dog to break the loop and opcode end
-        instruction = READ_BYTE();   
+        instruction = READ_BYTE();  
+        printf("Executing opcode: 0x%02X\n", instruction); 
+        printf("Value stack top type and value: %d, %d\n", (self->value_stack_top-1)->type, (self->value_stack_top-1)->value.i32); // Debug print
         switch(instruction){
             case OPCODE_END:                
-                return 0; //no error 
+                //There is no label so execute Case 1 Frame
+                    //PUSH retunr values where the current frame start on the stack.
+                    for (uint32_t i = 0; i < current_frame->arity; i++)
+                    {
+                        memcpy(current_frame->locals + i, self->value_stack_top - (current_frame->arity - i), sizeof(StackValue));
+                    }
+                    //after for loop, the sactk pointer should be were locals start + arity, which is the new top of the stack
+                    self->value_stack_top = current_frame->locals + current_frame->arity; //pop return values and set new top of the stack
+                    //check if the current frame is the initial frame of the function, if so return to caller, else continue executing the caller frame
+                    printf("End of function reached. Return values are if exists.\n");
+                    if(current_frame->arity > 0){
+                        printf("Return values: \n");
+                        for (uint32_t i = 0; i < current_frame->arity; i++)
+                        {
+                            printf("Value %d: type %d, value %d\n", i, (current_frame->locals + i)->type, (current_frame->locals + i)->value.i32);
+                        }
+                    }
+                    if(current_frame == frame){                        
+                        return 0;
+                    }
+                    else{
+                        //pop the current frame and set the instruction pointer to the caller frame's ip
+                        //which should be right after the call instruction
+                        current_frame = &self->call_stack[--self->call_stack_count ]; //pop current frame and get caller frame
+                        break; 
+                    } 
+
             case OPCODE_RETURN:
-            _return:
-            ctrl_type = self->ctrl_satck[self->ctrl_count-1].type;
-                switch (ctrl_type)
-                {
-                case WP_INTERPRETER_CTRL_CALL_FRAME:
-                    self->ctrl_count--;                
-                    return 0; //no error 
-                case WP_INTERPRETER_CTRL_LABEL:
-                    self->ctrl_count--;
-                    goto _return;
-                    break;
-                case WP_INTERPRETER_CTRL_HANDLER:
-                    break;
-                default:
-                    break;
-                }  
-            case OPCODE_LOCAL_GET:
-                self->ip = DecodeLeb128Int32(self->ip, &aux_u32); //read local idx
-                if(!self->ip){
+                
+                //if(current_frame->blocks == NULL){
+                    //There is no label so execute Case 1 Frame
+                    //PUSH retunr values where the current frame start on the stack, which is the base for the function's locals (params + locals)
+                    for (uint32_t i = current_frame->arity; i > 0; i--)
+                    {
+                        memcpy(current_frame->locals + i, self->value_stack_top - i, sizeof(StackValue));
+                    }
+                    //after for loop, the sactk pointer should be were locals start + arity, which is the new top of the stack
+                    self->value_stack_top = current_frame->locals + current_frame->arity; //pop return values and set new top of the stack
+                    //check if the current frame is the initial frame of the function, if so return to caller, else continue executing the caller frame
+                    if(current_frame == frame){
+                        return 0;
+                    }
+                    else{
+                        //pop the current frame and set the instruction pointer to the caller frame's ip
+                        //which should be right after the call instruction
+                        current_frame = &self->call_stack[--self->call_stack_count ]; //pop current frame and get caller frame
+                        break; 
+                    }
+                //}
+                /*
+                else{
+                    //read the continuation address of the label.
+                    instruction_pointer = current_frame->block_top; //set instruction pointer to the continuation address of the label}
+                    current_frame->block_top = NULL; //reset block top
+                    current_frame->block_top--;
+                    goto _return; //execute the return instruction of the label frame
+                }*/
+                break;
+            
+            case OPCODE_CALL:
+                instruction_pointer = DecodeLeb128UInt32(instruction_pointer, &aux_u32); //read function idx
+                if(!instruction_pointer){
                     return 1;
+                }
+                if(aux_u32 >= frame->module->function_count){
+                    return 2;
+                }
+                if(InvokeFunctionFast(self, &frame->module->funcs[aux_u32]) != 0){
+                    return 1;           //TODO better error handling, maybe return an error object instead of an error code TRAP
+                }
+                //after invoking the function, the instruction pointer is set to the function body, 
+                //and a new frame is on the call stack  with a label in the block stack, so we can just break and continue executing the new frame
+                break;
+
+
+            case OPCODE_CALL_REF:
+                //STEP 1 Assert: due to validation, a null or function reference is on the top of the stack.
+                peeked_val = self->value_stack_top - 1;
+                if(peeked_val->type != WAS_VAL_REF_FUNC && peeked_val->type != WAS_VAL_REF_NULL_FUNC){
+                    return 1;
+                }
+                //STEP 2 Pop the reference value 𝑟 from the stack.
+                c1 = PopValue(self);
+                //STEP 3 If 𝑟 is a null reference, trap.
+                if(c1.type == WAS_VAL_REF_NULL_FUNC){
+                    return 2; //TODO better error handling, maybe return an error object instead of an error code TRAP
+                }   
+                //STEP 4 Assert: due to validation, 𝑟 is a function reference.
+                if(c1.type != WAS_VAL_REF_FUNC){
+                    return 3;
+                }
+                //STEP 5 and 6 .Let 𝑎 be the index of the function instance referred to by 𝑟. Invoke
+                if(InvokeFunction(self, c1.value.i32) != 0){
+                    return 1;           //TODO better error handling, maybe return an error object instead of an error code TRAP
+                }
+                //after invoking the function, the instruction pointer is set to the function body, 
+                //and a new frame is on the call stack  with a label in the block stack, so we can just break and continue executing the new frame
+                break;
+
+            case OPCODE_LOCAL_GET:
+                instruction_pointer = DecodeLeb128Int32(instruction_pointer, &aux_u32); //read local idx
+                if(!instruction_pointer){
+                    return 1;           //TODO better error handling, maybe return an error object instead of an error code TRAP
                 }
                 if(aux_u32 >= frame->locals_count){
-                    return 3;
+                    return 3;               //TODO better error handling, maybe return an error object instead of an error code TRAP
                 }       
-                c1 = frame->bp[aux_u32];  
+                c1 = frame->locals[aux_u32];  
                 PushValue(self, c1);
                 break;
+
             case OPCODE_LOCAL_SET:
                 if(self->value_stack_top > self->value_stack){
-                    self->ip = DecodeLeb128Int32(self->ip, &aux_u32); //read local idx
-                    if(!self->ip){
-                        return 1;
+                    instruction_pointer = DecodeLeb128Int32(instruction_pointer, &aux_u32); //read local idx
+                    if(!instruction_pointer){
+                        return 1;               //TODO better error handling, maybe return an error object instead of an error code TRAP
                     }
                     c1 = PopValue(self);
-                    frame->bp[aux_u32] = c1;
+                    frame->locals[aux_u32] = c1;
                     break;
                 }
-                else return 5;  
+                else return 5;          //TODO better error handling, maybe return an error object instead of an error code TRAP
+
             case OPCODE_GLOBAL_GET:
-                self->ip = DecodeLeb128Int32(self->ip, &aux_u32); //read global idx
-                if(!self->ip){
-                    return 1;
+                instruction_pointer = DecodeLeb128Int32(instruction_pointer, &aux_u32); //read global idx
+                if(!instruction_pointer){
+                    return 1;       //TODO better error handling, maybe return an error object instead of an error code TRAP
                 }
                 global = &frame->module->globals[aux_u32];
                 if(!global){
-                    return 10;
+                    return 10;              //TODO better error handling, maybe return an error object instead of an error code TRAP        
                 }
                 memcpy(&c1, &global->val, sizeof(StackValue));
                 PushValue(self, c1);
                 break;
+
+            case OPCODE_F64_LOAD:
+                //Step 2. Assert: Due to validation, a number value is on the top of the stack.
+                if(self->value_stack_top - self->value_stack < 1){
+                    return 5; //TODO better error handling, maybe return an error object instead of an error code TRAP
+                }
+                c1 = PopValue(self); //address
+                if(c1.type != WAS_VAL_TYPE_I32 && c1.type != WAS_VAL_TYPE_I64){
+                    return 6; //TODO better error handling, maybe return an error object instead of an error code TRAP
+                }
+                //Read memory argument from instruction stream
+                mem_args = DestructureMemArg(instruction_pointer);
+                instruction_pointer = SkipMemArgBuf(instruction_pointer);   
+                //GET MEMORY instance, check if the memory instance exist and if the address is in the memory bounds, then store the value in memory
+                if(mem_args.x >= current_frame->module->memory_count){
+                    return 10;              //TODO better error handling, maybe return an error object instead of an error code TRAP
+                }             
+                memory = &frame->module->mems[mem_args.x];
+                //check bounds
+                if(c1.type == WAS_VAL_TYPE_I32){
+                    //if(c1.value.i32 + mem_args.m + 8 > memory->usage){TODO
+                        //return 11;          //TODO better error handling, maybe return an error object instead of an error code TRAP
+                    //}
+                    memcpy(&c2.value.f64, memory->bytes + c1.value.i32 + mem_args.m, 8);
+                }
+                else{
+                    if(c1.value.i64 + mem_args.m + 8 > memory->usage){
+                        return 12;          //TODO better error handling, maybe return an error object instead of an error code TRAP
+                    }
+                    memcpy(&c2.value.f64, memory->bytes + c1.value.i64 + mem_args.m, 8);
+                }
+                c2.type = WAS_VAL_TYPE_F64;                
+                PushValue(self, c2);
+                break;
+
+            case OPCODE_F64_STORE:
+                //Step 2 y  4. At least 2 values on the stack, the value to store and the address
+                if(self->value_stack_top - self->value_stack < 2){
+                    return 5; //stack underflow
+                }
+                //Step 3 y 5. Pop the value to store and the address from the stack, in that order.
+                c1 = PopValue(self); //value to store
+                c2 = PopValue(self); //address
+                //Step 6. If the value is not of the expected type, trap.
+                if(c1.type != WAS_VAL_TYPE_F64){
+                    return 6; //TODO better error handling, maybe return an error object instead of an error code TRAP
+                }
+                mem_args = DestructureMemArg(instruction_pointer);
+                instruction_pointer = SkipMemArgBuf(instruction_pointer);
+                if(!instruction_pointer){
+                    return 1; //TODO better error handling, maybe return an error object instead of an error code TRAP
+                }
+                //GET MEMORY instance, check if the memory instance exist and if the address is in the memory bounds, then store the value in memory
+                if(mem_args.x >= current_frame->module->memory_count){
+                    return 11;              //TODO better error handling, maybe return an error object instead of an error code TRAP
+                }
+                memory = &current_frame->module->mems[mem_args.x];
+                error_code = WpMemoryStoreF64(memory, c2.value.i32 + mem_args.m, c1.value.f64);
+                if(error_code != 0){
+                    return 12;              //TODO better error handling, maybe return an error object instead of an error code TRAP
+                }
+                break;
+
             case OPCODE_I32_CONST:
                 c1.type = WAS_VAL_TYPE_I32;
-                self->ip = DecodeLeb128Int32(self->ip, &c1.value.i32);    //5.2.2
-                if(!self->ip){
-                    return 1;
+                instruction_pointer = DecodeLeb128Int32(instruction_pointer, &c1.value.i32);    //5.2.2
+                if(!instruction_pointer){
+                    return 101;
                 }
                 if(self->value_stack_top >= self->value_stack_end){
                     return 2; //stack overflow
                 }
                 PushValue(self, c1);
                 break;
+
             case OPCODE_I32_ADD:
                 c1 = PopValue(self);
                 c2 = PopValue(self);
@@ -181,8 +366,32 @@ static uint8_t EvalFrame (WpInterpreterState *self, CallFrame *frame){
                 c3.value.i32 = c2.value.i32 + c1.value.i32;
                 PushValue(self, c3);
                 break;
+
+            case OPCODE_I32_SUB:
+                c1 = PopValue(self);
+                c2 = PopValue(self);
+                if(c1.type != WAS_VAL_TYPE_I32 || c2.type != WAS_VAL_TYPE_I32){
+                    return 3;
+                }
+                c3.type = WAS_VAL_TYPE_I32;
+                c3.value.i32 = c2.value.i32 - c1.value.i32;
+                PushValue(self, c3);
+                break;
+
+            case OPCODE_I32_MUL:
+                c1 = PopValue(self);
+                c2 = PopValue(self);
+                if(c1.type != WAS_VAL_TYPE_I32 || c2.type != WAS_VAL_TYPE_I32){
+                    return 3;
+                }
+                c3.type = WAS_VAL_TYPE_I32;
+                c3.value.i32 = c2.value.i32 * c1.value.i32;
+                PushValue(self, c3);
+                break;
+
             default:
-                return 4;
+                printf("Unknown opcode: 0x%02X\n", instruction);
+                return 402;
                 break;
 
         }
@@ -195,51 +404,10 @@ static uint8_t EvalFrame (WpInterpreterState *self, CallFrame *frame){
 
 }
 
-static uint8_t InvokeFunctionRef(WpInterpreterState *self, StackValue func_ref){
-    uint32_t locals_len;
-    StackValue *bp;
-    
-
-    //STEP 1
-    
-    uint32_t address = func_ref.value.i32;
-    WpFunctionInstance *func = WpStoreGetFunctionByIndex(self->store, address);
-    if(!func){
-        return 1;
-    }
-    //STEP 5 
-    if(self->value_stack_top - self->value_stack < func->param_len){
-        return 2;
-    }
-    bp = self->value_stack_top - func->param_len;
-    //STEP 6
-    locals_len = InitLocals(self, func->locals);
-    
-    //STEP 7 and 8  
-    CtrlFrame * ctrl = &self->ctrl_satck[self->ctrl_count++]; //get top and add frame count
-    ctrl->type = WP_INTERPRETER_CTRL_CALL_FRAME;    
-    ctrl->ctrl.call_frame.bp = bp;
-    ctrl->ctrl.call_frame.locals_count = func->param_len + locals_len;
-    ctrl->ctrl.call_frame.arity = func->ret_len;
-    ctrl->ctrl.call_frame.module = func->module;
-    CallFrame *frame = &ctrl->ctrl.call_frame;
-
-    //STEP 9    
-    ctrl = &self->ctrl_satck[self->ctrl_count++];
-    ctrl->type = WP_INTERPRETER_CTRL_LABEL;
-    ctrl->ctrl.label =  func->ret_len;
-
-    self->ip = func->body;
-    return EvalFrame(self, frame);
-
-}
-
-
-StackValue WpInterpreterEvalExpr(WpInterpreterState *self, const uint8_t *code){
+StackValue WpInterpreterEvalExpr(WpInterpreterState *self, CallFrame *frame){
     StackValue result;
-    uint8_t error_code;
-    self->ip = code;
-    error_code = EvalFrame(self, NULL);
+    uint32_t error_code;
+    error_code = EvalFrame(self, frame);
     if(error_code != 0){
         result.type = WAS_EX_VAL_TYPE_NULL; //TODO better error handling, maybe return an error object instead of a value
         result.value.i32 = error_code; //TODO better error handling, maybe return an error object instead of a value
@@ -254,17 +422,47 @@ StackValue WpInterpreterEvalExpr(WpInterpreterState *self, const uint8_t *code){
     return result;
 }
 
-uint8_t WpInterpreterExecuteCallRefFunc(WpInterpreterState *self, const uint8_t *type){
-    StackValue result;
-    StackValue ref_func;
-    uint8_t error_code;
-
-    ref_func = PopValue(self);
-    if(ref_func.type != WAS_VAL_REF_FUNC){
-        return 1;
+uint32_t InvokeFunctionFast(WpInterpreterState *self, WpFunctionInstance *func){
+    if(!func){
+        return 1;       //TODO better error handling, maybe return an error object instead of an error code TRAP
+    }
+    if(func->wp_type != WP_OBJECT_FUNCTION_INSTANCE){
+        return 2;      //TODO better error handling, maybe return an error object instead of an error code TRAP
     }
 
-    error_code= InvokeFunctionRef(self, ref_func);
-    return error_code;
+    uint32_t locals_len;
+    StackValue *bp;             //declare base pointer for the frame, which is the base for the function's locals (params + locals) on the value stack
+
+    //STEP 5 Assert: due to validation, 𝑛 values are on the top of the stack.
+    if(self->value_stack_top - self->value_stack < func->param_len){
+        return 3;
+    }
+    //Init frame base pointer for locals. Point to the first parameter on the stack, 
+    //which is the base for the function's locals (params + locals)  
+    bp = self->value_stack_top - func->param_len;
+
+    //STEP 6
+    locals_len = InitLocals(self, func->locals);
+    
+    //STEP 7 and 8  
+    CallFrame * activation = &self->call_stack[self->call_stack_count++]; //get top and add frame count
+    activation->locals = bp;
+    activation->locals_count = func->param_len + locals_len;
+    activation->arity = func->ret_len;
+    activation->module = func->module;
+    //activation->blocks = self->block_stack_top;                         //TODO labels and handlesrs support
+    //activation->block_top = self->block_stack_top;                      //TODO block stack ovreflow check
+    
+    //STEP 9 Let 𝐿 be the label whose arity is 𝑚 and whose continuation is the end of the function. 
+    //activation->block_top = self->ip;  //return address first byte after function call
+
+    //STEP 10 Enter the instruction sequence instr* with label 𝐿 and no values.
+    activation->ip = func->body;
+    printf("function locals type: \n");
+    for (uint32_t i = 0; i < activation->locals_count; i++)
+    {
+        printf("%d ", activation->locals[i].type);
+    }
+    return EvalFrame(self, activation); //no error
 
 }

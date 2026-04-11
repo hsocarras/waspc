@@ -21,6 +21,7 @@
     self->ret_types = NULL;
     self->locals = NULL;
     self->body = NULL;
+    self->body_end = NULL;
 
     self->next = NULL;
  

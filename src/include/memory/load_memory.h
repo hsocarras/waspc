@@ -1,7 +1,8 @@
 /**
  * @file 
  * @author Hector E. Socarras (hsocarras1987@gmail.com)
- * @brief Header file for wasm load module
+ * @brief Header file for wasm load module.
+ * Memory used to load, wasm file form rom. This memory should only be manipulated by the driver.
  * @version 0.1
  * @date 2024-06-26
  * 
@@ -17,8 +18,7 @@
 #endif
 
 //wasp includes
-#include "memory/memory.h"
-#include "object/error.h"
+
 
 #include <stdint.h>
 

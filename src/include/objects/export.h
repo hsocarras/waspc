@@ -18,34 +18,27 @@
 
 //wasp includes
 #include "objects/object.h"
-#include "objects/function.h"
-#include "webassembly/structure/module.h"
 
 #include <stdint.h>
-/*
+
 typedef struct WpExportInstance {
     /// head for all Waspc object to allow cast
-    WpObjectType type;
-    /// @brief name of the export
-    Name name;
-    /// @brief export type
-    ExternalType export_type;
-    /// @brief external value
-    union{
-        funcaddr func;
-        //TableInst *table;
-    } value;
+    WpObjectType wp_type;
+
+    uint32_t name_len;
+    const uint8_t *name;
+    uint8_t export_type;     //0 for func, 1 for global, 2 for memory
+    uint8_t *address;
+    
+    struct WpExportInstance *next;
+
 }WpExportInstance;
 
-typedef struct VecExportInstance {
-    uint32_t lenght;
-    WpExportInstance *elements;
-}VecExportInstance;
 
 // Methods **************************************************************************************************
 
 void WpExportInstanceInit(WpExportInstance *self);
-*/
+
 #ifdef __cplusplus
     }
 #endif

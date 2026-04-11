@@ -16,7 +16,7 @@
 
 ////For TODO testing//////////////////////////////////////////////////////////////////////
 #include "utils/hash_table.h"
-#include "utils/names.h"
+//#include "utils/names.h"
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //Standars Includes
@@ -130,10 +130,6 @@ int main(int argc, const char* argv[]) {
     }
     uint32_t bytes_read;
     bytes_read = fread(load_ptr, 1, len, wasm);
-    Name mod_name;
-    char name[6] = "main1";
-    mod_name.name = name;
-    mod_name.lenght = 6;
     WpBinFile bin_file = {load_ptr, bytes_read};
     WpModuleState *mod_state = malloc(sizeof(WpModuleState));
     if(!mod_state){
@@ -142,7 +138,7 @@ int main(int argc, const char* argv[]) {
         free(load_ptr);
         return 1;
     }
-    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, mod_state, bin_file, mod_name);
+    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, mod_state, bin_file);
     fclose(wasm);
     free(load_ptr);
     

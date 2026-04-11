@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef WASPC_INSTRUCTION_H
-#define WASPC_INSTRUCTION_H
+#ifndef WASPC_WEBASSEMBLY_INSTRUCTION_H
+#define WASPC_WEBASSEMBLY_INSTRUCTION_H
 
 #ifdef __cplusplus
     extern "C" {
@@ -21,16 +21,19 @@
         ///////// CONTROL INSTRUCTION////////////////////////////////////////////////////////////////////////////
         OPCODE_UNREACHABLE = 0x00,
         OPCODE_NOP = 0x01,                  /// No operation
-        OPCODE_BLOCK1 = 0x02,
-        OPCODE_BLOCK2 = 0x03,
-        OPCODE_BLOCK3 = 0x04,
+        OPCODE_BLOCK = 0x02,
+        OPCODE_LOOP = 0x03,
+        OPCODE_IF = 0x04,
+        OPCODE_IF_ELSE = 0x05,
+        OPCODE_THROW = 0x08,
+        OPCODE_THROW_REF = 0x0A,
         OPCODE_END = 0X0B,
         OPCODE_BRANCH = 0x0C,
         OPCODE_BRANCH_IF= 0x0D,
         OPCODE_BRANCH_TABLE = 0x0E,
         OPCODE_RETURN = 0x0F,               /// return instruction
         OPCODE_CALL = 0x10,
-        OPCODE_CALL_I = 0x11,
+        OPCODE_CALL_REF = 0x11,
         //////// REFERENCE INSTRUCTION//////////////////////////////////////////////////////////////////////
         OPCODE_REF_NULL = 0xD0,
         OPDOCE_REF_IS_NULL = 0xD1,
@@ -477,4 +480,4 @@
     }
 #endif
 
-#endif
+#endif // WASPC_INSTRUCTION_H

@@ -10,14 +10,12 @@
  */
 
 #include "validation/wasm_validator.h"
-#include "validation/wasm_decoder.h"
-#include "webassembly/structure/module.h"
-#include "webassembly/structure/types.h"
+#include "validation/wasm_validator_private.h"
+#include "decoder/wasm_decoder.h"
 #include "webassembly/instructions.h"
 #include "utils/leb128.h"
 
 #include <stdint.h>
-// #include <stdio.h>
 
 /**
  * @brief Inner function to read a binary section into a WasmBinSection structure
@@ -44,139 +42,6 @@ static const uint8_t *ReadBinSection(const uint8_t *index, WasmBinSection *sec)
 }
 
 /**
- * @brief Function to initialize the validator state.
- */
-void WpValidatorStateInit(WpValidatorState *self)
-{
-    // Init error object
-    WpErrorInit(&self->err);
-
-    // Initialize the validator state context c
-    // self->c.types.lenght = 0;
-    // self->c.types.elements = NULL;
-    // self->c.locals.lenght = 0;
-    // self->c.locals.elements = NULL;
-    // self->c.return_types.lenght = 0;
-    // self->c.return_types.elements = NULL;
-
-    // Initialize the prime context
-    // self->c_prime.types.lenght = 0;
-    // self->c_prime.types.elements = NULL;
-    // self->c_prime.locals.lenght = 0;
-    // self->c_prime.locals.elements = NULL;
-    // self->c_prime.return_types.lenght = 0;
-    // self->c_prime.return_types.elements = NULL;
-
-    // self->val_stack = NULL;
-    // self->stk_ptr = NULL;
-    // self->val_stack_size = 0; // Set default stack size
-
-    // self->ctrl_stack = NULL;
-    // self->ctr_stack_idx = 0;  // Initialize control stack index
-    // self->ctr_stack_size = 0; // Set default control stack size
-
-    self->ip = NULL; // Initialize instruction pointer to NULL
-}
-
-/*TODO
-uint8_t WpValidateInitExpr(WpValidatorState *self, const uint8_t *exp, uint32_t max_len, ValType t) {
-
-    assert(exp != NULL);    // Ensure the expression pointer is not NULL
-
-    const uint8_t *index = exp;                                                 // pointer to byte to traverse the binary file
-    uint8_t opcode;                                                 // variable to store the opcode
-    uint8_t result;
-    uint32_t u32;
-    int32_t i32;
-
-    ActivationFrame frame = {exp, self->stk_ptr, 1, 0}; // Create a temporary control frame for the expression
-    if(!WpValPushCtrlFrame(self, frame)){
-        return 0; // Stack overflow error
-    }
-
-    #define READ_BYTE() (*frame.ip++)
-    #define NOT_END() (frame.ip < exp + max_len)
-
-    opcode = READ_BYTE(); // Read the next opcode
-    while (opcode != 0x0B && NOT_END()) {
-
-       //check constant opcode
-        switch (opcode) {
-            case OPCODE_I32_CONST:
-
-                break;
-
-            //case OPCODE_GLOBAL_GET:
-                // Check if global type mut is constant
-                //return 0;
-            default:
-                return 0; // Invalid opcode in constant expression
-        }
-    }
-
-    // Check if the expression ended correctly
-    if (*index != 0x0B) {
-        return 0; // Expression did not end with 0x0B
-    }
-
-    return 1;
-
-    #undef READ_BYTE
-    #undef NOT_END
-}
-*/
-
-/* TODO
- * @brief Function to validate a function in the validator state.
- * This function checks if the function type is valid, sets the local variables in the context.
- * It also validates the function body expression against the context.
- * @param self Pointer to the validator state
- * @param func Pointer to the function to validate
- * @return uint8_t 1 - ok, 0 - invalid
- *
-uint8_t WpValidateFunction(WpValidatorState *self, const Func *func) {
-
-    uint8_t result;
-
-    //The type 𝐶.types[𝑥] must be defined in the context
-    if (func->type_index >= self->c.types.lenght) {
-        return 0; // Invalid function type index
-    }
-
-    // Setting c prime context
-    self->c_prime.types.lenght = self->c.types.lenght;
-    self->c_prime.types.elements = self->c.types.elements;
-    //Get function type
-    FuncType *ft = &self->c.types.elements[func->type_index];
-    self->c_prime.locals.lenght = ft->params.lenght + func->locals.lenght;
-    self->c_prime.locals.elements = self->stk_ptr;  // locals are stored in the value stack
-
-    // Set the locals in the prime context
-    for(uint32_t i = 0; i < ft->params.lenght; i++){
-        result = WpValPushValType(self, ft->params.val_types[i]);
-        if (!result) {
-            return 0; // Stack overflow error
-        }
-    }
-    for(uint32_t i = 0; i < func->locals.lenght; i++){
-        result = WpValPushValType(self, func->locals.elements[i].t);
-        if (!result) {
-            return 0; // Stack overflow error
-        }
-    }
-    // Set the return types in the prime context
-    self->c_prime.return_types.lenght = ft->results.lenght;
-    self->c_prime.return_types.elements = ft->results.val_types;
-
-    //Under the context 𝐶′, the expression expr must be valid with type [𝑡* 2].
-    if(!WpValidateExpr(self, &self->c_prime, &func->body)){
-        return 0; // Invalid function body
-    }
-
-    return 1; // Function is valid
-}*/
-
-/**
  * @brief Function to decode and validate each section inside a module.
  * Checks if the section is in the correct order and validates binary sintax on each section.
  * @param self Pointer to the validator state
@@ -186,13 +51,14 @@ uint8_t WpValidateFunction(WpValidatorState *self, const Func *func) {
  * @param mod
  * @return const uint8_t* pointer to next section or NULL if error
  */
-const uint8_t *ValidateBinSectionById(WpValidatorState *self, const uint8_t *index, const uint8_t section_id, uint8_t *previous_secction, WpModuleState *mod)
+static const uint8_t *ValidateBinSectionById(WpValidatorState *self, const uint8_t *index, const uint8_t section_id, uint8_t *previous_secction)
 {
 
     uint32_t aux_u32; // auxiliary var to store u32 values
     uint32_t len;
     uint32_t i;
-    uint8_t err_code;
+    uint32_t err_code;
+    WpModuleState *mod = self->mod;
 
     /**
      * @brief Sections inside a module are encoded in a specific order.
@@ -256,9 +122,9 @@ start_at_type_sec:
         {
             mod->status = WP_MODULE_STATUS_ERROR;
             // TODO set error id for invalid type section
-            self->err.id = 1;
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 1;
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
 
@@ -268,9 +134,9 @@ start_at_type_sec:
         {
             mod->status = WP_MODULE_STATUS_ERROR;
             // TODO set error id for invalid type section
-            self->err.id = 2;
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 2;
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No types in the section
         }
         mod->type_count = len; // Store the number of function types in the module
@@ -282,9 +148,9 @@ start_at_type_sec:
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
                 // TODO set error id for invalid type section
-                self->err.id = 3;
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 3;
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid function type
             }
             err_code = ValidateTypeBuf(type_index, len);
@@ -292,9 +158,9 @@ start_at_type_sec:
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
                 // TODO set error id for invalid type section
-                self->err.id = 4;
-                self->err.module_id = 1;
-                self->err.code = err_code;
+                self->err->id = 4;
+                self->err->module_id = 1;
+                self->err->code = err_code;
                 return NULL; // Invalid function type
             }
         }
@@ -316,9 +182,9 @@ start_at_import_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 5; // TODO set error id for invalid import section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 5; // TODO set error id for invalid import section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
         import_index = mod->importsec.content;                 // Pointer to the start of the import section content
@@ -326,9 +192,9 @@ start_at_import_sec:
         if (!import_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 6; // TODO set error id for invalid import section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 6; // TODO set error id for invalid import section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No imports in the section
         }
         mod->import_count = len; // Store the number of imports in the module
@@ -339,9 +205,9 @@ start_at_import_sec:
             if (!import_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 7; // TODO set error id for invalid import section
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 7; // TODO set error id for invalid import section
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid import
             }
             // Validate import
@@ -349,9 +215,9 @@ start_at_import_sec:
             if (err_code > 0)
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 8; // TODO set error id for invalid import section
-                self->err.module_id = 1;
-                self->err.code = err_code;
+                self->err->id = 8; // TODO set error id for invalid import section
+                self->err->module_id = 1;
+                self->err->code = err_code;
                 return NULL; // Invalid import
             }
         }
@@ -371,9 +237,9 @@ start_at_function_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 9; // TODO set error id for invalid function section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 9; // TODO set error id for invalid function section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
 
@@ -382,9 +248,9 @@ start_at_function_sec:
         if (!function_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 10; // TODO set error id for invalid function section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 10; // TODO set error id for invalid function section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No functions in the section
         }
         mod->function_count = len; // Store the number of functions in the module
@@ -394,9 +260,9 @@ start_at_function_sec:
             if (!function_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 11; // TODO set error id for invalid function section
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 11; // TODO set error id for invalid function section
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid function
             }
             // Validate function
@@ -404,17 +270,17 @@ start_at_function_sec:
             if (!function_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 12; // TODO set error id for invalid function section
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 12; // TODO set error id for invalid function section
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid function type index
             }
             if (function_type_index >= mod->type_count)
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 13; // TODO set error id for invalid function section
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 13; // TODO set error id for invalid function section
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid function type index
             }
         }
@@ -432,9 +298,9 @@ start_at_table_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 14; // TODO set error id for invalid table section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 14; // TODO set error id for invalid table section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
 
@@ -443,9 +309,9 @@ start_at_table_sec:
         if (!table_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 15; // TODO set error id for invalid table section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 15; // TODO set error id for invalid table section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No tables in the section
         }
         mod->table_count = len; // Store the number of tables in the module
@@ -457,18 +323,18 @@ start_at_table_sec:
             if (!table_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 16; // TODO set error id for invalid table section
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 16; // TODO set error id for invalid table section
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid table
             }
             err_code = ValidateTableTypeBuf(table_index);
             if (err_code > 0)
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 17; // TODO set error id for invalid table section
-                self->err.module_id = 1;
-                self->err.code = err_code;
+                self->err->id = 17; // TODO set error id for invalid table section
+                self->err->module_id = 1;
+                self->err->code = err_code;
                 // Invalid table limits
                 return NULL;
             }
@@ -485,12 +351,13 @@ start_at_memory_sec:
     {
         // Memory Section
         index = ReadBinSection(index, &mod->memsec);
+
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 18; // TODO set error id for invalid memory section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 18; // TODO set error id for invalid memory section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
 
@@ -499,9 +366,9 @@ start_at_memory_sec:
         if (!memory_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 19; // TODO set error id for invalid memory section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 19; // TODO set error id for invalid memory section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No memories in the section
         }
         mod->memory_count = len; // Store the number of memories in the module
@@ -513,9 +380,9 @@ start_at_memory_sec:
             if (!memory_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 20; // TODO set error id for invalid memory section
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 20; // TODO set error id for invalid memory section
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid memory
             }
             // Validate memory type
@@ -523,9 +390,9 @@ start_at_memory_sec:
             if (err_code > 0)
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 21; // TODO set error id for invalid memory limits
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 21; // TODO set error id for invalid memory limits
+                self->err->module_id = 1;
+                self->err->code = 0;
                 // Invalid memory limits
                 return NULL;
             }
@@ -546,9 +413,9 @@ start_at_tag_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 22; // TODO set error id for invalid tag section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 22; // TODO set error id for invalid tag section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
         tag_index = mod->tagsec.content;                 // Pointer to the start of the tag section content
@@ -556,9 +423,9 @@ start_at_tag_sec:
         if (!tag_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 23; // TODO set error id for invalid tag section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 23; // TODO set error id for invalid tag section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No globals in the section
         }
         mod->tag_count = len; // Store tag's number on the module state
@@ -570,18 +437,18 @@ start_at_tag_sec:
             if (!tag_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 24; // TODO set error id for invalid tag section
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 24; // TODO set error id for invalid tag section
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid global
             }
             err_code = ValidateTagTypeBuf(tag_index);
             if (err_code > 0)
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 25; // TODO set error id for invalid tag type
-                self->err.module_id = 1;
-                self->err.code = err_code;
+                self->err->id = 25; // TODO set error id for invalid tag type
+                self->err->module_id = 1;
+                self->err->code = err_code;
                 return NULL; // Invalid global type
             }
         }
@@ -592,6 +459,7 @@ start_at_tag_sec:
 
 start_at_global_sec:
     const uint8_t *global_index;
+    const uint8_t *global_section_end;
 
     if (section_id == WP_WSA_BIN_MOD_SEC_ID_GLOBAL)
     {
@@ -600,23 +468,24 @@ start_at_global_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 26; // TODO set error id for invalid global section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 26; // TODO set error id for invalid global section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
+
+        global_section_end = mod->globalsec.content + mod->globalsec.size;
         global_index = mod->globalsec.content;                 // Pointer to the start of the global section content
         global_index = DecodeLeb128UInt32(global_index, &len); // Get the number of globals in the section
         if (!global_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 27; // TODO set error id for invalid global type
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 27; // TODO set error id for invalid global type
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No globals in the section
         }
         mod->global_count = len; // Store the number of globals in the module
-
         for (i = 0; i < len; i++)
         {
             /// The global type must be valid.
@@ -624,30 +493,19 @@ start_at_global_sec:
             if (!global_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 28; // TODO set error id for invalid global type
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 28; // TODO set error id for invalid global type
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid global
             }
-            err_code = ValidateGlobalTypeBuf(global_index);
+            err_code = ValidateGlobal(self, global_index, global_section_end);
             if (err_code > 0)
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 29; // TODO set error id for invalid global type
-                self->err.module_id = 1;
-                self->err.code = err_code;
+                self->err->id = 29; // TODO set error id for invalid global type
+                self->err->module_id = 1;
+                self->err->code = err_code;
                 return NULL; // Invalid global type
-            }
-            // Validate global init expr
-            global_index += 2; // Move pointer to the start of the init expr
-            err_code = ValidateConstantExprBuf(global_index, 0xFFFFFFFF);
-            if (err_code > 0)
-            {
-                mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 30; // TODO set error id for invalid global init expr
-                self->err.module_id = 1;
-                self->err.code = err_code;
-                return NULL; // Invalid global init expr
             }
         }
         *previous_secction = WP_WSA_BIN_MOD_SEC_ID_GLOBAL;
@@ -656,6 +514,7 @@ start_at_global_sec:
 
 start_at_export_sec:
     const uint8_t *export_index;
+    const uint8_t *export_index_end;
     if (section_id == WP_WSA_BIN_MOD_SEC_ID_EXPORT)
     {
         // Export Section
@@ -663,19 +522,20 @@ start_at_export_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 31; // TODO set error id for invalid export section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 31; // TODO set error id for invalid export section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
         export_index = mod->exportsec.content;                 // Pointer to the start of the export section content
+        export_index_end = export_index + mod->exportsec.size;
         export_index = DecodeLeb128UInt32(export_index, &len); // Get the number of exports in the section
         if (!export_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 32; // TODO set error id for invalid export section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 32; // TODO set error id for invalid export section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No exports in the section
         }
         mod->export_count = len; // Store the number of exports in the module
@@ -686,19 +546,19 @@ start_at_export_sec:
             if (!export_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 33; // TODO set error id for invalid export section
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 33; // TODO set error id for invalid export section
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid export
             }
             // Validate export
-            err_code = ValidateExportBuf(export_index, mod->function_count, mod->table_count, mod->memory_count, mod->global_count);
+            err_code = ValidateExport(self, export_index, export_index_end);
             if (err_code > 0)
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 34; // TODO set error id for invalid export
-                self->err.module_id = 1;
-                self->err.code = err_code;
+                self->err->id = 34; // TODO set error id for invalid export
+                self->err->module_id = 1;
+                self->err->code = err_code;
                 return NULL; // Invalid export
             }
         }
@@ -715,27 +575,27 @@ start_at_start_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 35; // TODO set error id for invalid start section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 35; // TODO set error id for invalid start section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
         index = DecodeLeb128UInt32(index, &mod->start); // Get the start function index
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 36; // TODO set error id for invalid start function index
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 36; // TODO set error id for invalid start function index
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
         // The start function index must refer to a function in the module.
         if (mod->start >= mod->function_count)
         {
             mod->status = WP_MODULE_STATUS_INVALID;
-            self->err.id = 37; // TODO set error id for invalid start function index
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 37; // TODO set error id for invalid start function index
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // Invalid start function index
         }
 
@@ -752,9 +612,9 @@ start_at_element_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 38; // TODO set error id for invalid element section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 38; // TODO set error id for invalid element section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
         element_index = mod->elemsec.content;                    // Pointer to the start of the element section content
@@ -762,9 +622,9 @@ start_at_element_sec:
         if (!element_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 39; // TODO set error id for invalid element section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 39; // TODO set error id for invalid element section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No elements in the section
         }
         mod->element_count = len; // Store the number of elements in the module
@@ -774,9 +634,9 @@ start_at_element_sec:
             if (!element_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 40; // TODO set error id for invalid element section
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 40; // TODO set error id for invalid element section
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid element
             }
             // Validate element
@@ -784,9 +644,9 @@ start_at_element_sec:
             if (err_code > 0)
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 41; // TODO set error id for invalid element section
-                self->err.module_id = 1;
-                self->err.code = err_code;
+                self->err->id = 41; // TODO set error id for invalid element section
+                self->err->module_id = 1;
+                self->err->code = err_code;
                 return NULL; // Invalid element
             }
         }
@@ -804,9 +664,9 @@ start_at_data_count_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 42; // TODO set error id for invalid data count section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 42; // TODO set error id for invalid data count section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
         data_count_index = mod->datacountsec.content;                              // Pointer to the start of the data count section content
@@ -814,9 +674,9 @@ start_at_data_count_sec:
         if (!data_count_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 43; // TODO set error id for invalid data count section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 43; // TODO set error id for invalid data count section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No data count in the section
         }
 
@@ -833,9 +693,9 @@ start_at_code_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 44; // TODO set error id for invalid code section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 44; // TODO set error id for invalid code section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
         code_index = mod->codesec.content;                 // Pointer to the start of the code section content
@@ -843,17 +703,17 @@ start_at_code_sec:
         if (!code_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 45; // TODO set error id for invalid code section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 45; // TODO set error id for invalid code section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No code in the section
         }
         if (len != mod->function_count)
         {
             mod->status = WP_MODULE_STATUS_INVALID;
-            self->err.id = 46; // TODO set error id for mismatched function and code counts
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 46; // TODO set error id for mismatched function and code counts
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // The number of code entries must match the number of functions
         }
 
@@ -863,9 +723,9 @@ start_at_code_sec:
             if (!code_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 47; // TODO set error id for invalid code section
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 47; // TODO set error id for invalid code section
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid code
             }
             // Validate function
@@ -873,9 +733,9 @@ start_at_code_sec:
             if (err_code > 0)
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 48; // TODO set error id for invalid code section
-                self->err.module_id = 1;
-                self->err.code = err_code;
+                self->err->id = 48; // TODO set error id for invalid code section
+                self->err->module_id = 1;
+                self->err->code = err_code;
                 return NULL; // Invalid function
             }
         }
@@ -893,9 +753,9 @@ start_at_data_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 49; // TODO set error id for invalid data section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 49; // TODO set error id for invalid data section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
         data_index = mod->datasec.content;                 // Pointer to the start of the data section content
@@ -903,17 +763,17 @@ start_at_data_sec:
         if (!data_index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 50; // TODO set error id for invalid data section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 50; // TODO set error id for invalid data section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // No data segments in the section
         }
         if (len != mod->data_count)
         {
             mod->status = WP_MODULE_STATUS_INVALID;
-            self->err.id = 51; // TODO set error id for mismatched data segment count
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 51; // TODO set error id for mismatched data segment count
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL; // The number of data segments must match the data count
         }
 
@@ -923,9 +783,9 @@ start_at_data_sec:
             if (!data_index)
             {
                 mod->status = WP_MODULE_STATUS_ERROR;
-                self->err.id = 52; // TODO set error id for invalid data segment
-                self->err.module_id = 1;
-                self->err.code = 0;
+                self->err->id = 52; // TODO set error id for invalid data segment
+                self->err->module_id = 1;
+                self->err->code = 0;
                 return NULL; // Invalid data segment
             }
             // Validate data segment
@@ -933,9 +793,9 @@ start_at_data_sec:
             if (err_code > 0)
             {
                 mod->status = WP_MODULE_STATUS_INVALID;
-                self->err.id = 53; // TODO set error id for invalid data segment
-                self->err.module_id = 1;
-                self->err.code = err_code;
+                self->err->id = 53; // TODO set error id for invalid data segment
+                self->err->module_id = 1;
+                self->err->code = err_code;
                 return NULL; // Invalid data segment
             }
         }
@@ -953,9 +813,9 @@ start_at_custom_sec:
         if (!index)
         {
             mod->status = WP_MODULE_STATUS_ERROR;
-            self->err.id = 54; // TODO set error id for invalid custom section
-            self->err.module_id = 1;
-            self->err.code = 0;
+            self->err->id = 54; // TODO set error id for invalid custom section
+            self->err->module_id = 1;
+            self->err->code = 0;
             return NULL;
         }
         index = index + aux_u32;
@@ -964,4 +824,209 @@ start_at_custom_sec:
     }
 
     return NULL;
+}
+
+/**
+ * @brief Function to initialize the validator state.
+ */
+void WpValidatorStateInit(WpValidatorState *self)
+{
+    self->err = NULL;           // Init error object
+    self->mod = NULL;
+
+    // Initialize the validator state context c
+    // self->c.types.lenght = 0;
+    // self->c.types.elements = NULL;
+    // self->c.locals.lenght = 0;
+    // self->c.locals.elements = NULL;
+    // self->c.return_types.lenght = 0;
+    // self->c.return_types.elements = NULL;
+
+    // Initialize the prime context
+    // self->c_prime.types.lenght = 0;
+    // self->c_prime.types.elements = NULL;
+    // self->c_prime.locals.lenght = 0;
+    // self->c_prime.locals.elements = NULL;
+    // self->c_prime.return_types.lenght = 0;
+    // self->c_prime.return_types.elements = NULL;
+
+    // self->val_stack = NULL;
+    // self->stk_ptr = NULL;
+    // self->val_stack_size = 0; // Set default stack size
+
+    // self->ctrl_stack = NULL;
+    // self->ctr_stack_idx = 0;  // Initialize control stack index
+    // self->ctr_stack_size = 0; // Set default control stack size
+
+    self->value_stack = NULL;                    /// stack to store value types
+    self->value_stack_top = NULL;                /// pointer to the top of the value stack
+    self->value_stack_end = NULL;
+
+    self->ip = NULL; // Initialize instruction pointer to NULL
+}
+
+uint32_t ValidateGlobal(WpValidatorState *self, const uint8_t *index, const uint8_t *global_section_end)
+{
+
+    WasmBinGlobal global;
+    uint32_t err_code = ValidateGlobalBuf(index, global_section_end); // check for error on binary encoding
+    if (err_code > 0)
+    {
+        return err_code;
+    }
+
+    // destructuring global
+    global = DestructureGlobal(index);
+    // validating value type
+    if (IsNumericType(global.type))
+    {
+        // numeric types are allways valid
+        err_code = WpValidateConstantExpresion(self, global.type[0], global.init_expr, global_section_end);
+        if (err_code > 0)
+        {
+            return err_code;
+        }
+        return 0;
+    }
+    // vector type
+    if (*global.type == 0x7B)
+    {
+        err_code = WpValidateConstantExpresion(self, global.type[0], global.init_expr, global_section_end);
+        if (err_code > 0)
+        {
+            return err_code;
+        }
+        return 0;
+    }
+
+    if (IsRefType(global.type))
+    {
+        err_code = WpValidateConstantExpresion(self, global.type[0], global.init_expr, global_section_end);
+        if (err_code > 0)
+        {
+            return err_code;
+        }
+        return 0;
+    }
+
+    return 100;
+}
+
+uint32_t ValidateExport(WpValidatorState *self, const uint8_t *index, const uint8_t *export_section_end)
+{
+
+    WasmBinExport export;
+    uint8_t *idx;
+    uint32_t aux_idx;
+    uint32_t error_code = ValidateExportBuf(index);
+    if (error_code > 0)
+    {
+        return error_code;
+    }
+
+    // Destructuring export
+    export = DestructureExport(index);
+
+    switch (export.index_type)
+    {
+    case 0x00:          //func idx
+        if(export.external_index < self->mod->function_count){
+            //if external index exist should be valid due a function sectrion validation
+            return 0;
+        }
+        return 99;        
+    case 0x01:          //table idx
+        //TODO
+        return 99;
+    case 0x02:          //mem idx
+        if(export.external_index < self->mod->memory_count){
+            return 0;
+        }
+        return 99;
+    case 0x03:          //global idx
+        //TODO
+        return 99;
+    case 0x04:          //tag idx
+        //TODO
+        return 99;
+    default:
+        error_code = 99;
+        return error_code;
+    }
+}
+
+WpObject *WpValidatorValidateModule(WpValidatorState *self, WpModuleState *mod)
+{
+
+    if (mod->buf == NULL)
+    {
+        self->err->id = 502;
+        return (WpObject *)self->err;
+    }
+
+    if(self->value_stack == NULL){
+        
+        self->err->id = 503;    // NO MEMORY ALLOCATED FOR VALUE STACK
+        return (WpObject *)self->err;        
+    }
+    self->mod = mod;
+    
+    const uint8_t *index = mod->buf;               // pointer to byte to traverse the binary file
+    const uint8_t *buf_end = index + mod->bufsize; // pointer to end of binary module
+    uint32_t decoded_u32 = 0;                      // auxiliary var to store u32 values
+    uint8_t section_id;
+    uint8_t last_loaded_section = 0; // var to keep track section order.
+
+#define READ_BYTE() (*index++)
+#define NOT_END() (index < buf_end)
+
+    // Check magic number /////////////////////////////////////////////////////////////////////////
+    if (ValidateMagicBuf(index) > 0)
+    {
+        self->err->id = 13;
+        mod->status = WP_MODULE_STATUS_INVALID;
+#if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64, "runtime/runtime.c");
+        strcpy_s(self->err.func, 32, "WpRuntimeValidateModule");
+#endif
+        return (WpObject *)&self->err;
+    }
+    index = index + 4;
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Check version number /////////////////////////////////////////////////////////////////////////
+    if (ValidateVersionBuf(index, &decoded_u32) > 0)
+    {
+        self->err->id = 14;
+        mod->status = WP_MODULE_STATUS_INVALID;
+#if WASPC_CONFIG_DEV_FLAG == 1
+        strcpy_s(self->err.file, 64, "runtime/runtime.c");
+        strcpy_s(self->err.func, 32, "WpRuntimeValidateModule");
+#endif
+        return (WpObject *)&self->err;
+    }
+    index = index + 4;
+    mod->version = decoded_u32;
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Traversing the binary file
+    while (NOT_END())
+    {
+        // Seccion
+        section_id = READ_BYTE();
+        
+        index = ValidateBinSectionById(self, index, section_id, &last_loaded_section);
+        if (!index)
+        {
+            self->err->id = 16;
+            mod->status = WP_MODULE_STATUS_INVALID;
+            return (WpObject *)self->err;
+        }
+    }
+
+#undef READ_BYTE
+#undef NOT_END
+
+    mod->status = WP_MODULE_STATUS_VALIDATED;
+    return (WpObject *)mod;
 }

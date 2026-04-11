@@ -36,13 +36,14 @@ typedef struct WpFunctionInstance {
     
     //Destructure type
     uint32_t param_len;
-    uint8_t *param_types;
+    const uint8_t *param_types;         ///pointer to binary file where the function type is defined, it can be used to compare with other function type without decode them into WasmValueType. It can also be used to get the function type when call indirect without decode the function type in table section.
     uint32_t ret_len;
-    uint8_t *ret_types;
+    const uint8_t *ret_types;           ///pointer to binary file where the function type is defined, it can be used to compare with other function type without decode them into WasmValueType. It can also be used to get the function type when call indirect without decode the function type in table section.
 
     /// @brief code.    
     const uint8_t * locals;             /// pointer to locals start.
-    const uint8_t *body;                /// pointer to the function code.
+    const uint8_t *body;                /// pointer to the function code's start.
+    const uint8_t *body_end;            /// pointer to the function code's end 0x0B opcode.
 
     struct WpFunctionInstance *next;
 

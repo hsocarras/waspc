@@ -1,7 +1,7 @@
 /**
  * @file 
  * @author Hector E. Socarras (hsocarras1987@gmail.com)
- * @brief Header file for wasm load module
+ * @brief Header file daa memory. Should implement all was page management.
  * @version 0.1
  * @date 2024-06-26
  * 
@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef WASPC_MEMORY_MEMORY_H
-#define WASPC_MEMORY_MEMORY_H
+#ifndef WASPC_MEMORY_DATA_MEMORY_H
+#define WASPC_MEMORY_DATA_MEMORY_H
 
 #ifdef __cplusplus
     extern "C" {
@@ -23,15 +23,6 @@
 #include <stdint.h>
 
 
-#define ALLOCATE(type, count) (type*)malloc(sizeof(type) * (count));
-
-#define FREE_MEM(ptr) free(ptr);
-
-#define GROW_ARRAY(type, pointer, newCount) \
-    (type*)realloc(pointer, sizeof(type) * (newCount))
-
-
-void * Reallocate (void* pointer, size_t oldSize, size_t newSize);
 
 #ifdef __cplusplus
     }

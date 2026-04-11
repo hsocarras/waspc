@@ -1,0 +1,91 @@
+El proceso de una llamada a función y su retorno en WebAssembly implica una evolución estructurada del stack, donde conviven valores, etiquetas (labels) y marcos de activación (call frames)
+. A continuación, se detalla este ciclo de vida utilizando un ejemplo de una función que suma dos números.
+1. Preparación de la Llamada
+Supongamos que tenemos una función $sumar que toma dos parámetros i32 y devuelve un i32
+. Antes de la instrucción call, el stack de operandos contiene los argumentos necesarios
+.
+Estado del Stack: [i32.const 10, i32.const 20]
+.
+Instrucción actual: call $sumar
+.
+2. Ejecución de call: Creación del Frame y el Label
+Cuando el intérprete ejecuta call, realiza las siguientes acciones administrativas para aislar la ejecución de la función:
+Extracción de argumentos: Los valores 10 y 20 se extraen del stack
+.
+Creación del Call Frame: Se crea un marco de activación que contiene los parámetros y las variables locales (inicializadas a su valor por defecto)
+. Este marco también guarda una referencia a la instancia del módulo original para resolver símbolos
+.
+Creación del Label de Función: Se introduce en el stack una etiqueta (label) especial cuya aridad es el número de resultados de la función (en este caso, 1)
+. Su "continuación" es el final de la función, lo que define a dónde saltar si se ejecuta un return
+.
+Entrada al cuerpo: El puntero de instrucción se mueve al inicio de la secuencia de instrucciones de la función
+.
+Representación administrativa en el stack: [frame_1{locals:
+, module: M} label_1{ε} ... instrucciones de la función ... end end]
+.
+3. Ejecución dentro de la Función
+Durante la ejecución, instrucciones como local.get 0 acceden directamente a los valores almacenados en el Call Frame actual
+.
+local.get 0 empuja 10 al stack.
+local.get 1 empuja 20 al stack.
+i32.add consume ambos y empuja el resultado 30
+.
+4. Retorno: Ejecución de end o return
+El retorno puede ocurrir de forma natural al llegar a la instrucción end del cuerpo de la función, o de forma explícita mediante return
+.
+Si se ejecuta return:
+La instrucción return actúa como un atajo para un salto (br) a la etiqueta más externa de la función
+.
+Se extrae el resultado (30) del stack
+.
+Limpieza del stack: Se eliminan todas las etiquetas y valores intermedios hasta encontrar el Call Frame actual
+.
+Eliminación del Frame: El marco de activación se retira del stack
+.
+Restauración: El resultado se coloca en el stack del llamador y la ejecución continúa tras la instrucción call original
+.
+Si se llega al end final:
+El proceso es similar al de la salida de cualquier bloque estructurado
+:
+Se preserva el valor resultante (30) y se extrae de la cima
+.
+Se elimina el Label administrativo de la función
+.
+Se verifica el Call Frame actual y se elimina (pop) del stack
+.
+Se empuja el resultado 30 de vuelta al stack del hilo de ejecución
+.
+Resumen de la Evolución del Stack
+Inicio: [val1, val2] (Operandos)
+.
+Tras call: [frame{...}, label{...}] (Estructuras de control)
+.
+En la función: [frame{...}, label{...}, resultado] (Operandos locales)
+.
+Tras end/return: [resultado] (El stack vuelve al llamador)
+.
+Este mecanismo garantiza que las funciones puedan llamarse de forma recursiva sin interferir entre sí, ya que cada llamada posee su propio Call Frame y sus propios Labels aislados en la pila
+.
+¿Qué pasaría si el $n de Fibonacci fuera un número negativo?
+Explica cómo funcionan los punteros de memoria $ptr en Wat
+¿Cómo se define un bloque $break en el código de Fibonacci?
+o sea en el paso 3 de call la continuacion del label seria la direccion del opcode 0x0B de la funcion $sumar
+
+Efectivamente, tu interpretación es correcta en esencia. De acuerdo con la especificación, el opcode 0x0b (que representa la instrucción end en el formato binario) actúa como el delimitador físico que marca el final de la secuencia de instrucciones de la función
+.
+Para precisar técnicamente cómo interactúa esto con el label (etiqueta) creado en la llamada, aquí tienes los detalles clave:
+Definición de la continuación: Cuando se invoca una función, se crea una etiqueta administrativa (L) cuya aridad es el número de resultados de la función y cuya continuación es el final de la función
+. En la semántica formal, esta continuación representa lo que debe suceder una vez que el cuerpo de la función ha terminado de ejecutarse
+.
+El papel del 0x0b: Al llegar al opcode 0x0b de la función (el end), el intérprete reconoce que se ha alcanzado el límite del bloque de la función
+. Esto activa automáticamente el proceso de "Exiting" (salida) de la secuencia de instrucciones asociada a esa etiqueta L
+.
+Protocolo de Retorno: Una vez alcanzado ese punto (o si se ejecuta un return, que es un salto a esa misma etiqueta), la máquina virtual ejecuta los pasos de "Returning from a function":
+Extrae los resultados finales del stack
+.
+Elimina el Call Frame (marco de activación) que se creó al inicio
+.
+Restaura los resultados en el stack del llamador y salta a la instrucción inmediatamente posterior a la llamada original
+.
+En resumen, llegar al opcode 0x0b es la señal que le dice al intérprete: "Has terminado las instrucciones del cuerpo; ahora ejecuta la lógica de retorno que definimos en la continuación del label creado en el paso de invocación"
+.

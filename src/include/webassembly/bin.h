@@ -25,7 +25,9 @@ typedef enum SectionId{
     WP_WSA_BIN_MOD_SEC_ID_TAG    
 } SectionId;
 
-
+/**
+ * 
+ */
 typedef struct WasmBinSection {   
     /// Section size
     uint32_t size;
@@ -35,21 +37,43 @@ typedef struct WasmBinSection {
 
 typedef struct WasmBinGlobal{
     uint8_t mut;
-    uint8_t type;
+    const uint8_t *type;
     const uint8_t *init_expr;
 } WasmBinGlobal;
+
+typedef struct WasmBinMemory{
+    uint8_t address_type;        //32 or 64
+    uint64_t page_size_min;
+    uint64_t page_size_max;
+} WasmBinMemory;
+
+typedef struct WasmBinExport{
+    uint32_t name_len;
+    const uint8_t *name;    
+    uint8_t index_type;
+    uint32_t external_index;
+}WasmBinExport;
 
 typedef struct WasmBinFunction{
     const uint8_t *locals;
     const uint8_t *body;
+    const uint8_t *end;     //pointer to the end of the function body, used to check if the function body has been fully executed
 } WasmBinFunction;
 
 typedef struct WasmBinFuncType{
     uint32_t param_len;
-    uint8_t *param_types;
+    const uint8_t *param_types;
     uint32_t ret_len;
-    uint8_t *ret_types;
+    const uint8_t *ret_types;
 }WasmBinFuncType;
+
+typedef struct WasmBinMemArg{
+    uint32_t n;                         //alignment expressed as a power of 2.
+    uint32_t m;                         //offset expressed as an unsigned integer literal.
+    uint32_t x;                         //memory index expressed as an unsigned integer literal.
+} WasmBinMemArg;
+
+
 
 #ifdef __cplusplus
     }
