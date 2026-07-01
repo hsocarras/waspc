@@ -7,7 +7,7 @@ add_subdirectory(objects)
 add_subdirectory(memory)
 add_subdirectory(decoder)
 add_subdirectory(interpreter)
-add_subdirectory(validation)
+add_subdirectory(validator)
 add_subdirectory(runtime)
 
 

@@ -35,18 +35,41 @@ typedef struct WasmBinSection {
     const uint8_t *content;
 } WasmBinSection;
 
+typedef struct WasmBinImport{
+    uint32_t module_name_len;
+    const uint8_t *module_name;
+    uint32_t name_len;
+    const uint8_t *name;
+    uint8_t external_type;
+    const uint8_t *external;    
+} WasmBinImport;
+
+/**
+ * global ::= gt:globaltype 𝑒:expr
+ * globaltype ::= 𝑡:valtype mut?:mut
+ */
 typedef struct WasmBinGlobal{
     uint8_t mut;
     const uint8_t *type;
     const uint8_t *init_expr;
 } WasmBinGlobal;
 
+/**
+ * memtype ::= (at, lim):limits
+ * limits ::= 0x00 𝑛:u64
+ *          | 0x01 𝑛:u64 𝑚:u64
+ *          | 0x04 𝑛:u64
+ *          | 0x05 𝑛:u64 𝑚:u64
+ */
 typedef struct WasmBinMemory{
     uint8_t address_type;        //32 or 64
     uint64_t page_size_min;
     uint64_t page_size_max;
 } WasmBinMemory;
 
+/**
+ * export ::= nm:name xx:externidx
+ */
 typedef struct WasmBinExport{
     uint32_t name_len;
     const uint8_t *name;    
@@ -54,19 +77,31 @@ typedef struct WasmBinExport{
     uint32_t external_index;
 }WasmBinExport;
 
+/**
+ * loc**:list(locals) 𝑒:expr
+ * locals ::= 𝑛:u32 𝑡:valtype
+ */
 typedef struct WasmBinFunction{
     const uint8_t *locals;
     const uint8_t *body;
     const uint8_t *end;     //pointer to the end of the function body, used to check if the function body has been fully executed
 } WasmBinFunction;
 
+/**
+ * 0x60 𝑡* 1:resulttype 𝑡* 2:resulttype
+ */
 typedef struct WasmBinFuncType{
+    const uint8_t *type;
     uint32_t param_len;
     const uint8_t *param_types;
     uint32_t ret_len;
     const uint8_t *ret_types;
 }WasmBinFuncType;
 
+/**
+ * memarg ::= 𝑛:u32 𝑚:u32
+ *          | 𝑛:u32 𝑥:memidx 𝑚:u32
+ */
 typedef struct WasmBinMemArg{
     uint32_t n;                         //alignment expressed as a power of 2.
     uint32_t m;                         //offset expressed as an unsigned integer literal.

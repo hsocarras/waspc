@@ -11,8 +11,49 @@
 #include "memory/store.h"
 #include "interpreter/values.h"
 
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define WP_STORE_ALIGNMENT 8u
+
+#define WP_STORE_ALIGN_SIZE(size) (((size) + (WP_STORE_ALIGNMENT - 1u)) & ~(WP_STORE_ALIGNMENT - 1u))
+
+#define WP_STORE_ALIGN_POINTER(ptr) (((uintptr_t)(ptr) + (WP_STORE_ALIGNMENT - 1u)) & ~(uintptr_t)(WP_STORE_ALIGNMENT - 1u))
+
+/**
+ * @brief Allocates a block of memory from the store with the specified size, ensuring proper alignment.
+ * The function checks if there is enough free space in the store's buffer to accommodate the requested size after alignment.
+ * If successful, it updates the buffer_free pointer to reflect the allocated space and returns
+ * @param self Pointer to the store from which to allocate memory.
+ * @param size The size of the memory block to allocate in bytes.
+ * @return A pointer to the allocated memory block, or NULL if there is not enough space in the store.
+ */
+static uint8_t *WpStoreAllocAligned(WpStore *self, size_t size)
+{
+    uint8_t *address;
+    uint8_t *end;
+    size_t alloc_size;
+
+    // Ensure the store has been initialized and has a buffer to allocate from
+    if(!self->buffer || !self->buffer_free)
+    {
+        return NULL;
+    }
+
+    address = (uint8_t *)WP_STORE_ALIGN_POINTER(self->buffer_free);   // Align the free pointer
+    end = self->buffer + self->buffer_size;
+    alloc_size = WP_STORE_ALIGN_SIZE(size);
+
+    if(address > end || (size_t)(end - address) < alloc_size)
+    {
+        return NULL;
+    }
+
+    self->buffer_free = address + alloc_size;
+    return address;
+}
 
 /**
  * @brief Initializes the store with a given memory size.
@@ -22,6 +63,12 @@ void WpStoreInit(WpStore *self)
     self->buffer = NULL;
     self->buffer_size = 0;
     self->buffer_free = NULL; // Initially, the entire memory is free
+
+    self->modules = NULL;
+    self->module_count = 0;
+
+    self->def_types = NULL;
+    self->def_type_count = 0;
 
     self->globals = NULL;
     self->global_count = 0;
@@ -37,6 +84,38 @@ void WpStoreInit(WpStore *self)
 }
 
 /////GET FUNCTIONS/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+WpModuleInstance * WpStoreGetModuleByIndex(WpStore *self, uint32_t index)
+{
+    if(!self->modules)
+    {
+        return NULL;
+    }
+
+    WpModuleInstance *current = self->modules;
+
+    for (size_t i = 0; i < index; i++)       
+    {
+        current = current->next;
+    }
+    return current;
+}   
+
+WpWasDefType * WpStoreGetDefTypeByIndex(WpStore *self, uint32_t index)
+{
+    if(!self->def_types)
+    {
+        return NULL;
+    }
+
+    WpWasDefType *current = self->def_types;
+    for (size_t i = 0; i < index; i++)
+    {
+        current = current->next;
+    }
+    return current;
+}
+
 WpGlobalInstance * WpStoreGetGlobalByIndex(WpStore *self, uint32_t index)
 {
     if (!self->globals)
@@ -65,7 +144,7 @@ WpFunctionInstance * WpStoreGetFunctionByIndex(WpStore *self, uint32_t index)
     {
         current = current->next;
     }
-    return current;
+    return (WpFunctionInstance *)current;
 }
 
 WpMemoryInstance * WpStoreGetMemoryByIndex(WpStore *self, uint32_t index)
@@ -103,151 +182,223 @@ WpExportInstance * WpStoreGetExportByIndex(WpStore *self, uint32_t index)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///// ALLOC FUNCTIONS ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-WpGlobalInstance * WpStoreAllocGlobal(WpStore *self, uint8_t mut, StackValType type, StackValue val)
+/**
+ * @brief Allocates a new module instance in the store and returns a pointer to it.
+ *  The function takes a pointer to the store and a pointer to the module instance to be allocated. It first allocates memory for the new module instance using the WpStoreAllocAligned function, then copies the contents of the provided module instance into the newly allocated memory. Finally, it updates the linked list of modules in the store and increments the module count before returning a pointer to the allocated module instance.
+ * @param self Pointer to the store where the module instance will be allocated.
+ * @param mod Pointer to the module instance to be allocated.
+ * @return Pointer to the allocated module instance, or NULL if allocation fails.
+ */
+WpModuleInstance * WpStoreAllocModule(WpStore *self, WpModuleInstance *mod)
 {
-    WpGlobalInstance new_global;
-    WpGlobalInstance *last_global;  
-    WpGlobalInstance * address; 
-    
-    //Check if there is enough free memory to allocate the global
-    if (self->buffer_free + sizeof(WpGlobalInstance) > self->buffer + self->buffer_size)
+    WpModuleInstance *last_mod;  
+    WpModuleInstance * address;
+    address = (WpModuleInstance *)WpStoreAllocAligned(self, sizeof(WpModuleInstance));
+    if(!address)
     {
-        return NULL; // Not enough memory
+        return NULL;
     }
+    
+    //alloc module
+    memcpy(address, mod, sizeof(WpModuleInstance));  // Allocate memory for module
+    if(self->module_count > 0) { //Not first module   
+        last_mod = WpStoreGetModuleByIndex(self, self->module_count - 1);
+        if(!last_mod){
+            return NULL;
+        } 
+        last_mod->next = address;  // update linked list
+        
+    }
+    else{
+        self->modules = address;
+    }
+
+    self->module_count++;
+
+    return address;
+}
+
+/**
+ * @brief Allocates a new defined type instance in the store and returns a pointer to it.
+ * The function takes a pointer to the store and a pointer to the defined type instance to be allocated. 
+ * It first allocates memory for the new defined type instance using the WpStoreAllocAligned function, 
+ * then copies the contents of the provided defined type instance into the newly allocated memory. Finally,
+ * it updates the linked list of defined types in the store and increments the defined type count before returning a pointer to the allocated defined type instance.
+ * @param self Pointer to the store where the defined type instance will be allocated.
+ * @param def Pointer to the defined type instance to be allocated.
+ * @return Pointer to the allocated defined type instance, or NULL if allocation fails.
+ */
+WpWasDefType * WpStoreAllocDefType(WpStore *self, WpWasDefType * def)
+{
+    WpWasDefType *last_def;  
+    WpWasDefType * address;
+    address = (WpWasDefType *)WpStoreAllocAligned(self, sizeof(WpWasDefType));
+    if(!address)
+    {
+        return NULL;
+    }
+    
+    //alloc module
+    memcpy(address, def, sizeof(WpWasDefType));  // Allocate memory for module
+    if(self->def_type_count > 0) { //Not first module   
+        last_def = WpStoreGetDefTypeByIndex(self, self->def_type_count - 1);
+        if(!last_def){
+            return NULL;
+        } 
+        last_def->next = address;  // update linked list
+        
+    }
+    else{
+        self->def_types = address;
+    }
+
+    self->def_type_count++;
+
+    return address;
+
+}
+
+/**
+ * @brief Allocates a new global instance in the store and returns a pointer to it.
+ * The function takes a pointer to the store and a pointer to the global instance to be allocated.
+ * @param self Pointer to the store where the global instance will be allocated.
+ * @param global Pointer to the global instance to be allocated.
+ * @return Pointer to the allocated global instance, or NULL if allocation fails.
+ * The function first allocates memory for the new global instance using the WpStoreAllocAligned function,
+ *  then copies the contents of the provided global instance into the newly allocated memory. Finally, it
+ * updates the linked list of globals in the store and increments the global count before returning a pointer
+ * to the allocated global instance.
+ */
+WpGlobalInstance * WpStoreAllocGlobal(WpStore *self, WpGlobalInstance *global)
+{
+    
+    WpGlobalInstance *last_global;  
+    WpGlobalInstance * address;     
    
-    // Init new global
-    WpGlobalInstanceInit(&new_global);    
-    new_global.mut = mut;
-    new_global.type = type;
-    new_global.val = val;
+    // Allocate memory for new global instance
+    address = (WpGlobalInstance *)WpStoreAllocAligned(self, sizeof(WpGlobalInstance));
+    if(!address)
+    {
+        return NULL;
+    }   
+    
     // alloc new global on store
-    memcpy(self->buffer_free, &new_global, sizeof(WpGlobalInstance)); // Allocate memory for global    
+    memcpy(address, global, sizeof(WpGlobalInstance)); 
     
     if(self->global_count > 0) { //Not first global
         last_global = WpStoreGetGlobalByIndex(self, self->global_count - 1); //get last global
         if(!last_global){
-            return NULL;        
+            return NULL;
         }
-        last_global->next = (WpGlobalInstance *)self->buffer_free;  // update linked list
-        
+        last_global->next = address;  // update linked list        
     }
     else{
-        self->globals = (WpGlobalInstance *)self->buffer_free;
+        self->globals = address;
     }
 
-
     self->global_count++;
-    address = (WpGlobalInstance *)self->buffer_free;
-    self->buffer_free += sizeof(WpGlobalInstance); // Move the free pointer  
     return address; // Return the address of the allocated global
 }
 
-WpMemoryInstance * WpStoreAllocMemory(WpStore *self, WasmBinMemory mem, uint8_t *data_memory)
+/** 
+ * @brief Allocates a new memory instance in the store and returns a pointer to it.
+ * The function takes a pointer to the store, a pointer to the memory instance to be allocated,
+ *  and a pointer to the data memory.
+ * @param self Pointer to the store where the memory instance will be allocated.
+ * @param mem Pointer to the memory instance to be allocated.
+ * @param data_memory Pointer to the data memory for the new memory instance.
+ * @return Pointer to the allocated memory instance, or NULL if allocation fails.
+ */
+WpMemoryInstance * WpStoreAllocMemory(WpStore *self, WpMemoryInstance *mem, uint8_t *data_memory)
 {
-    WpMemoryInstance new_mem;
+    
     WpMemoryInstance *last_mem;  
     WpMemoryInstance * address;
 
-    //Check if there is enough free memory to allocate the memory
-    if (self->buffer_free + sizeof(WpMemoryInstance) > self->buffer + self->buffer_size)
-    {
-        return NULL; // Not enough memory
+    if(self->memory_count > 0) { //Not first memory
+        last_mem = WpStoreGetMemoryByIndex(self, self->memory_count - 1);
+        if(!last_mem){
+            return NULL;
+        }
     }
 
-    // Init new memory
-    WpMemoryInstanceInit(&new_mem);
-    new_mem.addres_type = mem.address_type;
-    new_mem.page_size_min = mem.page_size_min;
-    new_mem.page_size_max = mem.page_size_max;
-    new_mem.bytes = data_memory;                    //asign data memory to memory instance, the data memory.
+    address = (WpMemoryInstance *)WpStoreAllocAligned(self, sizeof(WpMemoryInstance));
+    if(!address)
+    {
+        return NULL;
+    }
 
+    
     //alloc memory
-    memcpy(self->buffer_free, &new_mem, sizeof(WpMemoryInstance));  // Allocate memory for memory
-
+    memcpy(address, mem, sizeof(WpMemoryInstance));  // Allocate memory for memory
+    address->bytes = data_memory; // assign data memory to memory instance
     if(self->memory_count > 0) { //Not first memory    
         last_mem = WpStoreGetMemoryByIndex(self, self->memory_count - 1);
         if(!last_mem){
-            return NULL;        
+            return NULL;
         }
-        last_mem->next = (WpMemoryInstance *)self->buffer_free;  // update linked list
+        last_mem->next = address;  // update linked list
         
     }
     else{
-        self->memories = (WpMemoryInstance *)self->buffer_free;
+        self->memories = address;
     }
 
     self->memory_count++;
-    address = (WpMemoryInstance *)self->buffer_free;
-    self->buffer_free += sizeof(WpMemoryInstance);               // Move the free pointer
     return address;         // Return the address of the allocated global
 
 }
 
-WpExportInstance * WpStoreAllocExport(WpStore *self, WasmBinExport exp, WpModuleState *mod)
+/**
+ * @brief Allocates a new export instance in the store and returns a pointer to it.
+ * @param self Pointer to the store where the export instance will be allocated.
+ * @param exp Pointer to the export instance to be allocated.
+ * @return Pointer to the allocated export instance, or NULL if allocation fails.
+ */
+WpExportInstance * WpStoreAllocExport(WpStore *self, WpExportInstance *exp)
 {
-    WpExportInstance new_export;
+    
     WpExportInstance *last_export;  
     WpExportInstance * address;
-
-    //check if there is enought free memory to allocate
-    if (self->buffer_free + sizeof(WpExportInstance) > self->buffer + self->buffer_size)
+    
+    
+    address = (WpExportInstance *)WpStoreAllocAligned(self, sizeof(WpExportInstance));
+    if(!address)
     {
-        return NULL; // Not enough memory
-    }
-    // Init new export
-    WpExportInstanceInit(&new_export);
-    new_export.name_len = exp.name_len;
-    new_export.name = exp.name;
-    new_export.export_type = exp.index_type;
-    //Get address from index and assign to export instance
-    switch (exp.index_type)
-    {
-        case 0x00: //func
-            if(mod->funcs == NULL){
-                return NULL; // No functions allocated in the store
-            }
-            new_export.address = (uint8_t *)&mod->funcs[exp.external_index];
-            break;
-        case 0x01: //Table
-            //TODO
-            break;
-        case 0x02: //memory
-            //TODO
-            break;
-        case 0x03: //global
-                //TODO
-                break;
-        case 0x04: //tag
-                //TODO
-                break;
-        default:
-            return NULL;
-
+        return NULL;
     }
 
     //alloc export
-    memcpy(self->buffer_free, &new_export, sizeof(WpExportInstance));  // Allocate memory for export
+    memcpy(address, exp, sizeof(WpExportInstance));  // Allocate memory for export
 
-    if(self->export_count > 0) { //Not first export    
+    if(self->export_count > 0) { //Not first export
         last_export = WpStoreGetExportByIndex(self, self->export_count - 1);
         if(!last_export){
-            return NULL;        
-        }
-        last_export->next = (WpExportInstance *)self->buffer_free;  // update linked list
+            return NULL;
+        }    
+        last_export->next = address;  // update linked list
         
     }
     else{
-        self->exports = (WpExportInstance *)self->buffer_free;
+        self->exports = address;
     }   
 
     self->export_count++;
-    address = (WpExportInstance *)self->buffer_free;
-    self->buffer_free += sizeof(WpExportInstance);               // Move the free pointer
     return address;         // Return the address of the allocated global
 
 }
 
-WpFunctionInstance * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, WasmBinFuncType func_type, WasmBinFunction func)
+/**
+ * @brief Allocates a new function instance in the store and returns a pointer to it.
+ * @param self Pointer to the store where the function instance will be allocated.
+ * @param func Pointer to the function instance to be allocated.
+ * @return Pointer to the allocated function instance, or NULL if allocation fails.
+ * The function first allocates memory for the new function instance using the WpStoreAllocAligned function, 
+ * then copies the contents of the provided function instance into the newly allocated memory. Finally, it
+ * updates the linked list of functions in the store and increments the function count before returning a pointer
+ * to the allocated function instance.
+ */
+WpFunctionInstance * WpStoreAllocFunctionInstance(WpStore *self, WpFunctionInstance *func)
 {
     WpFunctionInstance new_func;
     WpFunctionInstance *last_func;  
@@ -259,35 +410,29 @@ WpFunctionInstance * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, Was
         return NULL; // Not enough memory
     }
 
-    // Init new function
-    WpFunctionInstanceInit(&new_func);
-    new_func.module = mod;
-    new_func.param_len = func_type.param_len;
-    new_func.param_types = func_type.param_types;
-    new_func.ret_len = func_type.ret_len;
-    new_func.ret_types = func_type.ret_types;
-    new_func.locals = func.locals;
-    new_func.body = func.body;
-    new_func.body_end = func.end;
+    address = (WpFunctionInstance *)WpStoreAllocAligned(self, sizeof(WpFunctionInstance));
+    if(!address)
+    {
+        return NULL;
+    }
+
 
     //alloc function
-    memcpy(self->buffer_free, &new_func, sizeof(WpFunctionInstance));  // Allocate memory for function
+    memcpy(address, func, sizeof(WpFunctionInstance));  // Allocate memory for function
 
     if(self->func_count > 0) { //Not first function
         last_func = WpStoreGetFunctionByIndex(self, self->func_count - 1);
         if(!last_func){
-            return NULL;        
+            return NULL;
         }
-        last_func->next = (WpFunctionInstance *)self->buffer_free;  // update linked list
+        last_func->next = address;  // update linked list
         
     }
     else{
-        self->funcs = (WpFunctionInstance *)self->buffer_free;
+        self->funcs = address;
     }
 
-    self->func_count++;
-    address = (WpFunctionInstance *)self->buffer_free;
-    self->buffer_free += sizeof(WpFunctionInstance);               // Move the free pointer
+    self->func_count++;    
     return address;         // Return the address of the allocated global
 }
 

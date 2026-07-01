@@ -16,7 +16,8 @@
     extern "C" {
 #endif
 #include "interpreter/values.h"
-#include "objects/module.h"
+#include "objects/module_state.h"
+#include "objects/module_instance.h"
 
 #include <stdint.h>
 
@@ -33,7 +34,7 @@ typedef struct CallFrame {
     uint32_t arity;                     // Number of return values
     const uint8_t *ip;                    // instruction pointer for the current execution point in the function body
 
-    WpModuleState *module;              // Pointer to the module instance (ModuleInst *)
+    WpModuleInstance *module;              // Pointer to the module instance (ModuleInst *)
     //void *func;                         // Pointer to the function instance (FuncInst *)
 
     //uint8_t unreachable;               /// unreachable flag

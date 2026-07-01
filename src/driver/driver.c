@@ -15,7 +15,7 @@
 #include "objects/error.h"
 
 ////For TODO testing//////////////////////////////////////////////////////////////////////
-#include "utils/hash_table.h"
+#include "utils/hash_table_modules.h"
 //#include "utils/names.h"
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -39,7 +39,7 @@ static uint8_t mark[MARK_SIZE];
 static uint8_t work_code_mem[CODE_MEMORY_SIZE];         //See tia portal code memory
 
 // Initialize the hash table for modules
-HtEntry table[10]; // Allocate memory for the hash table
+HtModuleEntry table[10]; // Allocate memory for the hash table
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 void ReportError(WpError *err);  //function prototype for diagnostic
@@ -138,7 +138,7 @@ int main(int argc, const char* argv[]) {
         free(load_ptr);
         return 1;
     }
-    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, mod_state, bin_file);
+    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, bin_file, "test_module");
     fclose(wasm);
     free(load_ptr);
     
@@ -150,7 +150,7 @@ int main(int argc, const char* argv[]) {
         return 3;
     }    
     assert(result->wp_type == WP_OBJECT_MODULE_STATE);
-    
+    mod_state = (WpModuleState *)result;
     
     // validate the module    ///////////////////////////////////////////////////////////////////////////////////////////
     result = WpRuntimeValidateModule(&runtime, mod_state);
@@ -208,7 +208,5 @@ void ReportError(WpError *err){
     printf("Error id: %u \n", err->id);
     #if WASPC_CONFIG_DEV_FLAG == 1
     //get file name, for now line of code
-    printf("At file: %s ;\n", err->file); 
-    printf("At function: %s ;\n", err->func);
     #endif      
 }

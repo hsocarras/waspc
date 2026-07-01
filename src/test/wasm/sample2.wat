@@ -55,3 +55,16 @@
     (f64.load)
   )
 )
+
+(; Estructura wasm
+    index 0x0A type section content
+    index 0x1C Function section content
+    index 0x24 Memory Section content
+    index 0x29 Global section content
+    index 0x36 Export section content
+    index 0x4E Code section content
+        inndex 0x51 body for function 1
+        inndex 0x5E body for function 2
+        inndex 0x7A body for function 3
+ 
+ ;)

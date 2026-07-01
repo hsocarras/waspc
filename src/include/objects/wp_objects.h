@@ -22,9 +22,10 @@
 #include "objects/export.h"
 #include "objects/function.h"
 #include "objects/global.h"
-#include "objects/export.h"
 #include "objects/memory.h"
-#include "objects/module.h"
+#include "objects/module_state.h"
+#include "objects/module_instance.h"
+#include "objects/was_deftype.h"
 
 
 #ifdef __cplusplus

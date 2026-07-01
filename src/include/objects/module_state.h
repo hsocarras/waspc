@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2024
  * 
  */
-#ifndef WASPC_OBJECTS_MODULE_H
-#define WASPC_OBJECTS_MODULE_H
+#ifndef WASPC_OBJECTS_MODULE_STATE_H
+#define WASPC_OBJECTS_MODULE_STATE_H
 
 #ifdef __cplusplus
     extern "C" {
@@ -17,11 +17,8 @@
 
 //wasp includes
 #include "objects/object.h"
-#include "objects/function.h"
-#include "objects/global.h"
-#include "objects/memory.h"
-#include "objects/export.h"
-#include "webassembly/bin.h"   
+#include "objects/module_instance.h"
+#include "webassembly/bin.h"
 
 
 
@@ -29,11 +26,10 @@
 
 
 typedef enum WpModuleStatus{
-    WP_MODULE_STATUS_ERROR,
     WP_MODULE_STATUS_INIT,
-    WP_MODULE_STATUS_READ,
-    WP_MODULE_STATUS_VALIDATED,
+    WP_MODULE_STATUS_ERROR,
     WP_MODULE_STATUS_INVALID,
+    WP_MODULE_STATUS_VALIDATED,
     WP_MODULE_STATUS_INSTANTIATED,    
 } WpModuleStatus;
 
@@ -46,10 +42,7 @@ typedef enum WpModuleStatus{
  */
 typedef struct WpModuleState{
     /// head for all Waspc object to allow cast
-    WpObjectType wp_type;   
-
-    ///
-    struct WpModuleState *next; /// pointer to next module state in the store. This is for internal use only, not for public API.
+    WpObjectType wp_type;     
 
     /// @brief module's name.
     //Name name;
@@ -66,7 +59,9 @@ typedef struct WpModuleState{
      * */
     const uint8_t *buf;                 /// pointer to binary buffer wasm    
     uint32_t bufsize;                   /// size of the buffer
-    uint32_t version;                   /// the version read from the WASM file    
+    uint32_t version;                   /// the version read from the WASM file 
+    
+    ///Binary sections start and size, these are for internal use only, not for public API. They are used to get the section content without decode them into WasmSection.
     WasmBinSection typesec;             /// encoded type section
     WasmBinSection importsec;           /// encoded import section
     WasmBinSection functionsec;         /// encoded func section
@@ -81,35 +76,14 @@ typedef struct WpModuleState{
     WasmBinSection codesec;             /// encoded code section
     WasmBinSection datasec;             /// encoded data section
 
-    
-    //WasModule's counter for instantiation;
-    uint32_t type_count;           /// number of function types in the module
-    uint32_t import_count;             /// number of imports in the module
-    uint32_t function_count;           /// number of functions in the module
-    uint32_t table_count;              /// number of tables in the module
-    uint32_t memory_count;             /// number of memories in the module
-    uint32_t tag_count;
-    uint32_t global_count;             /// number of globals in the module
-    uint32_t export_count;             /// number of exports in the module
-    uint32_t element_count;            /// number of elements in the module
-    uint32_t start;                    /// start function index
-    uint32_t data_count;               /// number of data segments in the module
-
-    
-    /// @brief Instances
-    WpGlobalInstance *globals;              /// pointer to the global instances
-    WpFunctionInstance *funcs;              /// pointer to the function instances
-    WpMemoryInstance *mems;                  /// pointer to the memory instances
-    WpExportInstance *exports;              /// pointer to the export instances
-
-
-    
+    //Pointer to corresponding instace on store
+    WpModuleInstance *instance;
 
 } WpModuleState;
 
 // Methods **************************************************************************************************
 
-void WpModuleInit(WpModuleState *self);
+void WpModuleStateInit(WpModuleState *self);
 
 
 

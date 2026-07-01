@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
 #include "utils/leb128.h"
 #include "decoder/wasm_decoder.h"
-#include "objects/module.h"
+#include "objects/module_state.h"
+#include "objects/module_instance.h"
 #include "../wasm/file_reader.h"
 
 

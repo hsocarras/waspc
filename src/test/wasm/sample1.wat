@@ -15,3 +15,13 @@
     )
     (export "main" (func $main))
 )
+
+(; Estructura wasm
+    index 0x0A type section content
+    index 0x12 Function section content
+    index 0x16 Global section content
+    index 0x1E Export section content
+    index 0x28 Code section content
+        inndex 0x2D body for function 1
+ 
+ ;)

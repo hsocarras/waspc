@@ -21,8 +21,8 @@
 
 #include <stdint.h>
 
-/// Fast traverse function ////////////////////////////////////////////////////////////////////
-const uint8_t * SkipExprBuf(const uint8_t *const buf, const uint32_t max_len);
+/// Skip function ////////////////////////////////////////////////////////////////////
+const uint8_t * SkipExprBuf(const uint8_t *const buf,const uint8_t *const buf_end);
 
 const uint8_t * SkipRecSubType(const uint8_t *const buf);
 
@@ -33,6 +33,8 @@ const uint8_t * SkipRefTypeBuf(const uint8_t *const buf);
 const uint8_t * SkipTableTypeBuf(const uint8_t *const buf);
 
 const uint8_t * SkipLocalBuf(const uint8_t *const buf);
+
+const uint8_t *SkipValTypeBuf(const uint8_t *const buf);
 
 const uint8_t *SkipMemArgBuf(const uint8_t *const buf);
 
@@ -49,17 +51,16 @@ uint8_t IsRefType(const uint8_t *valtype);
 uint8_t IsStorageType(const uint8_t *encoded_type);
 
 uint8_t IsValType(const uint8_t *valtype);
+
+uint8_t IsFuncTypeMatch(const uint8_t *func_type_a, const uint8_t *func_type_b);
+
+uint8_t IsMemoryTypeMatch(const uint8_t * mem_type1, const uint8_t *mem_type2);
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 /// GET binary element by id functions //////////////////////////////////////////////////////////////////////////////////////////
-
 const uint8_t * GetSubTypeByIndex(const uint8_t * buf, uint32_t subtype_index);
 
-/// @brief Function to get the pointer where start the function type
-/// @param typesec WasmBinSection of type section
-/// @param type_index index of the function type to get
-/// @return index where function type start (0x60) otherwise NULL
 const uint8_t * GetTypeByIndex(WasmBinSection typesec, uint32_t type_index);
 
 const uint8_t * GetImportByIndex(WasmBinSection importsec, uint32_t import_index);
@@ -88,6 +89,8 @@ const uint8_t * GetTagByIndex(WasmBinSection tagsec, uint32_t tag_index);
 WasmBinFuncType DestructureFunctionType(const uint8_t *index);
 
 uint32_t DestructureFunctionIndex(const uint8_t *index);
+
+WasmBinImport DestructureImport(const uint8_t *import_addr);
 
 WasmBinGlobal DestructureGlobal(const uint8_t *global_addr);
 

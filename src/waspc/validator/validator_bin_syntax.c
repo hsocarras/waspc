@@ -14,15 +14,14 @@
  * 
  */
 
-#include "validation/wasm_validator.h"
-#include "validation/wasm_validator_private.h"
+
+#include "validator/wasm_validator_private.h"
 #include "decoder/wasm_decoder.h"
 #include "webassembly/instructions.h"
 #include "utils/leb128.h"
 
 #include <stdint.h>
 #include <assert.h>
-//#include <stdio.h>
 
 
 // Sintax validation functions /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -602,18 +601,21 @@ uint32_t ValidateTypeBuf(const uint8_t *buf, uint32_t type_count){
     #define READ_BYTE() (*index++)
 
     if(!IsRecType(index)){ 
-        return 48; // Invalid recursive type
+        return 1; // Invalid recursive type
     }
     encoded_type = READ_BYTE();    
 
     if(encoded_type == 0x4E){ //0x4E st*:list(subtype)
         index = DecodeLeb128UInt32(index, &len);          // get subtypes list's len
         if(!index){
-            return 49; // Invalid leb128 encoding
+            return 2; // Invalid leb128 encoding
         }
         for (uint32_t i = 0; i < len; i++)
         {
             index = GetSubTypeByIndex(index, i); // get subtype index
+            if(!index){
+                return 3; // Invalid leb128 encoding
+            }
             err_code = ValidateSubtypeBuf(index, type_count);
             if(err_code > 0){
                 return err_code; // Invalid subtype
@@ -640,8 +642,9 @@ uint32_t ValidateTypeBuf(const uint8_t *buf, uint32_t type_count){
  * @param functiontype_count Number of function types in the module to validate function type index
  * @return uint8_t 0- no error, error code otherwise (50-52)
  */
-uint32_t ValidateImportBuf(const uint8_t *buf, uint32_t type_count){
+uint32_t ValidateImportBuf(const uint8_t *buf){
 
+    
     assert(buf != NULL);                                            // Ensure the buffer is not NULL
     const uint8_t *index = buf;                                     // pointer to byte to traverse the binary file
     uint32_t aux_32;
@@ -719,6 +722,7 @@ uint32_t ValidateExportBuf(const uint8_t *buf){
  * @param function_count Number of functions in the module to validate function indices
  * @param table_count Number of tables in the module to validate table indices
  * @return uint8_t 0-ok, error code otherwise (66-102)
+ * TODO buf_end to avoid endless loop replace index + 0xFFFFFFFF
  */
 uint32_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_t table_count){
 
@@ -742,7 +746,7 @@ uint32_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_
         if(err_code > 0){
             return err_code; // Invalid constant expression
         }
-        index = SkipExprBuf(index, 0xFFFFFFFF); // Skip expression
+        index = SkipExprBuf(index, index + 0xFFFFFFFF); // Skip expression
         if (!index){                    
             return 67;                                       
         }
@@ -792,7 +796,7 @@ uint32_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_
         if(err_code > 0){
             return err_code; // Invalid constant expression
         }
-        index = SkipExprBuf(index, 0xFFFFFFFF); // Skip expression
+        index = SkipExprBuf(index, index + 0xFFFFFFFF); // Skip expression
         if (!index){                    
             return 77;                                       
         }
@@ -838,7 +842,7 @@ uint32_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_
         if(err_code > 0){
             return err_code; // Invalid constant expression
         }
-        index = SkipExprBuf(index, 0xFFFFFFFF); // Skip expression
+        index = SkipExprBuf(index, index + 0xFFFFFFFF); // Skip expression
         if (!index){                    
             return 86;                                       
         }
@@ -851,7 +855,7 @@ uint32_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_
             if(err_code > 0){
                 return err_code; // Invalid constant expression
             }
-            index = SkipExprBuf(index, 0xFFFFFFFF); // Skip expression
+            index = SkipExprBuf(index, index  + 0xFFFFFFFF); // Skip expression
             if (!index){                    
                 return 88;                                       
             }        
@@ -871,7 +875,7 @@ uint32_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_
             if(err_code > 0){
                 return err_code; // Invalid constant expression
             }
-            index = SkipExprBuf(index, 0xFFFFFFFF); // Skip expression
+            index = SkipExprBuf(index, index + 0xFFFFFFFF); // Skip expression
             if (!index){                    
                 return 91;                                       
             }        
@@ -889,7 +893,7 @@ uint32_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_
         if(err_code > 0){
             return err_code; // Invalid constant expression
         }
-        index = SkipExprBuf(index, 0xFFFFFFFF); // Skip expression
+        index = SkipExprBuf(index, index +0xFFFFFFFF); // Skip expression
         if (!index){                    
             return 94;                                       
         }
@@ -906,7 +910,7 @@ uint32_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_
             if(err_code > 0){
                 return err_code; // Invalid constant expression
             }
-            index = SkipExprBuf(index, 0xFFFFFFFF); // Skip expression
+            index = SkipExprBuf(index, index+0xFFFFFFFF); // Skip expression
             if (!index){                    
                 return 97;                                       
             }        
@@ -926,7 +930,7 @@ uint32_t ValidateElementBuf(const uint8_t *buf, uint32_t function_count, uint32_
             if(err_code > 0){
                 return err_code; // Invalid constant expression
             }
-            index = SkipExprBuf(index, 0xFFFFFFFF); // Skip expression
+            index = SkipExprBuf(index, index+0xFFFFFFFF); // Skip expression
             if (!index){                    
                 return 100;                                       
             }        
@@ -1056,6 +1060,7 @@ uint32_t ValidateCodeBuf(const uint8_t *buf){
  * @param buf Binary encoded data segment
  * @param memory_count Number of memories in the module to validate memory index
  * @return uint8_t 0-ok, error code otherwise (112-120)
+ * TODO buffer end for avoid endless loop
 */
 uint32_t ValidateDataBuf(const uint8_t *buf, uint32_t memory_count){
 
@@ -1081,7 +1086,7 @@ uint32_t ValidateDataBuf(const uint8_t *buf, uint32_t memory_count){
             if(err_code > 0){
                 return err_code; // Invalid constant expression
             }
-            index = SkipExprBuf(index, 0xFFFFFFFF); // Skip expression
+            index = SkipExprBuf(index, index+0xFFFFFFFF); // Skip expression
             if (!index){                    
                 return 113;                                       
             }
@@ -1110,7 +1115,7 @@ uint32_t ValidateDataBuf(const uint8_t *buf, uint32_t memory_count){
             if(err_code > 0){
                 return err_code; // Invalid constant expression
             }
-            index = SkipExprBuf(index, 0xFFFFFFFF); // Skip expression
+            index = SkipExprBuf(index, index+0xFFFFFFFF); // Skip expression
             if (!index){                    
                 return 118;                                       
             }

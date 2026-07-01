@@ -20,6 +20,12 @@ typedef struct WpStore{
     uint32_t buffer_size;                          ///size of store area
     uint8_t *buffer_free;                          ///pointer to static allocation for mark area
 
+    WpModuleInstance *modules;                  //head pointer to module linked list
+    uint32_t module_count;
+
+    WpWasDefType *def_types;                 //head pointer to defined type linked list
+    uint32_t def_type_count;
+
     WpGlobalInstance *globals;                  //head pointer to global linked list
     uint32_t global_count;
 
@@ -39,14 +45,17 @@ void WpStoreInit(WpStore *self);
 
 WpFunctionInstance * WpStoreGetFunctionByIndex(WpStore *self, uint32_t index);
 
-WpGlobalInstance * WpStoreAllocGlobal(WpStore *self, uint8_t mut, StackValType type, StackValue val);
+WpModuleInstance * WpStoreAllocModule(WpStore *self, WpModuleInstance *mod);
 
-WpMemoryInstance * WpStoreAllocMemory(WpStore *self, WasmBinMemory mem, uint8_t *data_memory);
+WpWasDefType * WpStoreAllocDefType(WpStore *self, WpWasDefType * def);
 
-WpExportInstance * WpStoreAllocExport(WpStore *self, WasmBinExport exp, WpModuleState *mod);
+WpGlobalInstance * WpStoreAllocGlobal(WpStore *self, WpGlobalInstance *global);
 
-WpFunctionInstance * WpStoreAllocFunction(WpStore *self, WpModuleState *mod, WasmBinFuncType func_type, WasmBinFunction func);
+WpMemoryInstance * WpStoreAllocMemory(WpStore *self, WpMemoryInstance *mem, uint8_t *data_memory);
 
+WpExportInstance * WpStoreAllocExport(WpStore *self, WpExportInstance *exp);
+
+WpFunctionInstance * WpStoreAllocFunctionInstance(WpStore *self, WpFunctionInstance *func);
 
 #ifdef __cplusplus
     }

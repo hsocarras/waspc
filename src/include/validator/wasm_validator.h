@@ -23,44 +23,28 @@
 
 
 
-typedef struct WpValContext{
+typedef struct Context{
 
     // types  
-    uint32_t types_count;                           /// number of types in the module
-    const uint8_t *types;                           /// pointer to the types section
-    
-    uint32_t functions;                             /// number of function declared
-    
-    const uint8_t *tables;
+    uint32_t types_count;                           /// number of types in the module  
+    uint32_t imports_count; 
+    uint32_t imports_functions_count;                             /// number of function declared 
+    uint32_t imports_tables_count;
+    uint32_t imports_mems_count;
+    uint32_t imports_globals_count;
+    uint32_t imports_tags_count;    
+    uint32_t functions_count;                             /// number of function declared  
     uint32_t tables_count;
-
-    const uint8_t *memories;
-    uint32_t memories_count;
-
-    const uint8_t *globals;
+    uint32_t mems_count;
     uint32_t globals_count;
-
-    const uint8_t *tags;
     uint32_t tags_count;
-
-    const uint8_t *elements;
+    uint32_t exports_count;
     uint32_t elements_count;
-
-    const uint8_t *datas;
-    uint32_t datas_count;
-
-    const uint8_t *locals;
+    uint32_t data_count;
     uint32_t locals_count;
-
-    const uint8_t *labels;
     uint32_t labels_count;
 
-    const uint8_t *return_type;
-    
-    const uint8_t *references;
-    uint32_t references_count;
-
-} WpValContext;
+} Context;
 
 
 typedef struct WpValidatorState{
@@ -68,10 +52,9 @@ typedef struct WpValidatorState{
     WpModuleState *mod;                         /// pointer to module object
     WpError *err;                                ///Error object for runtime
 
-    //WpValContext c;                            //context
+    Context c;                                  //context
     //WpValContext c_prime;                      //context auxiliary
-
-    //TODO val_satck size for validator must be same size than evaluator
+    
     /// size of the value stack
     StackValue *value_stack;                    /// stack to store value types
     StackValue *value_stack_top;                /// pointer to the top of the value stack
@@ -99,6 +82,8 @@ void WpValidatorStateInit(WpValidatorState *self);
 WpObject *WpValidatorValidateModule(WpValidatorState *self, WpModuleState *mod);
 
 // Validation function for each section//////////////////////////////////////////////////////////////////////////////////////
+uint32_t ValidateImport(WpValidatorState *self, const uint8_t *index, const uint8_t *import_section_end);
+
 uint32_t ValidateGlobal(WpValidatorState *self, const uint8_t *index, const uint8_t *global_section_end);
 
 uint32_t ValidateExport(WpValidatorState *self, const uint8_t *index, const uint8_t *export_section_end);

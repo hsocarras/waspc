@@ -30,19 +30,19 @@ typedef struct WpError{
     /// head for all Waspc object to allow cast
     WpObjectType wp_type;
 
-    /// errors id, unique for every posible error
-    uint32_t id;   
-    
-    //TODO : this mus be only for dev
-    uint8_t module_id;
-    uint8_t code; //code for the error, unique for every module
-    uint8_t subcode; //subcode for the error, unique for every module and code
-    uint8_t severity; //severity of the error, from 0 to 5, where 0 is the least severe and 5 is the most severe
+    /// errors fields
+    uint32_t error_type;        //TODO  enum with diferend types of error.
+    uint32_t id;                //TODO  unique id for every error, can be used to track the error in logs and diagnostics.
+    uint32_t timestamp;     //TODO  timestamp of when the error was generated, can be used to track the error in logs and diagnostics.
+    char *msg;          //TODO string message defined in diagnostic module.
 
     #if WASPC_CONFIG_DEV_FLAG == 1
-    char file[64];
-    char func[32];
+    uint32_t module_id;
+    uint32_t func_code;      //code for the function where the error was generated, unique for every module and function
+    uint32_t block_code;       //error code within the function, unique for every block of code where the error can be generated
+    uint32_t err_code;
     #endif
+    
 
 } WpError;
 

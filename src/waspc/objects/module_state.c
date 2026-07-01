@@ -9,7 +9,7 @@
  * 
  */
 
-#include "objects/module.h"
+#include "objects/module_state.h"
 #include <stdlib.h>
 
 
@@ -17,18 +17,17 @@
  * @version 3.0
  * @brief Initialize a module state object
  */
-void WpModuleInit(WpModuleState *self){
+void WpModuleStateInit(WpModuleState *self){
 
     self->wp_type = WP_OBJECT_MODULE_STATE;
-    self->next = NULL;
-    //self->name.name = NULL;
-    //self->name.lenght = 0;
     self->status = WP_MODULE_STATUS_INIT;
 
     ///Binary propertyes///////////////////////////////////////////////////////////////////
     self->buf = NULL;
     self->bufsize = 0;
     self->version = 0;
+
+    //Binary sections start and size, these are for internal use only, not for public API.
     self->typesec = (WasmBinSection){0, NULL};
     self->importsec = (WasmBinSection){0, NULL};
     self->functionsec = (WasmBinSection){0, NULL};
@@ -43,22 +42,8 @@ void WpModuleInit(WpModuleState *self){
     self->codesec = (WasmBinSection){0, NULL};
     self->datasec = (WasmBinSection){0, NULL};
     ////////////////////////////////////////////////////////////////////////////////////////    
-    self->type_count = 0;
-    self->import_count = 0; 
-    self->function_count = 0;
-    self->table_count = 0;
-    self->memory_count = 0;
-    self->tag_count = 0;
-    self->global_count = 0;
-    self->export_count = 0;
-    self->element_count = 0;
-    self->start = 0;
-    self->element_count = 0;
-    self->data_count = 0;
+    self->instance = NULL;
     ////////////////////////////////////////////////////////////////////////////////////////
-    self->globals = NULL;
-    self->funcs = NULL;
-    self->mems = NULL;
-    self->exports = NULL;
+    
 }
 

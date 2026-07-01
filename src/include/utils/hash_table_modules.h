@@ -15,44 +15,41 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
+#include "objects/module_state.h"
 
 #include <stdint.h>
 
 
-typedef struct HtEntry {                            ///Entry for hash table    
-    const char *key;                                       ///string key
-    void *value;                                    ///any kind value
-} HtEntry ;
+typedef struct HtModuleEntry {                            ///Entry for hash table    
+    char key[32];                                       ///string key TODO config max character sisze. For now fixed to 32 characters
+    WpModuleState module;                                    ///any kind value
+} HtModuleEntry ;
 
 
-typedef struct HashTable{                           ///Implemented as dinamic array of entry
+typedef struct HashTableModules{                           
     uint32_t capacity;                              ///array capacity
     uint32_t length;                                /// array current usage
-    HtEntry *entries;
-} HashTable;
+    HtModuleEntry *entries;
+} HashTableModules;
 
 /// @brief Constructor for a hash table
 /// @param self 
-void HashTableInit(HashTable *self);
+void HashTableModulesInit(HashTableModules *self);
 
-void HastTableSetup(HashTable *self, HtEntry *table, uint32_t number_entries);
-
-/// @brief Destructor for a hash table struct
-/// @param self 
-void HasTableDestroy(HashTable *self);
 
 /// @brief Get item from hash table for a given key.
 /// @param self 
 /// @param key 
+/// @param key_len 
 /// @return value or NULL if key not found
-//void * HashTableGet(HashTable *self, Name key);
+WpModuleState * HashTableModulesGet(HashTableModules *self, const char *key, size_t key_len);
 
 /// @brief Set item with given key to value. If item not exist, a new one is created
 /// @param self 
 /// @param key 
 /// @param value 
-/// @return value if success, otherwise NULL
-//HtEntry * HashTableSet(HashTable *self, const Name key, void *value);
+/// @return index of the entry if the operation was successful, or 0xFFFFFFFF if it failed
+WpModuleState * HashTableModulesSet(HashTableModules *self, const char *key, size_t key_len,WpModuleState value);
 
 
 #ifdef __cplusplus

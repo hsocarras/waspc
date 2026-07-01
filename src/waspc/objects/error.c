@@ -17,21 +17,22 @@
  * @brief Default constructor for Error objects
  * 
  * @param self
- * @param id  Diagnostic Id.
- * @param mod Module that produce the error
  */
 void WpErrorInit(WpError *self){
     
     self->wp_type = WP_OBJECT_ERROR;
-
+    
+    /// errors id, unique for every error
+    self->error_type = 0;
     self->id = 0;
-    uint8_t module_id = 0;
-    uint8_t code = 0;
-    uint8_t subcode = 0;
-    uint8_t severity = 0;
-    #if WASPC_CONFIG_DEV_FLAG == 1   
-    strcpy_s(self->file, 64, "none"); 
-    strcpy_s(self->func, 32, "nan");    
+    self->timestamp = 0;
+    self->msg = NULL;
+
+    #if WASPC_CONFIG_DEV_FLAG == 1
+    self->module_id = 0;
+    self->func_code = 0;
+    self->block_code = 0;
+    self->err_code = 0;
     #endif
     
 }

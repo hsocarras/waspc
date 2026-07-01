@@ -9,7 +9,7 @@
  * 
  */
 
-#include "validation/wasm_validator.h"
+#include "validator/wasm_validator.h"
 #include "decoder/wasm_decoder.h"
 #include "interpreter/values.h"
 #include "webassembly/instructions.h"

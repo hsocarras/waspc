@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
-#include "objects/module.h"
+#include "objects/module_state.h"
+#include "objects/module_instance.h"
 #include "interpreter/values.h"
 #include "runtime/runtime.h"
 #include "../wasm/file_reader.h"
@@ -11,6 +12,7 @@ static uint8_t MEM[4096*64];
 static uint8_t DATA_MEM[4096*8*128];
 static StackValue val[256];
 static CallFrame call_stack[64];
+static HtModuleEntry table[10]; // Allocate memory for the hash table
 
 TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_EXECUTE_EXPORT_FUNCTION) {
 
@@ -27,7 +29,9 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_EXECUTE_EXPORT_FUNCTION) {
     WpRuntimeSetMemoryStore(&runtime, MEM, 4096*64);
     WpRuntimeSetMemoryData(&runtime, DATA_MEM, 4096*8*128);
     WpRuntimeSetMemoryValueStack(&runtime, val, 256); 
-    WpRuntimeSetMemoryCallStack(&runtime, call_stack, 64);    
+    WpRuntimeSetMemoryCallStack(&runtime, call_stack, 64);  
+    WpRuntimeSetMemoryHashTable(&runtime, table, 10); // Set the hash table memory and capacity  
+    
     ASSERT_EQ(runtime.interpreter.call_stack_size, 64) << "Call stack size is not set correctly";
     ASSERT_EQ(runtime.interpreter.call_stack, call_stack) << "Call stack pointer is not set correctly";
     ///////////////////////////////////////////////////////////////////////////////////////////////////////    
@@ -40,12 +44,19 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_EXECUTE_EXPORT_FUNCTION) {
         len     // Set the buffer size to the size of the test WASM file
     };
 
-    WpModuleState mod_state;
-    WpModuleInit(&mod_state);
-
-    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, &mod_state, bin_file);
-
-    result = WpRuntimeInstanciateModule(&runtime, &mod_state, NULL, 0);
+    WpModuleState *mod_state;
+    
+    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, bin_file, "test_module");
+    if(result->wp_type == WP_OBJECT_ERROR) {
+        WpError *error = (WpError *)result;
+        FAIL() << "WpRuntimeCreateModuleFromBinFile returned an error: " << error->id;
+    }
+    if(result->wp_type != WP_OBJECT_MODULE_STATE) {
+        FAIL() << "WpRuntimeCreateModuleFromBinFile did not return a WpModuleState object";
+    }
+    mod_state = (WpModuleState *)result;
+    
+    result = WpRuntimeInstanciateModule(&runtime, mod_state);
     // Check if the result is not null
     ASSERT_NE(result, nullptr) << "WpRuntimeInstantiateModule returned null";
     if(result->wp_type == WP_OBJECT_ERROR) {
@@ -53,11 +64,11 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_EXECUTE_EXPORT_FUNCTION) {
         FAIL() << "WpRuntimeInstantiateModule returned an error: " << error->id;
     }
     // Check if the result is a module state object 
-    ASSERT_EQ(result->wp_type, WP_OBJECT_MODULE_STATE) << "WpRuntimeInstantiateModule did not return a WpModuleState object";
-    WpModuleState *instantiated_module = (WpModuleState *)result;
+    ASSERT_EQ(result->wp_type, WP_OBJECT_MODULE_INSTANCE) << "WpRuntimeInstantiateModule did not return a WpModuleState object";
+    WpModuleInstance *instantiated_module = (WpModuleInstance *)result;
     // Check if the module status is instantiated    
     ASSERT_EQ(instantiated_module->type_count, 3) << "Module type count is not 1";
-
+    ASSERT_EQ(instantiated_module->export_count, 3) << "Module export count is not 3 SET, GET, and Memory";
     //Set args
     StackValue args[3];
     args[0].type = WAS_VAL_TYPE_I32;
@@ -69,29 +80,30 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_EXECUTE_EXPORT_FUNCTION) {
 
     char func_name[4] = "set";
 
-    result = WpRuntimeInvokeFunction(&runtime, &mod_state, func_name, args, 3);
+    result = WpRuntimeInvokeFunction(&runtime, instantiated_module, func_name, args, 3);
     ASSERT_NE(result, nullptr) << "WpRuntimeInstantiateModule returned null";
     if(result->wp_type == WP_OBJECT_ERROR) {
         WpError *error = (WpError *)result;
         FAIL() << "WpRuntimeInvokeFunction returned an error: " << error->id;
     }
-    /*
+    
     args[0].value.i32 = 1;
     args[1].value.f64 = 20.0;
     args[2].value.f64 = 25.0;
 
-    result = WpRuntimeInvokeFunction(&runtime, &mod_state, func_name, args, 3);
+    result = WpRuntimeInvokeFunction(&runtime, instantiated_module, func_name, args, 3);
     ASSERT_NE(result, nullptr) << "WpRuntimeInstantiateModule returned null";
     if(result->wp_type == WP_OBJECT_ERROR) {
         WpError *error = (WpError *)result;
         FAIL() << "WpRuntimeInstantiateModule returned an error: " << error->id;
     }
-    */
+    
+   
     StackValue index;
     index.type = WAS_VAL_TYPE_I32;  
     index.value.i32 = 0;
     func_name[0] = 'g';
-    result = WpRuntimeInvokeFunction(&runtime, &mod_state, func_name, &index, 1);
+    result = WpRuntimeInvokeFunction(&runtime, instantiated_module, func_name, &index, 1);
     ASSERT_NE(result, nullptr) << "WpRuntimeInstantiateModule returned null";
     if(result->wp_type == WP_OBJECT_ERROR) {
         WpError *error = (WpError *)result;

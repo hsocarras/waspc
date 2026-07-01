@@ -10,7 +10,7 @@
  */
 
 //#include "diagnostic/error.h"
-#include "utils/hash_table.h"
+#include "utils/hash_table_modules.h"
 
 
 #include <string.h>
@@ -24,8 +24,8 @@
  * @param key Null terminated string.
  * @param len Length of string.
  * @return uint32_t 
- *
-static uint32_t fnv(Name key){
+ */
+static uint32_t fnv(const char *key, size_t len){
 
     //Constant definition for FNV algoritm
     #define FNV_PRIME_32 16777619
@@ -34,14 +34,14 @@ static uint32_t fnv(Name key){
     
     uint32_t hash = FNV_OFFSET_BASIC;    
     
-    for(const char *k = key.name; k < (key.name + key.lenght); k++){
+    for(const char *k = key; k < (key + len); k++){
         hash ^= (uint32_t)(unsigned char)(*k);
         hash *= FNV_PRIME_32;
     }
 
     return hash;
 }
-*/
+
 
 /**
  * @brief Inserts or updates an entry in the hash table using linear probing.
@@ -53,30 +53,34 @@ static uint32_t fnv(Name key){
  *
  * @param self Pointer to the hash table.
  * @param key The key to insert or update.
+ * @param key_len The length of the key.
  * @param value Pointer to the value to associate with the key.
  * @return uint32_t The index in the table where the entry was inserted or updated.
- *
-static uint32_t HashTableSetEntry(HashTable *self, Name key, void *value){
-
+ */
+static uint32_t HashTableModulesSetEntry(HashTableModules *self, const char *key, size_t key_len, WpModuleState value){
+    //TODO key_len should be less than 32, otherwise we will have a buffer overflow. We should handle this case properly, either by truncating the key or returning an error.
+    if (key_len >= 32) {
+        return 0; // Error: key too long
+    }
     
-    uint32_t hash = fnv(key);
+    uint32_t hash = fnv(key, key_len);;
     uint32_t index = hash % self->capacity;
     uint32_t i = 0;             //iterator
 
     // Loop till we find an empty entry.
     while (i < self->capacity) {
 
-        if(self->entries[index].key.name == NULL){
+        if(self->entries[index].key[0] == '\0'){
             //empty bucket at index. New entry
-            self->entries[index].key.name = key.name;                     //copy key
-            self->entries[index].key.lenght = key.lenght;                 //copy lenght
-            self->entries[index].value = value;                 //copy value
+            strncpy(self->entries[index].key, key, key_len); //copy key to entry
+            self->entries[index].key[key_len] = '\0'; // Ensure null termination
+            self->entries[index].module = value;                 //copy value
             self->length++;                                     //increment length
             return index;
         }
-        else if (strncmp(key.name, self->entries[index].key.name, key.lenght) == 0) {
+        else if (strncmp(key, self->entries[index].key, key_len) == 0) {
             // Found key (it already exists), update value.
-            self->entries[index].value = value;
+            self->entries[index].module = value;
             return index;
         }
 
@@ -91,48 +95,19 @@ static uint32_t HashTableSetEntry(HashTable *self, Name key, void *value){
     assert(0); // Should never get here.
     return 0;
 }
-*/
+
 
 /**
  * @brief Hash Table constructor.
  * 
  * @param self  
- *
-void HashTableInit(HashTable *self){
+ */
+void HashTableModulesInit(HashTableModules *self){
     
     self->length = 0; 
     self->capacity = 0;   
     self->entries = NULL;    
 }
-*/
-
-/**
- * @brief Initializes the hash table with a given entries array and capacity.
- *
- * This function sets up the hash table to use the provided array of entries and sets the table's capacity.
- * It also initializes all entries in the array to empty (key.name = NULL, key.lenght = 0, value = NULL).
- * The caller is responsible for allocating the entries array before calling this function.
- *
- * @param self Pointer to the hash table to initialize.
- * @param table Pointer to the pre-allocated array of hash table entries.
- * @param number_entries Number of entries (capacity) in the table.
- *
-void HastTableSetup(HashTable *self, HtEntry *table, uint32_t number_entries){
-
-    assert(table);
-    assert(number_entries);
-
-    //Initialize entries
-    for(int i = 0; i < number_entries; i++){
-        table[i].key.lenght = 0;
-        table[i].key.name = NULL;
-        table[i].value = NULL;
-    }
-
-    self->capacity = number_entries;
-    self->entries = table;
-}
-*/
 
 /**
  * @brief Retrieves the value associated with a given key from the hash table.
@@ -143,34 +118,28 @@ void HastTableSetup(HashTable *self, HtEntry *table, uint32_t number_entries){
  *
  * @param self Pointer to the hash table.
  * @param key The key to search for.
+ * @param key_len The length of the key.
  * @return void* Pointer to the value associated with the key, or NULL if the key is not found.
- *
-void * HashTableGet(HashTable *self, Name key){
+ */
+WpModuleState * HashTableModulesGet(HashTableModules *self, const char *key, size_t key_len){
 
     //hash table must be initilised first
     assert(self->capacity > 0);
     // key must be valid
-    assert(key.name);    
+    assert(key);    
 
-    uint32_t hash = fnv(key);
+    uint32_t hash = fnv(key, key_len);
     uint32_t index = hash % self->capacity;  
     uint32_t i = 0;             //iterator 
     
     //Linear probe algoritm
     while(i < self->capacity) {     //used i instead index for start at begining if key is not found between index and final bucket
         
-        if(self->entries[index].key.name == NULL){
-            //empty bucket at index. Key not found
-            goto next;
-        }
-        
-
-        if(strncmp(key.name, self->entries[index].key.name, key.lenght) == 0){                
+        if(strncmp(key, self->entries[index].key, key_len) == 0){                
                 // Found key, return value.
-                return self->entries[index].value;
+                return &self->entries[index].module;
         }
-        
-        next:
+
         index++;
         
         if (index >= self->capacity) {
@@ -184,7 +153,7 @@ void * HashTableGet(HashTable *self, Name key){
     //not found
     return NULL;    
 }
-*/
+
 
 /**
  * @brief Inserts or updates an entry in the hash table.
@@ -195,23 +164,23 @@ void * HashTableGet(HashTable *self, Name key){
  *
  * @param self Pointer to the hash table.
  * @param key The key to insert or update.
+ * @param key_len The length of the key.
  * @param value Pointer to the value to associate with the key.
- * @return HtEntry * The entry pointer if the operation was successful, or NULL if the table is full.
- *
-HtEntry * HashTableSet(HashTable *self, Name key, void *value){
+ * @return WpModuleState* Pointer to the entry if the operation was successful, or NULL if it failed.
+ */
+WpModuleState * HashTableModulesSet(HashTableModules *self, const char *key, size_t key_len, WpModuleState value){
 
     //hash table must be initialise first
     assert(self->capacity > 0);
     //key diferent than null
-    assert(key.name);     
-       
-    uint32_t hash = fnv(key);
+    assert(key);          
+    
     uint32_t index;    
     
     //Check for enought capacity   
     if(self->length < self->capacity){
-        index = HashTableSetEntry(self, key, value);
-        return &self->entries[index];  //return pointer to entry
+        index = HashTableModulesSetEntry(self, key, key_len, value);
+        return &self->entries[index].module;  //return pointer to the entry
     }
     else{
         //table completly full
@@ -219,7 +188,7 @@ HtEntry * HashTableSet(HashTable *self, Name key, void *value){
     }
         
 }
-*/
+
 
 
 

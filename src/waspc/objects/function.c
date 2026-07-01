@@ -11,18 +11,27 @@
 
  #include "objects/function.h"
 
- void WpFunctionInstanceInit(WpFunctionInstance *self){
+ /**
+ * @brief Default constructor for WpFunctionInstance objects
+ * 
+ * @param self Pointer to the WpFunctionInstance object to initialize
+ * @param func_kind The type of the function
+ */
+ void WpFunctionInstanceInit(WpFunctionInstance *self, WpFunctionType func_kind) {
 
     self->wp_type = WP_OBJECT_FUNCTION_INSTANCE;
+    self->next = NULL;
+
+    self->func_kind = func_kind;
+    self->address = NULL;
+
     self->module = NULL;
-    self->param_len = 0;
-    self->param_types = NULL;
-    self->ret_len = 0;
-    self->ret_types = NULL;
+
+    self->func_type = NULL;
+    
+    
     self->locals = NULL;
     self->body = NULL;
     self->body_end = NULL;
-
-    self->next = NULL;
  
  }

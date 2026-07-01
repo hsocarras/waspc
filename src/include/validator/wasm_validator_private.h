@@ -16,9 +16,7 @@
     extern "C" {
 #endif
 
-//wasp includes
-#include "validation/wasm_validator.h"
-
+#include <stdint.h>
 
 /// Methods (Functions with self) ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -47,7 +45,7 @@ uint32_t ValidateTableBuf(const uint8_t *buf);
 
 uint32_t ValidateTypeBuf(const uint8_t *buf, uint32_t type_count);
 
-uint32_t ValidateImportBuf(const uint8_t *buf, uint32_t functiontype_count);
+uint32_t ValidateImportBuf(const uint8_t *buf);
 
 uint32_t ValidateTableTypeBuf(const uint8_t *buf);
 

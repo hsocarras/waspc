@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
-#include "objects/module.h"
-#include "validation/wasm_validator.h"
-#include "validation/wasm_validator_private.h"
+#include "objects/module_state.h"
+#include "objects/module_instance.h"
+#include "validator/wasm_validator.h"
+#include "validator/wasm_validator_private.h"
 #include "decoder/wasm_decoder.h"
 #include "../wasm/file_reader.h"
 
@@ -28,7 +29,7 @@ TEST(WASPC_VALIDATION_VALIDATOR, VALIDATE_SECTION_BY_ID) {
     validator.value_stack_end = val + 256;
 
     WpModuleState mod;
-    WpModuleInit(&mod); // Initialize the module state
+    WpModuleStateInit(&mod); // Initialize the module state
     mod.buf = wasm_buffer.data();
     mod.bufsize = wasm_buffer.size();
    
