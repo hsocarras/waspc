@@ -11,6 +11,7 @@
 
 #include "runtime/runtime.h"
 #include "utils/leb128.h"
+#include "utils/hash_table_host_func.h"
 #include "webassembly/bin.h"
 
 #include <assert.h>
@@ -28,7 +29,31 @@
  * @return Pointer to the resolved object or an error object.
  */
 static WpObject *WpRuntimerResolveImport(WpRuntimeState *self, WasmBinImport import)
-{  
+{   
+    //Check if the import module name is valid
+    if (import.module_name_len == 0 || import.module_name == NULL)
+    {   
+        self->err.id = __LINE__;    //TODO
+        return (WpObject *)&self->err;
+    }
+    
+    //Check if import name is buildin on the runtime. ///////////////////////////////
+    if(strncmp((const char *)import.module_name, IEC_STD, import.module_name_len) == 0)
+    {   
+       
+        //Check if the import name is in the buildin host functions hash table
+        WpBuildinFunction *host_func = HashTableHostFuncGet(&self->host_funcs_std, (const char *)import.name, import.name_len);
+        if (!host_func)
+        {   
+            self->err.id = __LINE__;    //TODO
+            return (WpObject *)&self->err;
+        }
+        
+        
+        return (WpObject *)host_func;
+    }
+
+    /// Look for instantiate module in the hash table using import module name, if not found fail
     // Get module instance from hash table using import module name, if not found fail
     WpModuleState *import_mod = HashTableModulesGet(&self->modules, (const char *)import.module_name, import.module_name_len);
     
@@ -123,6 +148,10 @@ void WpRuntimeInit(WpRuntimeState *self)
     self->call_stack_size = 0;
     WpStoreInit(&self->store); //
     HashTableModulesInit(&self->modules); // Initialize hash table with zero capacity, will be set later
+    //Init hash table for host functions
+    self->host_funcs_std.entries = host_func_entries_std;
+    self->host_funcs_std.capacity = 96;
+    self->host_funcs_std.length = 2;
     // Interpreter
     WpInterpreterInit(&self->interpreter);
     self->interpreter.store = &self->store;
@@ -265,7 +294,7 @@ WpObject * WpRuntimeCreateModuleFromBinFile(WpRuntimeState *self, WpBinFile bin_
     {
         self->err.id = 30;
         return (WpObject *)&(self->err);
-    }    
+    } 
     return (WpObject *)module;
 }
 
@@ -454,31 +483,56 @@ WpObject *WpRuntimeInstanciateModule(WpRuntimeState *self, WpModuleState *mod)
             switch (import.external_type)
             {
             case 0: // func
-            {
-                if (resolved_import->wp_type != WP_OBJECT_FUNCTION_INSTANCE)
+            {   
+                if(resolved_import->wp_type != WP_OBJECT_FUNCTION_BUILDIN && resolved_import->wp_type != WP_OBJECT_FUNCTION_INSTANCE)
                 {
                     self->err.id = 23;
                     return (WpObject *)&self->err;
                 }
-                //Check function type match
-                WpFunctionInstance *func_instance_imported = (WpFunctionInstance *)resolved_import;
-                uint32_t type_index;
-                DecodeLeb128UInt32(import.external, &type_index);
-                if(IsFuncTypeMatch(func_instance_imported->func_type->binary, mod_instance_alloc->types[type_index].binary) == 0)
-                {
-                    self->err.id = 23;
-                    return (WpObject *)&self->err;
-                }
+
                 // Create a function instance for the resolved import and asign it to module instance imports list, we need to create a new function instance because the same imported function can be used by multiple modules and each module needs its own instance of the imported function to store its own state during execution. For example, if two modules import the same function and they are called at the same time, they will have different call stacks and local variables, so they need different instances of the imported function to avoid conflicts.
                 WpFunctionInstance func_instance;
-                WpFunctionInstanceInit(&func_instance, WP_FUNC_IMPORT);
-                // Assign the resolved import function instance to the new function instance
-                func_instance.func_kind = WP_FUNC_IMPORT;
-                func_instance.address = (WpFunctionInstance *)resolved_import;
-                func_instance.func_type = ((WpFunctionInstance *)resolved_import)->func_type;
-                func_instance.body = ((WpFunctionInstance *)resolved_import)->body;
-                func_instance.body_end = ((WpFunctionInstance *)resolved_import)->body_end;
-                func_instance.locals = ((WpFunctionInstance *)resolved_import)->locals; 
+                WpFunctionInstanceInit(&func_instance, WP_FUNC_IMPORT);                
+
+                //Section for build in function ///////////////////////////////////////////////////////////////////////////////
+                if(resolved_import->wp_type == WP_OBJECT_FUNCTION_BUILDIN)
+                {                     
+                    WpBuildinFunction *func_buildin = (WpBuildinFunction *)resolved_import;
+                    uint32_t type_index;
+                    DecodeLeb128UInt32(import.external, &type_index);
+                    if(IsFuncTypeMatch(func_buildin->func_type->binary, mod_instance_alloc->types[type_index].binary) == 0)
+                    {
+                        self->err.id = __LINE__;
+                        return (WpObject *)&self->err;
+                    }
+
+                    func_instance.func_kind = WP_FUNC_HOST;
+                    func_instance.host_func = func_buildin->func_ptr;
+                    func_instance.func_type = func_buildin->func_type;
+                }
+
+                if(resolved_import->wp_type == WP_OBJECT_FUNCTION_INSTANCE)
+                {
+                    //Check function type match
+                    WpFunctionInstance *func_instance_imported = (WpFunctionInstance *)resolved_import;
+                    uint32_t type_index;
+                    DecodeLeb128UInt32(import.external, &type_index);
+                    if(IsFuncTypeMatch(func_instance_imported->func_type->binary, mod_instance_alloc->types[type_index].binary) == 0)
+                    {
+                        self->err.id = 23;
+                        return (WpObject *)&self->err;
+                    }
+
+                    // Assign the resolved import function instance to the new function instance
+                    func_instance.func_kind = WP_FUNC_IMPORT;
+                    func_instance.address = (WpFunctionInstance *)resolved_import;
+                    func_instance.func_type = ((WpFunctionInstance *)resolved_import)->func_type;
+                    func_instance.body = ((WpFunctionInstance *)resolved_import)->body;
+                    func_instance.body_end = ((WpFunctionInstance *)resolved_import)->body_end;
+                    func_instance.locals = ((WpFunctionInstance *)resolved_import)->locals; 
+                }
+                                
+                
 
                 // Allocation
                 WpFunctionInstance *func_address = WpStoreAllocFunctionInstance(&self->store, &func_instance);

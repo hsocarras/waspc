@@ -123,6 +123,6 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_EXECUTE_IMPORT_FUNCTION) {
         FAIL() << "WpRuntimeCreateModuleFromBinFile returned an error: " << error->id;
     }
     ASSERT_EQ(((WpResult *)result)->len, 3) << "WpRuntimeInvokeFunction did not return the expected number of results";
-    
+       
 }
 

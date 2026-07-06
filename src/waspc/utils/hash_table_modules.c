@@ -15,32 +15,8 @@
 
 #include <string.h>
 #include <assert.h> 
-//#include <stdio.h>
 
 
-/**
- * @brief Fowler–Noll–Vo hash function 
- * 
- * @param key Null terminated string.
- * @param len Length of string.
- * @return uint32_t 
- */
-static uint32_t fnv(const char *key, size_t len){
-
-    //Constant definition for FNV algoritm
-    #define FNV_PRIME_32 16777619
-    #define FNV_OFFSET_BASIC 2166136261u
-
-    
-    uint32_t hash = FNV_OFFSET_BASIC;    
-    
-    for(const char *k = key; k < (key + len); k++){
-        hash ^= (uint32_t)(unsigned char)(*k);
-        hash *= FNV_PRIME_32;
-    }
-
-    return hash;
-}
 
 
 /**
@@ -59,7 +35,7 @@ static uint32_t fnv(const char *key, size_t len){
  */
 static uint32_t HashTableModulesSetEntry(HashTableModules *self, const char *key, size_t key_len, WpModuleState value){
     //TODO key_len should be less than 32, otherwise we will have a buffer overflow. We should handle this case properly, either by truncating the key or returning an error.
-    if (key_len >= 32) {
+    if (key_len >= HASH_TABLE_MODULES_KEY_LEN) {
         return 0; // Error: key too long
     }
     
@@ -96,7 +72,6 @@ static uint32_t HashTableModulesSetEntry(HashTableModules *self, const char *key
     return 0;
 }
 
-
 /**
  * @brief Hash Table constructor.
  * 
@@ -127,6 +102,10 @@ WpModuleState * HashTableModulesGet(HashTableModules *self, const char *key, siz
     assert(self->capacity > 0);
     // key must be valid
     assert(key);    
+    if(key_len > HASH_TABLE_MODULES_KEY_LEN) {
+        // Key length exceeds maximum allowed length
+        return NULL;
+    }
 
     uint32_t hash = fnv(key, key_len);
     uint32_t index = hash % self->capacity;  
@@ -151,7 +130,8 @@ WpModuleState * HashTableModulesGet(HashTableModules *self, const char *key, siz
     }
 
     //not found
-    return NULL;    
+    return NULL;
+      
 }
 
 
@@ -170,7 +150,7 @@ WpModuleState * HashTableModulesGet(HashTableModules *self, const char *key, siz
  */
 WpModuleState * HashTableModulesSet(HashTableModules *self, const char *key, size_t key_len, WpModuleState value){
 
-    //hash table must be initialise first
+     //hash table must be initialise first
     assert(self->capacity > 0);
     //key diferent than null
     assert(key);          
@@ -185,8 +165,7 @@ WpModuleState * HashTableModulesSet(HashTableModules *self, const char *key, siz
     else{
         //table completly full
         return NULL;
-    }
-        
+    }        
 }
 
 

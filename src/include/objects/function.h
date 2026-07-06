@@ -18,18 +18,26 @@
 
 //wasp includes
 #include "objects/object.h"
-#include "objects/was_deftype.h"
-
+#include "objects/was_deftype.h" 
+#include "interpreter/values.h"
 // Forward declaration of ModuleInstance
 struct WpModuleInstance;
 
 #include <stdint.h>
+
+typedef StackValue (*HostFunc)(uint32_t argCount, StackValue* args);
 
 typedef enum {
     WP_FUNC_NORMAL,
     WP_FUNC_IMPORT,
     WP_FUNC_HOST,
 } WpFunctionType;
+
+typedef struct WpBuildinFunction {
+    WpObjectType wp_type;
+    const WpWasDefType *func_type;  // Pointer to the function signature in the signatures array
+    HostFunc func_ptr;              // Pointer to the host function implementation
+} WpBuildinFunction;
 
 /**
  * @brief WpFunctionInstance represents a function instance in the WebAssembly module.
@@ -40,7 +48,8 @@ typedef struct WpFunctionInstance {
     struct WpFunctionInstance *next;
 
     WpFunctionType func_kind;                   /// type of the function, used for type checking in module instantiation
-    struct WpFunctionInstance *address;                /// pointer to the function instance, assigned during module instantiation
+    struct WpFunctionInstance *address;         /// pointer to the function instance, assigned during module instantiation
+    HostFunc host_func;                         /// pointer to the host function, used for calling host functions
 
     /// @brief module instance that function belong to
     struct WpModuleInstance *module;

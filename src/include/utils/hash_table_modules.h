@@ -9,19 +9,20 @@
  * 
  */
 
-#ifndef WASPC_UTILS_HASH_TABLE_H
-#define WASPC_UTILS_HASH_TABLE_H
+#ifndef WASPC_UTILS_HASH_TABLE_MODULES_H
+#define WASPC_UTILS_HASH_TABLE_MODULES_H
 
 #ifdef __cplusplus
     extern "C" {
 #endif
+#include "utils/hash_table.h"
 #include "objects/module_state.h"
 
 #include <stdint.h>
 
-
+#define HASH_TABLE_MODULES_KEY_LEN 32
 typedef struct HtModuleEntry {                            ///Entry for hash table    
-    char key[32];                                       ///string key TODO config max character sisze. For now fixed to 32 characters
+    char key[HASH_TABLE_MODULES_KEY_LEN];                                       ///string key TODO config max character sisze. For now fixed to 32 characters
     WpModuleState module;                                    ///any kind value
 } HtModuleEntry ;
 

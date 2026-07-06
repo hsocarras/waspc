@@ -20,12 +20,18 @@
 #include "objects/wp_objects.h"
 #include "memory/store.h"
 #include "utils/hash_table_modules.h"
+#include "utils/hash_table_host_func.h"
 #include "decoder/wasm_decoder.h"
 #include "interpreter/interpreter.h"
 #include "validator/wasm_validator.h"
+#include "runtime/buildin/buildin.h"
 
 
 #include <stdint.h>
+
+///BUILD IN FUNCTIONS ////////////////////////////////////////////////////////////
+#define IEC_STD "host-std"
+//////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief Structure to represent a WebAssembly binary file in memory.
@@ -54,6 +60,7 @@ typedef struct WpRuntimeState{
     WpStore store;                              /// Store for instances according to webassembly specification.
 
     HashTableModules modules;                   /// Hash table for store module states with their name as key, to allow import resolution by name.
+    HashTableHostFunc host_funcs_std;               /// Hash table for store host functions with their name as key, to allow import resolution by name.
 
     uint8_t *data_memory;                       /// Pointer to the data memory for memory instaces data.
     uint32_t data_memory_size;                  /// Size of the data memory for memory instaces data.

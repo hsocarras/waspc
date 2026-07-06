@@ -20,7 +20,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
-//#include <stdio.h>
+#include <stdio.h>
 
 /**
  * @brief This function returns the default value for a given WebAssembly value type.
@@ -157,7 +157,7 @@ static uint32_t EvalFrame(WpInterpreterState *self, CallFrame *frame)
     while (1)
     { // TODO better loop condition, watch dog to break the loop and opcode end
         instruction = READ_BYTE();
-        //printf("Executing instruction: 0x%02X\n", instruction);
+        printf("Executing instruction: 0x%02X\n", instruction);
         switch (instruction)
         {
         case OPCODE_END:
@@ -239,7 +239,17 @@ static uint32_t EvalFrame(WpInterpreterState *self, CallFrame *frame)
             }   
             if(called_func->func_kind == WP_FUNC_HOST)
             {
-                return __LINE__; // TODO better error handling, maybe return an error object instead of an error code TRAP
+                HostFunc host_func = called_func->host_func;
+                if (!host_func)
+                {
+                    return __LINE__; // TODO better error handling, maybe return an error object instead of an error code TRAP
+                }
+                uint32_t arg_count = called_func->func_type->def.func_type.param_len;
+                c1 = called_func->host_func(arg_count, self->value_stack_top-arg_count);
+                //pop arguments from top of the stack
+                self->value_stack_top -= arg_count;
+                PushValue(self, c1);
+                break;
             }
             if(called_func->func_kind == WP_FUNC_IMPORT)
             {
@@ -529,6 +539,19 @@ static uint32_t EvalFrame(WpInterpreterState *self, CallFrame *frame)
             }
             c3.type = WAS_VAL_TYPE_F64;
             c3.value.f64 = c2.value.f64 * c1.value.f64;
+            PushValue(self, c3);
+            break;
+        }
+        case OPCODE_F64_DIV:
+        {
+            c1 = PopValue(self);
+            c2 = PopValue(self);
+            if (c1.type != WAS_VAL_TYPE_F64 || c2.type != WAS_VAL_TYPE_F64)
+            {
+                return __LINE__;
+            }
+            c3.type = WAS_VAL_TYPE_F64;
+            c3.value.f64 = c2.value.f64 / c1.value.f64;
             PushValue(self, c3);
             break;
         }

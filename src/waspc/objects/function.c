@@ -24,6 +24,7 @@
 
     self->func_kind = func_kind;
     self->address = NULL;
+    self->host_func = NULL;
 
     self->module = NULL;
 
