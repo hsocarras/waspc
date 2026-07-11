@@ -14,7 +14,7 @@
  */
 
 
-#include <utils/leb128.h>
+#include <decoder/leb128.h>
 #include "file_reader.h"
 
 #include <gtest/gtest.h>

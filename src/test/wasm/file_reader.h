@@ -8,7 +8,8 @@ namespace waspc {
 namespace test {
 namespace wasm {
 
-bool ReadFileContent(const std::string &filename, std::vector<uint8_t> &output, std::string &error);
+bool ReadFileContent(const std::string &filename, const uint8_t *output, std::string &error);
+uint32_t ReadFileSize(const std::string &filename);
 
 } // namespace wasm
 } // namespace test

@@ -18,7 +18,7 @@
 #include "validator/wasm_validator_private.h"
 #include "decoder/wasm_decoder.h"
 #include "webassembly/instructions.h"
-#include "utils/leb128.h"
+#include "decoder/leb128.h"
 
 #include <stdint.h>
 #include <assert.h>

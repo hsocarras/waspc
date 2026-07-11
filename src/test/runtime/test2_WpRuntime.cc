@@ -3,47 +3,42 @@
 #include "objects/module_instance.h"
 #include "interpreter/values.h"
 #include "runtime/runtime.h"
+#include "memory/load_memory.h"
 #include "../wasm/file_reader.h"
 
 #include <stdlib.h>
 
-
-static uint8_t MEM[4096*64];
+static uint8_t LOAD_MEMORY[4096];   //memory for binary files
+static HtModuleEntry table[10];     // Allocate memory for the hash table
+static uint8_t STORE[4096*64];
 static uint8_t DATA_MEM[4096*8*128];
 static StackValue val[256];
 static CallFrame call_stack[64];
-static HtModuleEntry table[10]; // Allocate memory for the hash table
 
 TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_EXECUTE_EXPORT_FUNCTION) {
-
-    //load sammple wasm file into a buffer
-    std::vector<uint8_t> wasm_buffer;
-    std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample2.wasm", wasm_buffer, error);
-    ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
-    ASSERT_FALSE(wasm_buffer.empty());
-    
+        
     // Initialize the runtime /////////////////////////////////////////////////////////////////////////////
     WpRuntimeState runtime;
     WpRuntimeInit(&runtime);    
-    WpRuntimeSetMemoryStore(&runtime, MEM, 4096*64);
+    WpRuntimeSetMemoryStore(&runtime, STORE, 4096*64);
     WpRuntimeSetMemoryData(&runtime, DATA_MEM, 4096*8*128);
     WpRuntimeSetMemoryValueStack(&runtime, val, 256); 
     WpRuntimeSetMemoryCallStack(&runtime, call_stack, 64);  
-    WpRuntimeSetMemoryHashTable(&runtime, table, 10); // Set the hash table memory and capacity  
+    WpRuntimeSetLoadMemory(&runtime, LOAD_MEMORY, 4096, table, 10); // Set the hash table memory and capacity  
     
     ASSERT_EQ(runtime.interpreter.call_stack_size, 64) << "Call stack size is not set correctly";
     ASSERT_EQ(runtime.interpreter.call_stack, call_stack) << "Call stack pointer is not set correctly";
     ///////////////////////////////////////////////////////////////////////////////////////////////////////    
-   
-    uint32_t len = wasm_buffer.size(); // Get the size of the test WASM file
 
-    //Creating a binary file struct to pass to the function
-    WpBinFile bin_file = {
-        wasm_buffer.data(), // Allocate memory for the binary file buffer
-        len     // Set the buffer size to the size of the test WASM file
-    };
+    //load sammple wasm file into a buffer
+    WpBinFile bin_file;    
+    uint32_t file_size = waspc::test::wasm::ReadFileSize("sample2.wasm");
+    bin_file = WpLoadMemoryReserve(&runtime.modules, file_size);
+    std::string error;
+    bool ok = waspc::test::wasm::ReadFileContent("sample2.wasm", bin_file.buf, error);
+    ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;   
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
     WpModuleState *mod_state;
     
     WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, bin_file, "test_module");

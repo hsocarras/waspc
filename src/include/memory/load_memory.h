@@ -1,13 +1,13 @@
 /**
- * @file 
+ * @file
  * @author Hector E. Socarras (hsocarras1987@gmail.com)
  * @brief Header file for wasm load module.
  * Memory used to load, wasm file form rom. This memory should only be manipulated by the driver.
  * @version 0.1
  * @date 2024-06-26
- * 
+ *
  * @copyright Copyright (c) 2024
- * 
+ *
  */
 
 #ifndef WASPC_MEMORY_LOAD_MEMORY_H
@@ -18,50 +18,72 @@
 #endif
 
 //wasp includes
+#include "objects/module_state.h"
+#include "utils/hash_table.h"
 
 
+#include <stddef.h>
 #include <stdint.h>
+#include <string.h>
+
+#define WP_LOAD_MEMORY_ALIGMENT 64u
+#define HASH_TABLE_MODULES_KEY_LEN 32
 
 /**
- * @brief Object for keep track for pou's source loaded in load memory
- * 
- *
-typedef struct WasmLoadInfo{
-
-    uint32_t id;          /// pou's hash name
-    uint32_t size;          /// pou's bin len
-    uint8_t *start;         /// where the pou start in load memory
-        
-} WasmLoadInfo;*/
-
-/**
- * @brief Object for managed load memory
- * 
- *
-typedef struct WorkMemory {
-    uint32_t code_size;     
-    uint8_t *code;                  /// buffer to stored WasmBinModule
-    uint8_t *index;                 // pointer to where start next free space
-    uint32_t block_count;           // counter to keep track LoadBlock in load memory
-
-}WorkMemory;*/
-
-/**
- * @brief Constructor
- * 
- * @param self 
- * @param buf pointer to runtime's load memory
- * @param size Load memory size 
+ * @brief View of a WebAssembly binary file loaded in memory.
  */
-//void InitWorkMemory(WorkMemory *self);
+typedef struct WpBinFile{
+    const uint8_t *buf;
+    uint32_t bufsize;
+} WpBinFile;
 
-//void InitCodeMem(WorkMemory *self, uint8_t * buf, uint32_t size);
+typedef enum WpLoadMemoryError{
+    WP_LOAD_MEMORY_OK = 0,
+    WP_LOAD_MEMORY_ERR_INVALID_ARGUMENT = 1,
+    WP_LOAD_MEMORY_ERR_OUT_OF_MEMORY = 2,
+    WP_LOAD_MEMORY_ERR_TOO_MANY_SEGMENTS = 3,
+    WP_LOAD_MEMORY_ERR_DUPLICATE_ID = 4,
+    WP_LOAD_MEMORY_ERR_SEGMENT_NOT_FOUND = 5
+} WpLoadMemoryError;
 
-//uint32_t GetFreeCodeMem (const WorkMemory *self);
+typedef struct HtModuleEntry {                            ///Entry for hash table    
+    char key[HASH_TABLE_MODULES_KEY_LEN];                                       ///string key TODO config max character sisze. For now fixed to 32 characters
+    WpModuleState module;                                    ///any kind value
+} HtModuleEntry ;
 
-//float GetLoadMemoryUsage(const WorkMemory *self);
+/**
+ * @brief Arena used by the embedder/driver to keep original WASM binaries.
+ *
+ * The arena does not own the buffer nor the segment table. Both must be provided
+ * by the caller so the runtime can work with static memory if needed.
+ */
+typedef struct WpLoadMemory{
+    uint8_t *buffer;                //static memory buffer
+    uint32_t buffer_size;           //buffer's size
+    uint32_t cursor;                //offset del siguiente byte libre
 
-//WpError AppendWasmCode(WorkMemory *self, const uint8_t *buf, const uint32_t size);
+    uint32_t capacity;                              ///array capacity
+    uint32_t length;                                /// array current usage
+    HtModuleEntry *entries;                         /// modules array.
+} WpLoadMemory;
+
+uint32_t WpLoadMemoryInit(WpLoadMemory *self, uint8_t *buffer, uint32_t buffer_size, HtModuleEntry *entries, uint32_t capacity);
+
+WpBinFile WpLoadMemoryReserve(WpLoadMemory *self, uint32_t size);
+
+/// @brief Get item from hash table for a given key.
+/// @param self 
+/// @param key 
+/// @param key_len 
+/// @return value or NULL if key not found
+WpModuleState * HashTableModulesGet(WpLoadMemory *self, const char *key, size_t key_len);
+
+/// @brief Set item with given key to value. If item not exist, a new one is created
+/// @param self 
+/// @param key 
+/// @param value 
+/// @return index of the entry if the operation was successful, or 0xFFFFFFFF if it failed
+WpModuleState * HashTableModulesSet(WpLoadMemory *self, const char *key, size_t key_len,WpModuleState value);
 
 #ifdef __cplusplus
     }

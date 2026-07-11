@@ -13,10 +13,7 @@
 #include "config.h"
 #include "runtime/runtime.h"
 #include "objects/error.h"
-
-////For TODO testing//////////////////////////////////////////////////////////////////////
-#include "utils/hash_table_modules.h"
-//#include "utils/names.h"
+#include "memory/load_memory.h"
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //Standars Includes
@@ -95,7 +92,7 @@ int main(int argc, const char* argv[]) {
     assert(argc > 1);
 
     printf("Starting \n");
-
+    /*
     //Init Runtime State    ////////////////////////////////////////////////////////////////////////////////
     WpRuntimeState runtime;    
     WpRuntimeInit(&runtime);  

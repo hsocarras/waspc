@@ -12,8 +12,6 @@
 #include "interpreter/interpreter.h"
 #include "webassembly/instructions.h"
 #include "webassembly/bin.h"
-#include "utils/leb128.h"
-#include "utils/ieee_754.h"
 #include "decoder/wasm_decoder.h"
 
 #include <stdint.h>

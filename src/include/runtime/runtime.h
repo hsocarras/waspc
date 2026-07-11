@@ -18,9 +18,8 @@
 
 //wasp includes
 #include "objects/wp_objects.h"
+#include "memory/load_memory.h"
 #include "memory/store.h"
-#include "utils/hash_table_modules.h"
-#include "utils/hash_table_host_func.h"
 #include "decoder/wasm_decoder.h"
 #include "interpreter/interpreter.h"
 #include "validator/wasm_validator.h"
@@ -32,14 +31,6 @@
 ///BUILD IN FUNCTIONS ////////////////////////////////////////////////////////////
 #define IEC_STD "host-std"
 //////////////////////////////////////////////////////////////////////////////////
-
-/**
- * @brief Structure to represent a WebAssembly binary file in memory.
- */
-typedef struct WpBinFile{
-    const uint8_t *buf;
-    uint32_t bufsize;
-} WpBinFile;
 
 /**
  * @brief Sandbox for webasembly runtime.
@@ -59,7 +50,7 @@ typedef struct WpRuntimeState{
     /// Memories  ///////////////////////////////////////////////////////////////////////////////////////////////
     WpStore store;                              /// Store for instances according to webassembly specification.
 
-    HashTableModules modules;                   /// Hash table for store module states with their name as key, to allow import resolution by name.
+    WpLoadMemory modules;                   /// Hash table for store module states with their name as key, to allow import resolution by name.
     HashTableHostFunc host_funcs_std;               /// Hash table for store host functions with their name as key, to allow import resolution by name.
 
     uint8_t *data_memory;                       /// Pointer to the data memory for memory instaces data.
@@ -97,7 +88,7 @@ void WpRuntimeInit(WpRuntimeState *self);
 
 uint32_t WpRuntimeSetMemoryStore(WpRuntimeState *self, uint8_t *mem, uint32_t mem_size);
 
-uint32_t WpRuntimeSetMemoryHashTable(WpRuntimeState *self, HtModuleEntry *mods, uint32_t entries);
+uint32_t WpRuntimeSetLoadMemory(WpRuntimeState *self, uint8_t *buffer, uint32_t buffer_size, HtModuleEntry *entries, uint32_t capacity);
 
 uint32_t WpRuntimeSetMemoryData(WpRuntimeState *self, uint8_t *data, uint32_t data_size);
 

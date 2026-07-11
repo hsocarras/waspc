@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "utils/leb128.h"
+#include "decoder/leb128.h"
 #include "decoder/wasm_decoder.h"
 #include "objects/module_state.h"
 #include "objects/module_instance.h"
@@ -36,7 +36,8 @@ TEST(WASPC__DECODER, GET_FUNCTYPE_1) {
     
     std::vector<uint8_t> index;
     std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", index, error);
+    index.resize(waspc::test::wasm::ReadFileSize("sample1.wasm"));
+    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", index.data(), error);
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
     ASSERT_FALSE(index.empty());
     
@@ -94,7 +95,8 @@ TEST(WASPC_VALIDATION_DECODER, GET_FUNCTION_1){
 
     std::vector<uint8_t> wasm_buffer;
     std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer, error);
+    wasm_buffer.resize(waspc::test::wasm::ReadFileSize("sample1.wasm"));
+    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer.data(), error);
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
     ASSERT_FALSE(wasm_buffer.empty());
 
@@ -161,7 +163,8 @@ TEST(WASPC_VALIDATION_DECODER, GET_GLOBAL_1){
     //read sample wasm file into a buffer
     std::vector<uint8_t> wasm_buffer;
     std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer, error);
+    wasm_buffer.resize(waspc::test::wasm::ReadFileSize("sample1.wasm"));
+    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer.data(), error);
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
     ASSERT_FALSE(wasm_buffer.empty());
 
@@ -216,7 +219,8 @@ TEST(WASPC_VALIDATION_DECODER, GET_EXPORT_SECTION_1){
 
     std::vector<uint8_t> wasm_buffer;
     std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer, error);
+    wasm_buffer.resize(waspc::test::wasm::ReadFileSize("sample1.wasm"));
+    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer.data(), error);
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
     ASSERT_FALSE(wasm_buffer.empty());
 
@@ -279,7 +283,8 @@ TEST(WASPC_VALIDATION_DECODER, GET_CODE_1){
 
     std::vector<uint8_t> wasm_buffer;
     std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer, error);
+    wasm_buffer.resize(waspc::test::wasm::ReadFileSize("sample1.wasm"));
+    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer.data(), error);
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
     ASSERT_FALSE(wasm_buffer.empty());
 

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "utils/leb128.h"
+#include "decoder/leb128.h"
 #include "decoder/wasm_decoder.h"
 #include "../wasm/file_reader.h"
 
@@ -8,7 +8,8 @@
 #define LOAD_WASM_FILE(filename, index, buf, len, buf_end)       \
     std::vector<uint8_t> index;                                  \
     std::string error;                                           \
-    bool ok = waspc::test::wasm::ReadFileContent(filename, index, error); \
+    index.resize(waspc::test::wasm::ReadFileSize(filename));           \
+    bool ok = waspc::test::wasm::ReadFileContent(filename, index.data(), error); \
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;        \
     ASSERT_FALSE(index.empty());                                 \
     const uint8_t *buf = index.data();                           \

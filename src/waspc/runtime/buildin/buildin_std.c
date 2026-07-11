@@ -1,7 +1,7 @@
 #include "objects/object.h"
 #include "runtime/buildin/buildin.h"
 #include "runtime/buildin/std.h"
-#include "utils/hash_table_host_func.h"
+#include "runtime/buildin/hash_table_host_func.h"
 
 extern const HtHostFuncEntry host_func_entries_std[96] = {
     [0] = {"\0", {WP_OBJECT_FUNCTION_BUILDIN, NULL, NULL}}, // Sentinel entry to mark the end of the array  

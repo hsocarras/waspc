@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "utils/leb128.h"
+#include "decoder/leb128.h"
 #include "decoder/wasm_decoder.h"
 #include "objects/module_state.h"
 #include "objects/module_instance.h"
@@ -30,7 +30,8 @@ TEST(WASPC_VALIDATION_DECODER, GET_MEMORY_1){
     //read sample wasm file into a buffer
     std::vector<uint8_t> wasm_buffer;
     std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample2.wasm", wasm_buffer, error);
+    wasm_buffer.resize(waspc::test::wasm::ReadFileSize("sample2.wasm"));
+    bool ok = waspc::test::wasm::ReadFileContent("sample2.wasm", wasm_buffer.data(), error);
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
     ASSERT_FALSE(wasm_buffer.empty());
 

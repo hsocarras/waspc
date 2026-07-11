@@ -13,7 +13,8 @@ TEST(WASPC_VALIDATION_VALIDATOR, VALIDATE_SECTION_BY_ID) {
     //load sammple wasm file into a buffer
     std::vector<uint8_t> wasm_buffer;
     std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer, error);
+    wasm_buffer.resize(waspc::test::wasm::ReadFileSize("sample1.wasm"));
+    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer.data(), error);
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
     ASSERT_FALSE(wasm_buffer.empty());
 

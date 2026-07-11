@@ -1,4 +1,4 @@
-#include "utils/hash_table_host_func.h"
+#include "runtime/buildin/hash_table_host_func.h"
 
 #include <assert.h>
 

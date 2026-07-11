@@ -55,7 +55,7 @@ typedef struct WpFunctionInstance {
     struct WpModuleInstance *module;
     
     //Destructure type
-    WpWasDefType *func_type;                 /// pointer to the function type in store.
+    const WpWasDefType *func_type;                 /// pointer to the function type in store.
 
     /// @brief code.    
     const uint8_t * locals;             /// pointer to locals start in binary file, it can be used to get the local types without decode them into WasmValueType.

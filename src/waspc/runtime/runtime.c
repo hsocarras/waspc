@@ -10,8 +10,7 @@
  */
 
 #include "runtime/runtime.h"
-#include "utils/leb128.h"
-#include "utils/hash_table_host_func.h"
+#include "decoder/leb128.h"
 #include "webassembly/bin.h"
 
 #include <assert.h>
@@ -42,7 +41,7 @@ static WpObject *WpRuntimerResolveImport(WpRuntimeState *self, WasmBinImport imp
     {   
        
         //Check if the import name is in the buildin host functions hash table
-        WpBuildinFunction *host_func = HashTableHostFuncGet(&self->host_funcs_std, (const char *)import.name, import.name_len);
+        const WpBuildinFunction *host_func = HashTableHostFuncGet(&self->host_funcs_std, (const char *)import.name, import.name_len);
         if (!host_func)
         {   
             self->err.id = __LINE__;    //TODO
@@ -146,8 +145,15 @@ void WpRuntimeInit(WpRuntimeState *self)
     self->value_stack_size = 0;
     self->call_stack = NULL;
     self->call_stack_size = 0;
-    WpStoreInit(&self->store); //
-    HashTableModulesInit(&self->modules); // Initialize hash table with zero capacity, will be set later
+    WpStoreInit(&self->store); 
+    /// Init load memory /////////////////////////////////////////////////////////////////////////////////////
+    self->modules.buffer = NULL;
+    self->modules.buffer_size = 0;
+    self->modules.cursor = 0;
+    self->modules.entries = NULL;
+    self->modules.capacity = 0;
+    self->modules.length = 0;
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //Init hash table for host functions
     self->host_funcs_std.entries = host_func_entries_std;
     self->host_funcs_std.capacity = 96;
@@ -179,26 +185,9 @@ uint32_t WpRuntimeSetMemoryStore(WpRuntimeState *self, uint8_t *mem, uint32_t me
     return 0;
 }
 
-uint32_t WpRuntimeSetMemoryHashTable(WpRuntimeState *self, HtModuleEntry *mods, uint32_t entries)
-{
-    if (!mods || entries == 0)
-    {
-        self->err.id = 30;
-        return 1;
-    }
-    self->modules.entries = mods;
-    self->modules.capacity = entries;
-
-    // Initialize entries
-    for (int i = 0; i < entries; i++)
-    {
-        mods[i].key[0] = '\0';
-        WpModuleStateInit(&mods[i].module);
-    }
-
-    self->modules.length = 0;
-
-    return 0;
+uint32_t WpRuntimeSetLoadMemory(WpRuntimeState *self, uint8_t *buffer, uint32_t buffer_size, HtModuleEntry *entries, uint32_t capacity)
+{    
+    return WpLoadMemoryInit(&self->modules, buffer, buffer_size, entries, capacity);
 }
 
 uint32_t WpRuntimeSetMemoryData(WpRuntimeState *self, uint8_t *data, uint32_t data_size)

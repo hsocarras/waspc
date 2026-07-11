@@ -4,7 +4,6 @@
  */
 
  #include "decoder/wasm_decoder.h"
- #include "utils/leb128.h"
 
  #include <assert.h>
  #include <string.h>

@@ -16,6 +16,8 @@
     extern "C" {
 #endif
 
+#include "leb128.h"
+#include "ieee_754.h"
 #include "webassembly/bin.h"
 #include "interpreter/values.h"
 

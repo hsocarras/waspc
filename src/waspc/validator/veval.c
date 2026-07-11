@@ -13,8 +13,8 @@
 #include "decoder/wasm_decoder.h"
 #include "interpreter/values.h"
 #include "webassembly/instructions.h"
-#include "utils/leb128.h"
-#include "utils/ieee_754.h"
+#include "decoder/leb128.h"
+#include "decoder/ieee_754.h"
 
 #include <stdint.h>
 

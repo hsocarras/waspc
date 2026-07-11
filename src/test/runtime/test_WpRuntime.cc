@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
-#include "objects/module.h"
+#include "objects/module_state.h"
+#include "objects/module_instance.h"
 #include "interpreter/values.h"
 #include "runtime/runtime.h"
 #include "../wasm/file_reader.h"
@@ -24,7 +25,8 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_CREATE_MODULE_FROM_BIN_FILE) {
     //load sammple wasm file into a buffer
     std::vector<uint8_t> wasm_buffer;
     std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer, error);
+    wasm_buffer.resize(waspc::test::wasm::ReadFileSize("sample1.wasm"));
+    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer.data(), error);
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
     ASSERT_FALSE(wasm_buffer.empty());
 
@@ -40,7 +42,7 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_CREATE_MODULE_FROM_BIN_FILE) {
     };
 
     WpModuleState mod_state;
-    WpModuleInit(&mod_state);
+    WpModuleStateInit(&mod_state);
 
     WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, &mod_state, bin_file);
     ASSERT_NE(result, nullptr) << "WpRuntimeCreateModuleFromBinFile returned null";
@@ -52,7 +54,8 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_VALIDATE_MODULE) {
     //load sammple wasm file into a buffer
     std::vector<uint8_t> wasm_buffer;
     std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer, error);
+    wasm_buffer.resize(waspc::test::wasm::ReadFileSize("sample1.wasm"));
+    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer.data(), error);
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
     ASSERT_FALSE(wasm_buffer.empty());
 
@@ -75,7 +78,7 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_VALIDATE_MODULE) {
     };
 
     WpModuleState mod_state;
-    WpModuleInit(&mod_state);
+    WpModuleStateInit(&mod_state);
 
     WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, &mod_state, bin_file);
     
@@ -99,7 +102,8 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INSTANTIATE_MODULE) {
     //load sammple wasm file into a buffer
     std::vector<uint8_t> wasm_buffer;
     std::string error;
-    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer, error);
+    wasm_buffer.resize(waspc::test::wasm::ReadFileSize("sample1.wasm"));
+    bool ok = waspc::test::wasm::ReadFileContent("sample1.wasm", wasm_buffer.data(), error);
     ASSERT_TRUE(ok) << "ReadFileContent falló: " << error;
     ASSERT_FALSE(wasm_buffer.empty());
 
@@ -123,11 +127,11 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INSTANTIATE_MODULE) {
     };
 
     WpModuleState mod_state;
-    WpModuleInit(&mod_state);
+    WpModuleStateInit(&mod_state);
 
-    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, &mod_state, bin_file);
+    WpObject *result = WpRuntimeCreateModuleFromBinFile(&runtime, bin_file, "test_module");
 
-    result = WpRuntimeInstanciateModule(&runtime, &mod_state, NULL, 0);
+    result = WpRuntimeInstanciateModule(&runtime, &mod_state);
     // Check if the result is not null
     ASSERT_NE(result, nullptr) << "WpRuntimeInstantiateModule returned null";
     if(result->wp_type == WP_OBJECT_ERROR) {
@@ -136,7 +140,7 @@ TEST(WASPC_RUNTIME_RUNTIME, RUNTIME_INSTANTIATE_MODULE) {
     }
     // Check if the result is a module state object 
     ASSERT_EQ(result->wp_type, WP_OBJECT_MODULE_STATE) << "WpRuntimeInstantiateModule did not return a WpModuleState object";
-    WpModuleState *instantiated_module = (WpModuleState *)result;
+    WpModuleInstance *instantiated_module = (WpModuleState *)result;
     // Check if the module status is instantiated
     ASSERT_EQ(instantiated_module->status, WP_MODULE_STATUS_VALIDATED) << "Module status is not WP_MODULE_STATUS_VALIDATED";
     ASSERT_EQ(instantiated_module->type_count, 1) << "Module type count is not 1";

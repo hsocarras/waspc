@@ -7,7 +7,7 @@
 
 #include "objects/object.h"
 #include "objects/was_deftype.h"
-#include "utils/hash_table_host_func.h"
+#include "hash_table_host_func.h"
 //#include "std.h"
 
 #include <stdint.h>

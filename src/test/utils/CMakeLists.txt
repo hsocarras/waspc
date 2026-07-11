@@ -23,7 +23,7 @@
 #   - Add new test source files to the add_executable() command as needed.
 #   - Run 'ctest' or use your IDE's test explorer to execute the tests.
 
-add_executable(tutils test_leb128.cc)
+add_executable(tutils test_hash_table.cc)
 target_link_libraries(tutils PRIVATE GTest::gtest_main utils)
 
 include(GoogleTest)
